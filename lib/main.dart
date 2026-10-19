@@ -630,7 +630,7 @@ void _showBossDefeat(BuildContext context) {
                 style: TextStyle(color: kTextSecondary)),
             const SizedBox(height: 14),
             Text('+$kBossXp XP   ·   +$kBossCoins coins',
-                style: const TextStyle(
+                style: TextStyle(
                     color: kPlasmaGlow, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Text(companionLine(appState.activeCompanion, 'boss_defeat'),
@@ -679,7 +679,7 @@ class _LevelHeader extends StatelessWidget {
               width: 52,
               height: 52,
               alignment: Alignment.center,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(colors: [kPlasma, kBlue]),
               ),
@@ -724,7 +724,7 @@ class _LevelHeader extends StatelessWidget {
               value: ld.progress.clamp(0.0, 1.0).toDouble(),
               minHeight: 9,
               backgroundColor: const Color(0x14FFFFFF),
-              valueColor: const AlwaysStoppedAnimation<Color>(kPlasmaBright),
+              valueColor: AlwaysStoppedAnimation<Color>(kPlasmaBright),
             ),
           ),
           const SizedBox(height: 6),
@@ -812,7 +812,7 @@ class _HabitTile extends StatelessWidget {
                       color: const Color(0x268B5CF6),
                       borderRadius: BorderRadius.circular(20)),
                   child: Text('🔥 ${habit.streak}',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: kPlasmaGlow, fontWeight: FontWeight.bold)),
                 )
               : null,
@@ -863,7 +863,7 @@ class _FocusScreenState extends State<FocusScreen> {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             backgroundColor: kElevated,
             content: Text('Focus complete! +$gain XP',
-                style: const TextStyle(color: kPlasmaGlow)),
+                style: TextStyle(color: kPlasmaGlow)),
           ));
         }
       } else {
@@ -1236,7 +1236,7 @@ void _showLevelUp(BuildContext context, int level) {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('⚡ LEVEL UP',
+            Text('⚡ LEVEL UP',
                 style: TextStyle(
                     color: kPlasmaGlow,
                     fontSize: 13,
@@ -1490,11 +1490,11 @@ class NutritionScreen extends StatelessWidget {
                       onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(
                               builder: (_) => const BodyProfileScreen())),
-                      icon: const Icon(Icons.person_rounded,
+                      icon: Icon(Icons.person_rounded,
                           size: 16, color: kPlasmaBright),
                       label: Text(
                           p == null ? 'Set body profile' : 'Edit profile',
-                          style: const TextStyle(color: kPlasmaBright)),
+                          style: TextStyle(color: kPlasmaBright)),
                     ),
                   ]),
                 ]),
@@ -1712,7 +1712,7 @@ class _CompanionCard extends StatelessWidget {
                             color: const Color(0x268B5CF6),
                             borderRadius: BorderRadius.circular(10)),
                         child: Text('Stage $stage',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: kPlasmaGlow,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold)),
@@ -2430,7 +2430,7 @@ class SettingsScreen extends StatelessWidget {
                     width: 56,
                     height: 56,
                     alignment: Alignment.center,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(colors: [kPlasma, kBlue])),
                     child: Text(initial,
@@ -2456,7 +2456,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                      icon: const Icon(Icons.edit,
+                      icon: Icon(Icons.edit,
                           color: kPlasmaBright, size: 18),
                       onPressed: () => _editName(context)),
                 ]),
@@ -2465,6 +2465,12 @@ class SettingsScreen extends StatelessWidget {
               _settingsTile(Icons.cloud_off_rounded, 'Cloud sync & sign-in',
                   'Local account — Apple/Supabase sign-in coming soon', null),
               _sectionLabel('PREFERENCES'),
+              _settingsTile(
+                  Icons.palette_rounded,
+                  'Appearance',
+                  'Pick an accent theme',
+                  () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const AppearanceScreen()))),
               _settingsTile(
                   Icons.person_rounded,
                   'Body profile',
@@ -2553,6 +2559,84 @@ Future<void> _confirmReset(BuildContext context) async {
   }
 }
 
+// ── APPEARANCE (themes) ──────────────────────────────────────────────────────
+Widget _swatch(Color c) => Container(
+      width: 22,
+      height: 22,
+      margin: const EdgeInsets.symmetric(horizontal: 3),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: c),
+    );
+
+class AppearanceScreen extends StatelessWidget {
+  const AppearanceScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            title: Text('Appearance',
+                style: GoogleFonts.spaceGrotesk(
+                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+          ),
+          body: GridView.count(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.3,
+            children: kThemes.map((t) {
+              final active = appState.themeId == t.id;
+              return GestureDetector(
+                onTap: () => appState.setTheme(t.id),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: kCard,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                        color: active ? t.accent : kBorder,
+                        width: active ? 2 : 1),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _swatch(t.accent),
+                          _swatch(t.bright),
+                          _swatch(t.glow),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(t.name,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: kTextPrimary, fontWeight: FontWeight.bold)),
+                      if (active) ...[
+                        const SizedBox(height: 4),
+                        const Text('ACTIVE',
+                            style: TextStyle(
+                                color: kCyan,
+                                fontSize: 10,
+                                letterSpacing: 1.5,
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+}
+
 // ── DAILY BRIEFING ───────────────────────────────────────────────────────────
 Widget _briefPanel(String tag, String title, Widget body) => Padding(
       padding: const EdgeInsets.all(28),
@@ -2618,7 +2702,7 @@ class _DailyBriefingState extends State<_DailyBriefing> {
             width: 72,
             height: 72,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(colors: [kPlasma, kBlue])),
             child: Text('${ld.level}',
@@ -2691,7 +2775,7 @@ class _DailyBriefingState extends State<_DailyBriefing> {
                         style: const TextStyle(
                             color: kTextSecondary, fontSize: 13))),
                 Text('+${q.xp}',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: kPlasmaGlow,
                         fontSize: 12,
                         fontWeight: FontWeight.bold)),

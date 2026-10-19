@@ -9,9 +9,10 @@ const kElevated = Color(0xFF140828);
 const kCard = Color(0xFF160A2E);
 const kSurfacePrimary = Color(0xFF0B0420);
 const kBorder = Color(0x14FFFFFF);
-const kPlasma = Color(0xFF8B5CF6);
-const kPlasmaBright = Color(0xFFA78BFA);
-const kPlasmaGlow = Color(0xFFC4B5FD);
+// Accent trio — mutable so appearance themes can swap them at runtime.
+Color kPlasma = const Color(0xFF8B5CF6);
+Color kPlasmaBright = const Color(0xFFA78BFA);
+Color kPlasmaGlow = const Color(0xFFC4B5FD);
 const kCyan = Color(0xFF22D3EE);
 const kGold = Color(0xFFFBBF24);
 const kBlue = Color(0xFF4F7CFF);
@@ -20,6 +21,41 @@ const kRed = Color(0xFFFB7185);
 const kTextPrimary = Color(0xFFF4F1FB);
 const kTextSecondary = Color(0x9EF4F1FB);
 const kTextTertiary = Color(0x73F4F1FB);
+
+// ── Appearance themes — swap the accent trio ────────────────────────────────
+class AppThemeDef {
+  const AppThemeDef(this.id, this.name, this.accent, this.bright, this.glow);
+  final String id;
+  final String name;
+  final Color accent;
+  final Color bright;
+  final Color glow;
+}
+
+const List<AppThemeDef> kThemes = [
+  AppThemeDef('violet', 'Habitrail Violet', Color(0xFF8B5CF6), Color(0xFFA78BFA),
+      Color(0xFFC4B5FD)),
+  AppThemeDef('tokyo', 'Neon Tokyo', Color(0xFFF472B6), Color(0xFFF9A8D4),
+      Color(0xFFFBCFE8)),
+  AppThemeDef('matrix', 'Matrix', Color(0xFF34D399), Color(0xFF6EE7B7),
+      Color(0xFFA7F3D0)),
+  AppThemeDef('solar', 'Solar Gold', Color(0xFFFBBF24), Color(0xFFFCD34D),
+      Color(0xFFFDE68A)),
+  AppThemeDef('crimson', 'Crimson', Color(0xFFFB7185), Color(0xFFFDA4AF),
+      Color(0xFFFECDD3)),
+  AppThemeDef('arctic', 'Arctic', Color(0xFF22D3EE), Color(0xFF67E8F9),
+      Color(0xFFA5F0FC)),
+];
+
+AppThemeDef themeById(String id) =>
+    kThemes.firstWhere((t) => t.id == id, orElse: () => kThemes.first);
+
+void applyThemeColors(String id) {
+  final t = themeById(id);
+  kPlasma = t.accent;
+  kPlasmaBright = t.bright;
+  kPlasmaGlow = t.glow;
+}
 
 // ── Progression — ported 1:1 from lib/progression.ts ────────────────────────
 const Map<int, String> kLevelTitles = {
@@ -358,6 +394,7 @@ class AppState extends ChangeNotifier {
   int _prevLevel = 1;
   String displayName = 'Player';
   String lastBriefingDate = '';
+  String themeId = 'violet';
 
   int get level => levelFromXp(totalXp).level;
   bool doneToday(Habit h) => h.lastCompletedDate == dateKey(DateTime.now());
@@ -400,6 +437,13 @@ class AppState extends ChangeNotifier {
 
   void markBriefingSeen() {
     lastBriefingDate = dateKey(DateTime.now());
+    notifyListeners();
+    _save();
+  }
+
+  void setTheme(String id) {
+    themeId = id;
+    applyThemeColors(id);
     notifyListeners();
     _save();
   }
@@ -562,7 +606,9 @@ class AppState extends ChangeNotifier {
       highestLevel = (m['highestLevel'] as int?) ?? 1;
       displayName = (m['displayName'] as String?) ?? 'Player';
       lastBriefingDate = (m['lastBriefingDate'] as String?) ?? '';
+      themeId = (m['themeId'] as String?) ?? 'violet';
     }
+    applyThemeColors(themeId);
     final today = dateKey(DateTime.now());
     if (focusDateKey != today) {
       focusDateKey = today;
@@ -629,6 +675,7 @@ class AppState extends ChangeNotifier {
           'highestLevel': highestLevel,
           'displayName': displayName,
           'lastBriefingDate': lastBriefingDate,
+          'themeId': themeId,
         }));
   }
 

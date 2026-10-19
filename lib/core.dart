@@ -122,6 +122,46 @@ double comboMultiplier(int consecutive) {
   return 1.0;
 }
 
+/// Deterministically infers a habit's difficulty (→ rarity → XP) from its name.
+/// Harder/effortful habits earn more; easy ones earn the base amount.
+String inferRarity(String name) {
+  final n = name.toLowerCase();
+  const legendary = [
+    'marathon', 'fasting', 'cold shower', 'cold plunge', '5am', 'no sugar',
+    'no alcohol', 'quit ', 'deep work', 'wake up early', 'sober'
+  ];
+  const epic = [
+    'workout', 'exercise', 'gym', 'run', 'lift', 'train', 'study', 'code',
+    'coding', 'practice', 'meditat', 'write', 'swim', 'yoga', 'hiit',
+    'push-up', 'pushup', 'cardio'
+  ];
+  const rare = [
+    'read', 'walk', 'journal', 'stretch', 'plan', 'review', 'language',
+    'steps', 'meal prep', 'cook', 'clean', 'tidy'
+  ];
+  for (final k in legendary) {
+    if (n.contains(k)) return 'legendary';
+  }
+  for (final k in epic) {
+    if (n.contains(k)) return 'epic';
+  }
+  for (final k in rare) {
+    if (n.contains(k)) return 'rare';
+  }
+  // A larger number in the name implies more effort (e.g. "Run 10km", "Read 50 pages").
+  final mt = RegExp(r'(\d+)').firstMatch(n);
+  if (mt != null) {
+    final v = int.tryParse(mt.group(1) ?? '') ?? 0;
+    if (v >= 45) return 'epic';
+    if (v >= 20) return 'rare';
+  }
+  return 'common';
+}
+
+/// Rough XP for one completion at this difficulty (no streak/combo yet).
+int estimatedXp(String rarity) =>
+    (100 * (rarityConfig[rarity]?.mult ?? 1.0) * 0.2).floor();
+
 String dateKey(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -159,6 +199,7 @@ class Habit {
     this.streak = 0,
     this.lastCompletedDate,
     this.todayAwardXp = 0,
+    this.icon = '',
   });
 
   final String id;
@@ -168,6 +209,7 @@ class Habit {
   int streak;
   String? lastCompletedDate;
   int todayAwardXp;
+  String icon;
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -177,6 +219,7 @@ class Habit {
         'streak': streak,
         'lastCompletedDate': lastCompletedDate,
         'todayAwardXp': todayAwardXp,
+        'icon': icon,
       };
 
   factory Habit.fromMap(Map<String, dynamic> m) => Habit(
@@ -187,6 +230,7 @@ class Habit {
         streak: (m['streak'] as int?) ?? 0,
         lastCompletedDate: m['lastCompletedDate'] as String?,
         todayAwardXp: (m['todayAwardXp'] as int?) ?? 0,
+        icon: (m['icon'] as String?) ?? '',
       );
 }
 
@@ -452,10 +496,10 @@ class AppState extends ChangeNotifier {
     habits
       ..clear()
       ..addAll([
-        Habit(id: newId(), name: 'Drink water'),
-        Habit(id: newId(), name: 'Read 10 pages', rarity: 'rare'),
-        Habit(id: newId(), name: 'Exercise', rarity: 'epic'),
-        Habit(id: newId(), name: 'Sleep 7h+'),
+        Habit(id: newId(), name: 'Drink water', icon: '💧'),
+        Habit(id: newId(), name: 'Read 10 pages', rarity: 'rare', icon: '📖'),
+        Habit(id: newId(), name: 'Exercise', rarity: 'epic', icon: '🏋️'),
+        Habit(id: newId(), name: 'Sleep 7h+', icon: '😴'),
       ]);
     reflections.clear();
     foodLog.clear();
@@ -577,10 +621,10 @@ class AppState extends ChangeNotifier {
             .map((e) => Habit.fromMap(e as Map<String, dynamic>)));
     } else {
       habits.addAll([
-        Habit(id: newId(), name: 'Drink water'),
-        Habit(id: newId(), name: 'Read 10 pages', rarity: 'rare'),
-        Habit(id: newId(), name: 'Exercise', rarity: 'epic'),
-        Habit(id: newId(), name: 'Sleep 7h+'),
+        Habit(id: newId(), name: 'Drink water', icon: '💧'),
+        Habit(id: newId(), name: 'Read 10 pages', rarity: 'rare', icon: '📖'),
+        Habit(id: newId(), name: 'Exercise', rarity: 'epic', icon: '🏋️'),
+        Habit(id: newId(), name: 'Sleep 7h+', icon: '😴'),
       ]);
     }
     final meta = prefs.getString(_metaKey);
@@ -829,9 +873,17 @@ class AppState extends ChangeNotifier {
     return level;
   }
 
-  void addHabit(String name, String rarity) {
-    habits.add(Habit(id: newId(), name: name, rarity: rarity));
+  void addHabit(String name, String rarity, [String icon = '']) {
+    habits.add(Habit(id: newId(), name: name, rarity: rarity, icon: icon));
     _afterAction();
+  }
+
+  void editHabit(Habit h, {String? name, String? rarity, String? icon}) {
+    if (name != null) h.name = name;
+    if (rarity != null) h.rarity = rarity;
+    if (icon != null) h.icon = icon;
+    notifyListeners();
+    _save();
   }
 
   void deleteHabit(Habit h) {

@@ -154,7 +154,7 @@ class _HomeShellState extends State<HomeShell> {
   Widget? _fab() {
     if (_index == 0) {
       return FloatingActionButton.extended(
-        onPressed: () => showAddHabit(context),
+        onPressed: () => showHabitEditor(context),
         backgroundColor: kPlasma,
         icon: const Icon(Icons.add),
         label: const Text('Add habit'),
@@ -409,6 +409,7 @@ class HomeScreen extends StatelessWidget {
                     done: appState.doneToday(h),
                     onToggle: () => onToggle(h),
                     onDelete: () => appState.deleteHabit(h),
+                    onEdit: () => showHabitEditor(context, h),
                   ),
                 )),
         ],
@@ -742,11 +743,13 @@ class _HabitTile extends StatelessWidget {
     required this.done,
     required this.onToggle,
     required this.onDelete,
+    required this.onEdit,
   });
   final Habit habit;
   final bool done;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -774,6 +777,7 @@ class _HabitTile extends StatelessWidget {
         ),
         child: ListTile(
           onTap: onToggle,
+          onLongPress: onEdit,
           leading: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             width: 30,
@@ -788,7 +792,8 @@ class _HabitTile extends StatelessWidget {
                 ? const Icon(Icons.check, size: 18, color: Colors.white)
                 : null,
           ),
-          title: Text(habit.name,
+          title: Text(
+              habit.icon.isEmpty ? habit.name : '${habit.icon}  ${habit.name}',
               style: TextStyle(
                 color: done ? kTextTertiary : kTextPrimary,
                 decoration: done ? TextDecoration.lineThrough : null,
@@ -1273,57 +1278,143 @@ void _showLevelUp(BuildContext context, int level) {
   );
 }
 
-Future<void> showAddHabit(BuildContext context) async {
-  final controller = TextEditingController();
-  String rarity = 'common';
-  final result = await showDialog<Map<String, String>>(
+Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
+  final controller = TextEditingController(text: existing?.name ?? '');
+  String rarity = existing?.rarity ?? inferRarity(controller.text);
+  bool autoRarity = existing == null; // auto-decide XP until the user overrides
+  String icon = existing?.icon ?? '';
+  const emojis = [
+    '💧', '📖', '🏋️', '😴', '🧘', '🏃', '🥗', '💻',
+    '🎯', '✍️', '🎸', '☀️', '🧠', '💰', '🌱', '🚭'
+  ];
+  await showModalBottomSheet<void>(
     context: context,
+    backgroundColor: kCard,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setLocal) => AlertDialog(
-        backgroundColor: kCard,
-        title: const Text('New habit', style: TextStyle(color: kTextPrimary)),
-        content: Column(
+      builder: (ctx, setLocal) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(existing == null ? 'New habit' : 'Edit habit',
+                style: GoogleFonts.spaceGrotesk(
+                    color: kTextPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 14),
             TextField(
               controller: controller,
-              autofocus: true,
+              autofocus: existing == null,
               style: const TextStyle(color: kTextPrimary),
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(hintText: 'e.g. Meditate 5 min'),
+              decoration: const InputDecoration(hintText: 'e.g. Meditate 10 min'),
+              onChanged: (v) {
+                if (autoRarity) setLocal(() => rarity = inferRarity(v));
+              },
             ),
             const SizedBox(height: 14),
+            const Text('Icon',
+                style: TextStyle(color: kTextTertiary, fontSize: 12)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: emojis.map((e) {
+                final sel = e == icon;
+                return GestureDetector(
+                  onTap: () => setLocal(() => icon = sel ? '' : e),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                        color: sel ? kPlasma : kElevated,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: sel ? kPlasma : kBorder)),
+                    child: Text(e, style: const TextStyle(fontSize: 20)),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: kElevated,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: kBorder)),
+              child: Row(children: [
+                Icon(Icons.auto_awesome_rounded,
+                    size: 16,
+                    color: rarityConfig[rarity]?.color ?? kTextTertiary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                      '${autoRarity ? "Auto difficulty" : "Difficulty"}: ${rarityConfig[rarity]?.label ?? rarity} · ~${estimatedXp(rarity)} XP / day',
+                      style:
+                          const TextStyle(color: kTextSecondary, fontSize: 12)),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 10),
             DropdownButtonFormField<String>(
+              key: ValueKey('rarity-$rarity-$autoRarity'),
               initialValue: rarity,
               dropdownColor: kElevated,
-              decoration: const InputDecoration(labelText: 'Rarity (XP bonus)'),
+              decoration: const InputDecoration(labelText: 'Adjust difficulty'),
               items: rarityConfig.entries
-                  .map((e) => DropdownMenuItem(
-                        value: e.key,
-                        child: Text('${e.value.label}  ×${e.value.mult}',
-                            style: TextStyle(color: e.value.color)),
+                  .map((en) => DropdownMenuItem(
+                        value: en.key,
+                        child: Text('${en.value.label}  ×${en.value.mult}',
+                            style: TextStyle(color: en.value.color)),
                       ))
                   .toList(),
-              onChanged: (v) => setLocal(() => rarity = v ?? 'common'),
+              onChanged: (v) => setLocal(() {
+                rarity = v ?? rarity;
+                autoRarity = false;
+              }),
             ),
+            const SizedBox(height: 18),
+            Row(children: [
+              if (existing != null)
+                TextButton.icon(
+                    onPressed: () {
+                      appState.deleteHabit(existing);
+                      Navigator.pop(ctx);
+                    },
+                    icon: const Icon(Icons.delete_outline, color: kRed),
+                    label:
+                        const Text('Delete', style: TextStyle(color: kRed))),
+              const Spacer(),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: kPlasma),
+                onPressed: () {
+                  final name = controller.text.trim();
+                  if (name.isEmpty) {
+                    Navigator.pop(ctx);
+                    return;
+                  }
+                  if (existing == null) {
+                    appState.addHabit(name, rarity, icon);
+                  } else {
+                    appState.editHabit(existing,
+                        name: name, rarity: rarity, icon: icon);
+                  }
+                  Navigator.pop(ctx);
+                },
+                child: Text(existing == null ? 'Add' : 'Save'),
+              ),
+            ]),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: kPlasma),
-            onPressed: () => Navigator.pop(
-                ctx, {'name': controller.text.trim(), 'rarity': rarity}),
-            child: const Text('Add'),
-          ),
-        ],
       ),
     ),
   );
-  final name = result?['name'] ?? '';
-  if (name.isNotEmpty) appState.addHabit(name, result!['rarity']!);
 }
 
 Future<void> showAddReflection(BuildContext context) async {

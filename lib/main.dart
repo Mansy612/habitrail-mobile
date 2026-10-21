@@ -167,14 +167,6 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   bool _briefingChecked = false;
 
-  static const _screens = [
-    HomeScreen(),
-    FocusScreen(),
-    StatsScreen(),
-    AwardsScreen(),
-    JournalScreen(),
-  ];
-
   Widget? _fab() {
     if (_index == 0) {
       return FloatingActionButton.extended(
@@ -215,11 +207,16 @@ class _HomeShellState extends State<HomeShell> {
             );
           });
         }
+        // Build fresh instances each time so the screens reflect state changes.
+        // (A const list would canonicalize them and Flutter would skip rebuilds,
+        // which is why completed habits weren't showing their checked state.)
+        // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
+        final screens = <Widget>[HomeScreen(), FocusScreen(), StatsScreen(), AwardsScreen(), JournalScreen()];
         return Scaffold(
           body: Stack(
             children: [
               const Positioned.fill(child: _ParticleBackground()),
-              IndexedStack(index: _index, children: _screens),
+              IndexedStack(index: _index, children: screens),
             ],
           ),
           floatingActionButton: _fab(),
@@ -388,10 +385,13 @@ class HomeScreen extends StatelessWidget {
     void onToggle(Habit h) {
       final old = appState.level;
       final oldStreak = h.streak;
+      final doneBefore = appState.doneTodayCount;
+      final total = appState.habits.length;
       appState.toggle(h);
       final who = appState.activeCompanion;
       if (appState.consumeBossDefeat()) {
         appState.setCompanionLine(companionLine(who, 'boss_defeat'));
+        celebrate(context);
         if (appState.consumeSeasonIntro()) {
           _showSeasonIntro(context);
         } else {
@@ -399,13 +399,20 @@ class HomeScreen extends StatelessWidget {
         }
       } else if (appState.level > old) {
         appState.setCompanionLine(companionLine(who, 'level_up'));
+        celebrate(context);
         _showLevelUp(context, appState.level);
-      } else if (h.streak == 30 && oldStreak != 30) {
-        appState.setCompanionLine(companionLine(who, 'streak_30'));
-      } else if (h.streak == 7 && oldStreak != 7) {
-        appState.setCompanionLine(companionLine(who, 'streak_7'));
-      } else if (appState.victory().score >= 90) {
-        appState.setCompanionLine(companionLine(who, 'elite_day'));
+      } else {
+        if (h.streak == 30 && oldStreak != 30) {
+          appState.setCompanionLine(companionLine(who, 'streak_30'));
+        } else if (h.streak == 7 && oldStreak != 7) {
+          appState.setCompanionLine(companionLine(who, 'streak_7'));
+        } else if (appState.victory().score >= 90) {
+          appState.setCompanionLine(companionLine(who, 'elite_day'));
+        }
+        // A perfect day just completed → a little confetti.
+        if (total > 0 && doneBefore < total && appState.doneTodayCount == total) {
+          celebrate(context);
+        }
       }
     }
 
@@ -1010,7 +1017,8 @@ class StatsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: _titleBar('Stats'),
-      body: Column(
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 96),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -1045,18 +1053,19 @@ class StatsScreen extends StatelessWidget {
             ),
           ),
           const _WeekTrendCard(),
-          Expanded(
-            child: GridView.count(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.5,
-              children: stats
-                  .map((s) => _StatCard(
-                      label: s.$1, value: s.$2, color: s.$3, icon: s.$4))
-                  .toList(),
-            ),
+          const _HeatmapCard(),
+          GridView.count(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.5,
+            children: stats
+                .map((s) => _StatCard(
+                    label: s.$1, value: s.$2, color: s.$3, icon: s.$4))
+                .toList(),
           ),
         ],
       ),
@@ -2832,6 +2841,171 @@ class ShopScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// ── CONFETTI ─────────────────────────────────────────────────────────────────
+void celebrate(BuildContext context) {
+  final overlay = Overlay.of(context);
+  late OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (_) => Positioned.fill(
+      child: _Confetti(onDone: () => entry.remove()),
+    ),
+  );
+  overlay.insert(entry);
+}
+
+class _Confo {
+  _Confo(this.x, this.vx, this.delay, this.rot, this.vr, this.color, this.size);
+  final double x, vx, delay, rot, vr, size;
+  final Color color;
+}
+
+class _Confetti extends StatefulWidget {
+  const _Confetti({required this.onDone});
+  final VoidCallback onDone;
+  @override
+  State<_Confetti> createState() => _ConfettiState();
+}
+
+class _ConfettiState extends State<_Confetti>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  final List<_Confo> _p = [];
+
+  @override
+  void initState() {
+    super.initState();
+    final r = Random();
+    final colors = [
+      kPlasma, kCyan, kGold, const Color(0xFFF472B6), kGreen, kBlue
+    ];
+    for (int i = 0; i < 80; i++) {
+      _p.add(_Confo(
+        r.nextDouble(),
+        (r.nextDouble() - 0.5) * 0.4,
+        r.nextDouble() * 0.25,
+        r.nextDouble() * 6.28,
+        (r.nextDouble() - 0.5) * 10,
+        colors[r.nextInt(colors.length)],
+        6 + r.nextDouble() * 7,
+      ));
+    }
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1900))
+      ..addStatusListener((s) {
+        if (s == AnimationStatus.completed) widget.onDone();
+      })
+      ..forward();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (_, _) => CustomPaint(
+            size: Size.infinite, painter: _ConfettiPainter(_p, _c.value)),
+      ),
+    );
+  }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter(this.ps, this.t);
+  final List<_Confo> ps;
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    for (final c in ps) {
+      final denom = 1 - c.delay;
+      final p = denom <= 0 ? t : (t - c.delay) / denom;
+      if (p <= 0) continue;
+      final pc = p.clamp(0.0, 1.0);
+      final y = (pc * pc * 0.5 + pc * 0.6) * size.height * 1.1;
+      final x = (c.x + c.vx * pc) * size.width;
+      paint.color = c.color.withValues(alpha: (1 - pc).clamp(0.0, 1.0));
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(c.rot + c.vr * t);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            Rect.fromCenter(
+                center: Offset.zero, width: c.size, height: c.size * 0.6),
+            const Radius.circular(1.5)),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) => old.t != t;
+}
+
+class _HeatmapCard extends StatelessWidget {
+  const _HeatmapCard();
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final todayK = dateKey(now);
+    const n = 35; // 5 weeks
+    final cells = <({int score, bool today})>[];
+    for (int i = n - 1; i >= 0; i--) {
+      final k = dateKey(now.subtract(Duration(days: i)));
+      cells.add((score: appState.dailyScore[k] ?? 0, today: k == todayK));
+    }
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+          color: kCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kBorder)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('ACTIVITY · LAST 5 WEEKS',
+              style: TextStyle(
+                  color: kTextTertiary,
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 7,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 6,
+            children: cells.map((c) {
+              final on = c.score > 0;
+              return Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: on
+                      ? victoryColor(c.score)
+                          .withValues(alpha: 0.25 + c.score / 100 * 0.75)
+                      : const Color(0x14FFFFFF),
+                  border: c.today
+                      ? Border.all(color: Colors.white, width: 1)
+                      : null,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 }

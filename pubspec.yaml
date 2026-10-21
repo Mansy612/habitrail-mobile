@@ -41,6 +41,9 @@ dependencies:
   # Matches the web app's fonts (Space Grotesk + Plus Jakarta Sans).
   google_fonts: ^6.2.1
 
+  # Desktop preview: size the window like a phone screen.
+  window_manager: ^0.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

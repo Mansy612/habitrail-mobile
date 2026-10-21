@@ -439,8 +439,12 @@ class AppState extends ChangeNotifier {
   String displayName = 'Player';
   String lastBriefingDate = '';
   String themeId = 'violet';
+  final Map<String, int> dailyScore = {}; // dateKey -> victory score
+  int streakShields = 0;
+  String? xpBoostDate; // 2x XP active while this == today
 
   int get level => levelFromXp(totalXp).level;
+  bool get xpBoostActive => xpBoostDate == dateKey(DateTime.now());
   bool doneToday(Habit h) => h.lastCompletedDate == dateKey(DateTime.now());
   int get doneTodayCount => habits.where(doneToday).length;
   int get bestStreak =>
@@ -490,6 +494,24 @@ class AppState extends ChangeNotifier {
     applyThemeColors(id);
     notifyListeners();
     _save();
+  }
+
+  bool buyXpBoost() {
+    if (xpBoostActive || coins < 150) return false;
+    coins -= 150;
+    xpBoostDate = dateKey(DateTime.now());
+    notifyListeners();
+    _save();
+    return true;
+  }
+
+  bool buyStreakShield() {
+    if (coins < 100) return false;
+    coins -= 100;
+    streakShields += 1;
+    notifyListeners();
+    _save();
+    return true;
   }
 
   void resetAll() {
@@ -611,6 +633,23 @@ class AppState extends ChangeNotifier {
     return c;
   }
 
+  List<({String label, int score, bool today})> weekTrend() {
+    const wd = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final now = DateTime.now();
+    final todayK = dateKey(now);
+    final out = <({String label, int score, bool today})>[];
+    for (int i = 6; i >= 0; i--) {
+      final d = now.subtract(Duration(days: i));
+      final k = dateKey(d);
+      out.add((
+        label: wd[(d.weekday - 1) % 7],
+        score: dailyScore[k] ?? 0,
+        today: k == todayK
+      ));
+    }
+    return out;
+  }
+
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_habitsKey);
@@ -651,6 +690,13 @@ class AppState extends ChangeNotifier {
       displayName = (m['displayName'] as String?) ?? 'Player';
       lastBriefingDate = (m['lastBriefingDate'] as String?) ?? '';
       themeId = (m['themeId'] as String?) ?? 'violet';
+      final ds = m['dailyScore'];
+      if (ds is Map) {
+        dailyScore.clear();
+        ds.forEach((k, v) => dailyScore[k as String] = (v as num).toInt());
+      }
+      streakShields = (m['streakShields'] as int?) ?? 0;
+      xpBoostDate = m['xpBoostDate'] as String?;
     }
     applyThemeColors(themeId);
     final today = dateKey(DateTime.now());
@@ -720,6 +766,9 @@ class AppState extends ChangeNotifier {
           'displayName': displayName,
           'lastBriefingDate': lastBriefingDate,
           'themeId': themeId,
+          'dailyScore': dailyScore,
+          'streakShields': streakShields,
+          'xpBoostDate': xpBoostDate,
         }));
   }
 
@@ -732,6 +781,11 @@ class AppState extends ChangeNotifier {
     }
     _prevLevel = nl;
     if (nl > highestLevel) highestLevel = nl;
+    dailyScore[dateKey(DateTime.now())] = victory().score;
+    if (dailyScore.length > 120) {
+      final cutoff = dateKey(DateTime.now().subtract(const Duration(days: 90)));
+      dailyScore.removeWhere((k, v) => k.compareTo(cutoff) < 0);
+    }
     notifyListeners();
     _save();
   }
@@ -850,11 +904,19 @@ class AppState extends ChangeNotifier {
       h.streak = h.streak > 0 ? h.streak - 1 : 0;
       h.lastCompletedDate = h.streak > 0 ? yesterday : null;
     } else {
-      h.streak = (h.lastCompletedDate == yesterday) ? h.streak + 1 : 1;
+      if (h.lastCompletedDate == yesterday) {
+        h.streak += 1;
+      } else if (h.lastCompletedDate != null && streakShields > 0) {
+        h.streak += 1; // streak shield bridges a missed day
+        streakShields -= 1;
+      } else {
+        h.streak = 1;
+      }
       h.lastCompletedDate = today;
       var gain = calculateXpGain(
           h.baseXp, h.rarity, h.streak, comboMultiplier(doneTodayCount));
       gain = (gain * (1 + 0.05 * prestige)).round(); // +5% XP per prestige star
+      if (xpBoostActive) gain *= 2; // 2x XP booster
       h.todayAwardXp = gain;
       totalXp += gain;
       coins += gain ~/ 5;

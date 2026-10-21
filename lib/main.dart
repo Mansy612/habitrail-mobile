@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:window_manager/window_manager.dart';
 import 'core.dart';
 
 /// Single shared state object for the whole app (loads immediately).
@@ -108,7 +111,28 @@ class _ParticlePainter extends CustomPainter {
   bool shouldRepaint(_ParticlePainter old) => old.t != t;
 }
 
-void main() => runApp(const HabitrailApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // On desktop, constrain the window to phone proportions so every screen and
+  // popup renders phone-shaped (mobile/web already size themselves).
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS)) {
+    await windowManager.ensureInitialized();
+    const opts = WindowOptions(
+      size: Size(400, 860),
+      minimumSize: Size(340, 640),
+      center: true,
+      title: 'Habitrail',
+    );
+    await windowManager.waitUntilReadyToShow(opts, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+  }
+  runApp(const HabitrailApp());
+}
 
 class HabitrailApp extends StatelessWidget {
   const HabitrailApp({super.key});
@@ -320,21 +344,35 @@ PreferredSizeWidget _titleBar(String title) {
               MaterialPageRoute(builder: (_) => const SettingsScreen())),
         ),
       ),
-      Container(
-        margin: const EdgeInsets.only(right: 14),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: kElevated,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kBorder),
+      Builder(
+        builder: (context) => GestureDetector(
+          onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ShopScreen())),
+          child: Container(
+            margin: const EdgeInsets.only(right: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: kElevated,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: kBorder),
+            ),
+            child: Row(children: [
+              if (appState.xpBoostActive) ...[
+                Text('2×',
+                    style: TextStyle(
+                        color: kPlasmaGlow,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12)),
+                const SizedBox(width: 6),
+              ],
+              const Icon(Icons.bolt, size: 16, color: kGold),
+              const SizedBox(width: 5),
+              Text('${appState.coins}',
+                  style: const TextStyle(
+                      color: kGold, fontWeight: FontWeight.bold)),
+            ]),
+          ),
         ),
-        child: Row(children: [
-          const Icon(Icons.bolt, size: 16, color: kGold),
-          const SizedBox(width: 5),
-          Text('${appState.coins}',
-              style:
-                  const TextStyle(color: kGold, fontWeight: FontWeight.bold)),
-        ]),
       ),
     ],
   );
@@ -1006,6 +1044,7 @@ class StatsScreen extends StatelessWidget {
               ),
             ),
           ),
+          const _WeekTrendCard(),
           Expanded(
             child: GridView.count(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
@@ -2657,6 +2696,212 @@ Widget _swatch(Color c) => Container(
       margin: const EdgeInsets.symmetric(horizontal: 3),
       decoration: BoxDecoration(shape: BoxShape.circle, color: c),
     );
+
+void _toast(BuildContext context, String msg) =>
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: kElevated));
+
+Widget _shopItem({
+  required IconData icon,
+  required Color color,
+  required String title,
+  required String desc,
+  required int cost,
+  required VoidCallback? onBuy,
+  String? activeLabel,
+}) {
+  return Container(
+    margin: const EdgeInsets.symmetric(vertical: 6),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+        color: kCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kBorder)),
+    child: Row(children: [
+      Container(
+        width: 44,
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+            shape: BoxShape.circle, color: color.withValues(alpha: 0.15)),
+        child: Icon(icon, color: color),
+      ),
+      const SizedBox(width: 14),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    color: kTextPrimary, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(desc,
+                style: const TextStyle(color: kTextTertiary, fontSize: 11)),
+          ],
+        ),
+      ),
+      const SizedBox(width: 10),
+      if (activeLabel != null)
+        Text(activeLabel,
+            style: const TextStyle(
+                color: kGreen, fontWeight: FontWeight.bold, fontSize: 11))
+      else
+        FilledButton(
+          style: FilledButton.styleFrom(
+              backgroundColor: onBuy == null ? kElevated : kPlasma,
+              foregroundColor: Colors.white),
+          onPressed: onBuy,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.bolt, size: 14, color: kGold),
+            const SizedBox(width: 3),
+            Text('$cost'),
+          ]),
+        ),
+    ]),
+  );
+}
+
+class ShopScreen extends StatelessWidget {
+  const ShopScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            title: Text('Shop',
+                style: GoogleFonts.spaceGrotesk(
+                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+          ),
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [Color(0xFF2A1458), Color(0xFF160B2E)]),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: kBorder)),
+                child: Row(children: [
+                  const Icon(Icons.bolt, color: kGold, size: 28),
+                  const SizedBox(width: 10),
+                  Text('${appState.coins}',
+                      style: GoogleFonts.spaceGrotesk(
+                          color: kGold,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(width: 8),
+                  const Text('coins', style: TextStyle(color: kTextSecondary)),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              _shopItem(
+                icon: Icons.bolt_rounded,
+                color: kGold,
+                title: '2× XP Booster',
+                desc: appState.xpBoostActive
+                    ? 'Active for the rest of today'
+                    : 'Double all XP you earn today',
+                cost: 150,
+                onBuy: appState.xpBoostActive
+                    ? null
+                    : () => _toast(
+                        context,
+                        appState.buyXpBoost()
+                            ? '2× XP active for today!'
+                            : 'Not enough coins'),
+                activeLabel: appState.xpBoostActive ? 'ACTIVE' : null,
+              ),
+              _shopItem(
+                icon: Icons.shield_rounded,
+                color: kCyan,
+                title: 'Streak Shield',
+                desc:
+                    'Saves a streak from one missed day · owned: ${appState.streakShields}',
+                cost: 100,
+                onBuy: () => _toast(
+                    context,
+                    appState.buyStreakShield()
+                        ? 'Streak Shield added!'
+                        : 'Not enough coins'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _WeekTrendCard extends StatelessWidget {
+  const _WeekTrendCard();
+  @override
+  Widget build(BuildContext context) {
+    final days = appState.weekTrend();
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+          color: kCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kBorder)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('THIS WEEK · VICTORY SCORE',
+              style: TextStyle(
+                  color: kTextTertiary,
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 100,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: days.map((d) {
+                final h = 6.0 + (d.score / 100) * 60;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text('${d.score}',
+                        style: const TextStyle(
+                            color: kTextTertiary, fontSize: 9)),
+                    const SizedBox(height: 3),
+                    Container(
+                      width: 22,
+                      height: h,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        color: victoryColor(d.score)
+                            .withValues(alpha: d.today ? 1 : 0.55),
+                        border: d.today
+                            ? Border.all(color: Colors.white, width: 1)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(d.label,
+                        style: TextStyle(
+                            color: d.today ? kTextPrimary : kTextTertiary,
+                            fontSize: 10,
+                            fontWeight:
+                                d.today ? FontWeight.bold : FontWeight.normal)),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class AppearanceScreen extends StatelessWidget {
   const AppearanceScreen({super.key});

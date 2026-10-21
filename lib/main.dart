@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core.dart';
+import 'ai.dart';
 
 /// Single shared state object for the whole app (loads immediately).
 final appState = AppState()..load();
@@ -1328,8 +1329,15 @@ void _showLevelUp(BuildContext context, int level) {
 
 Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
   final controller = TextEditingController(text: existing?.name ?? '');
-  String rarity = existing?.rarity ?? inferRarity(controller.text);
-  bool autoRarity = existing == null; // auto-decide XP until the user overrides
+  // The current difficulty decision — the AI (or heuristic) owns this; the user
+  // no longer picks it. It's frozen onto the habit when they tap Add/Save.
+  DifficultyVerdict verdict = existing != null
+      ? DifficultyVerdict(existing.rarity, existing.difficultyReason,
+          fromAi: existing.aiRated)
+      : heuristicVerdict(controller.text);
+  bool analyzing = false;
+  Timer? debounce;
+  int reqSeq = 0; // drops stale async results from earlier keystrokes
   String icon = existing?.icon ?? '';
   const emojis = [
     '💧', '📖', '🏋️', '😴', '🧘', '🏃', '🥗', '💻',
@@ -1342,126 +1350,191 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setLocal) => Padding(
-        padding: EdgeInsets.fromLTRB(
-            20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(existing == null ? 'New habit' : 'Edit habit',
-                style: GoogleFonts.spaceGrotesk(
-                    color: kTextPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              autofocus: existing == null,
-              style: const TextStyle(color: kTextPrimary),
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(hintText: 'e.g. Meditate 10 min'),
-              onChanged: (v) {
-                if (autoRarity) setLocal(() => rarity = inferRarity(v));
-              },
-            ),
-            const SizedBox(height: 14),
-            const Text('Icon',
-                style: TextStyle(color: kTextTertiary, fontSize: 12)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: emojis.map((e) {
-                final sel = e == icon;
-                return GestureDetector(
-                  onTap: () => setLocal(() => icon = sel ? '' : e),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                        color: sel ? kPlasma : kElevated,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: sel ? kPlasma : kBorder)),
-                    child: Text(e, style: const TextStyle(fontSize: 20)),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                  color: kElevated,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kBorder)),
-              child: Row(children: [
-                Icon(Icons.auto_awesome_rounded,
-                    size: 16,
-                    color: rarityConfig[rarity]?.color ?? kTextTertiary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                      '${autoRarity ? "Auto difficulty" : "Difficulty"}: ${rarityConfig[rarity]?.label ?? rarity} · ~${estimatedXp(rarity)} XP / day',
-                      style:
-                          const TextStyle(color: kTextSecondary, fontSize: 12)),
+      builder: (ctx, setLocal) {
+        // Re-rate the habit: show the instant heuristic now, then let the local
+        // Ollama model refine it shortly after the user stops typing.
+        void analyze(String name) {
+          debounce?.cancel();
+          final instant = heuristicVerdict(name);
+          if (name.trim().isEmpty || !appState.aiEnabled) {
+            setLocal(() {
+              verdict = instant;
+              analyzing = false;
+            });
+            return;
+          }
+          final seq = ++reqSeq;
+          setLocal(() {
+            verdict = instant;
+            analyzing = true;
+          });
+          debounce = Timer(const Duration(milliseconds: 650), () async {
+            final v = await classifyDifficulty(name,
+                enabled: appState.aiEnabled,
+                baseUrl: appState.aiBaseUrl,
+                model: appState.aiModel);
+            if (!ctx.mounted || seq != reqSeq) return;
+            setLocal(() {
+              verdict = v;
+              analyzing = false;
+            });
+          });
+        }
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(existing == null ? 'New habit' : 'Edit habit',
+                  style: GoogleFonts.spaceGrotesk(
+                      color: kTextPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                autofocus: existing == null,
+                style: const TextStyle(color: kTextPrimary),
+                textCapitalization: TextCapitalization.sentences,
+                decoration:
+                    const InputDecoration(hintText: 'e.g. Meditate 10 min'),
+                onChanged: analyze,
+              ),
+              const SizedBox(height: 14),
+              const Text('Icon',
+                  style: TextStyle(color: kTextTertiary, fontSize: 12)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: emojis.map((e) {
+                  final sel = e == icon;
+                  return GestureDetector(
+                    onTap: () => setLocal(() => icon = sel ? '' : e),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                          color: sel ? kPlasma : kElevated,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: sel ? kPlasma : kBorder)),
+                      child: Text(e, style: const TextStyle(fontSize: 20)),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              _difficultyCard(verdict, analyzing),
+              const SizedBox(height: 18),
+              Row(children: [
+                if (existing != null)
+                  TextButton.icon(
+                      onPressed: () {
+                        appState.deleteHabit(existing);
+                        Navigator.pop(ctx);
+                      },
+                      icon: const Icon(Icons.delete_outline, color: kRed),
+                      label: const Text('Delete',
+                          style: TextStyle(color: kRed))),
+                const Spacer(),
+                FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: kPlasma),
+                  onPressed: () {
+                    final name = controller.text.trim();
+                    if (name.isEmpty) {
+                      Navigator.pop(ctx);
+                      return;
+                    }
+                    debounce?.cancel();
+                    final v = verdict;
+                    if (existing == null) {
+                      appState.addHabit(name, v.rarity,
+                          icon: icon, aiRated: v.fromAi, reason: v.reason);
+                    } else {
+                      appState.editHabit(existing,
+                          name: name,
+                          rarity: v.rarity,
+                          icon: icon,
+                          aiRated: v.fromAi,
+                          reason: v.reason);
+                    }
+                    Navigator.pop(ctx);
+                  },
+                  child: Text(existing == null ? 'Add' : 'Save'),
                 ),
               ]),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              key: ValueKey('rarity-$rarity-$autoRarity'),
-              initialValue: rarity,
-              dropdownColor: kElevated,
-              decoration: const InputDecoration(labelText: 'Adjust difficulty'),
-              items: rarityConfig.entries
-                  .map((en) => DropdownMenuItem(
-                        value: en.key,
-                        child: Text('${en.value.label}  ×${en.value.mult}',
-                            style: TextStyle(color: en.value.color)),
-                      ))
-                  .toList(),
-              onChanged: (v) => setLocal(() {
-                rarity = v ?? rarity;
-                autoRarity = false;
-              }),
-            ),
-            const SizedBox(height: 18),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+  debounce?.cancel();
+}
+
+/// Shows the AI/heuristic difficulty verdict — the user can't change it.
+Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
+  final color = rarityConfig[v.rarity]?.color ?? kTextTertiary;
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+        color: kElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kBorder)),
+    child: Row(children: [
+      Icon(Icons.auto_awesome_rounded, size: 18, color: color),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(children: [
-              if (existing != null)
-                TextButton.icon(
-                    onPressed: () {
-                      appState.deleteHabit(existing);
-                      Navigator.pop(ctx);
-                    },
-                    icon: const Icon(Icons.delete_outline, color: kRed),
-                    label:
-                        const Text('Delete', style: TextStyle(color: kRed))),
-              const Spacer(),
-              FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: kPlasma),
-                onPressed: () {
-                  final name = controller.text.trim();
-                  if (name.isEmpty) {
-                    Navigator.pop(ctx);
-                    return;
-                  }
-                  if (existing == null) {
-                    appState.addHabit(name, rarity, icon);
-                  } else {
-                    appState.editHabit(existing,
-                        name: name, rarity: rarity, icon: icon);
-                  }
-                  Navigator.pop(ctx);
-                },
-                child: Text(existing == null ? 'Add' : 'Save'),
+              Flexible(
+                child: Text('${v.label} · ×${v.multiplier} · ~${estimatedXp(v.rarity)} XP',
+                    style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13)),
               ),
+              const SizedBox(width: 8),
+              _ratingChip(v, analyzing),
             ]),
+            const SizedBox(height: 3),
+            Text(
+                analyzing
+                    ? 'Reading your habit…'
+                    : (v.reason.isEmpty ? 'Difficulty set automatically' : v.reason),
+                style: const TextStyle(color: kTextSecondary, fontSize: 11)),
           ],
         ),
       ),
-    ),
+    ]),
+  );
+}
+
+Widget _ratingChip(DifficultyVerdict v, bool analyzing) {
+  if (analyzing) {
+    return SizedBox(
+      width: 13,
+      height: 13,
+      child: CircularProgressIndicator(strokeWidth: 2, color: kPlasmaBright),
+    );
+  }
+  final ai = v.fromAi;
+  final label = ai ? '🤖 AI' : '✨ Auto';
+  final c = ai ? kCyan : kTextTertiary;
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+    decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: c.withValues(alpha: 0.4))),
+    child: Text(label,
+        style: TextStyle(color: c, fontSize: 10, fontWeight: FontWeight.w700)),
   );
 }
 
@@ -2622,6 +2695,14 @@ class SettingsScreen extends StatelessWidget {
                   'Choose your active companion',
                   () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => const CompanionsScreen()))),
+              _settingsTile(
+                  Icons.auto_awesome_rounded,
+                  'AI difficulty',
+                  appState.aiEnabled
+                      ? 'Ollama rates new habits · ${appState.aiModel}'
+                      : 'Off — using the built-in estimate',
+                  () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const AiSettingsScreen()))),
               _sectionLabel('DATA'),
               _settingsTile(Icons.refresh_rounded, 'Reset all progress',
                   'Wipe habits, XP, and history',
@@ -2696,6 +2777,199 @@ Future<void> _confirmReset(BuildContext context) async {
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('Progress reset')));
   }
+}
+
+// ── AI DIFFICULTY (local Ollama) ─────────────────────────────────────────────
+class AiSettingsScreen extends StatefulWidget {
+  const AiSettingsScreen({super.key});
+  @override
+  State<AiSettingsScreen> createState() => _AiSettingsScreenState();
+}
+
+class _AiSettingsScreenState extends State<AiSettingsScreen> {
+  late final TextEditingController _url =
+      TextEditingController(text: appState.aiBaseUrl);
+  late final TextEditingController _model =
+      TextEditingController(text: appState.aiModel);
+  bool _testing = false;
+  bool _testOk = false;
+  String? _testResult;
+
+  @override
+  void dispose() {
+    _url.dispose();
+    _model.dispose();
+    super.dispose();
+  }
+
+  Future<void> _test() async {
+    // Save what's on screen, then test exactly that.
+    appState.setAiConfig(baseUrl: _url.text, model: _model.text);
+    setState(() {
+      _testing = true;
+      _testResult = null;
+    });
+    final r = await testOllama(_url.text, _model.text);
+    if (!mounted) return;
+    setState(() {
+      _testing = false;
+      _testOk = r.ok;
+      _testResult = r.message;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final on = appState.aiEnabled;
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            title: Text('AI difficulty',
+                style: GoogleFonts.spaceGrotesk(
+                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+          ),
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                    color: kCard,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: kBorder)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Icon(Icons.auto_awesome_rounded, color: kCyan, size: 20),
+                      const SizedBox(width: 8),
+                      Text('How it works',
+                          style: GoogleFonts.spaceGrotesk(
+                              color: kTextPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15)),
+                    ]),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'When you add a habit, a local AI model reads it and picks a '
+                      'difficulty — harder habits earn a bigger XP multiplier. The '
+                      'rating is locked in when the habit is created, so XP stays '
+                      'fair and the app still works offline (it falls back to a '
+                      'built-in estimate whenever the model isn\'t running).',
+                      style: TextStyle(
+                          color: kTextSecondary, fontSize: 12, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                    color: kCard,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: kBorder)),
+                child: SwitchListTile(
+                  value: on,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  title: const Text('Use Ollama',
+                      style: TextStyle(
+                          color: kTextPrimary, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Rate new habits with a local model',
+                      style: TextStyle(color: kTextTertiary, fontSize: 12)),
+                  onChanged: (v) => appState.setAiConfig(enabled: v),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _aiField('Server URL', _url, 'http://localhost:11434',
+                  enabled: on,
+                  onChanged: (v) => appState.setAiConfig(baseUrl: v)),
+              const SizedBox(height: 12),
+              _aiField('Model', _model, kDefaultAiModel,
+                  enabled: on, onChanged: (v) => appState.setAiConfig(model: v)),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                    backgroundColor: on ? kPlasma : kElevated,
+                    minimumSize: const Size.fromHeight(46)),
+                onPressed: on && !_testing ? _test : null,
+                icon: _testing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.wifi_tethering_rounded, size: 18),
+                label: Text(_testing ? 'Testing…' : 'Test connection'),
+              ),
+              if (_testResult != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: (_testOk ? kGreen : kRed).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: (_testOk ? kGreen : kRed)
+                              .withValues(alpha: 0.4))),
+                  child: Row(children: [
+                    Icon(_testOk ? Icons.check_circle_rounded : Icons.error_rounded,
+                        color: _testOk ? kGreen : kRed, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_testResult!,
+                          style: TextStyle(
+                              color: _testOk ? kGreen : kRed, fontSize: 12)),
+                    ),
+                  ]),
+                ),
+              ],
+              const SizedBox(height: 20),
+              _sectionLabel('SETUP'),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(4, 2, 4, 0),
+                child: Text(
+                  '1. Install Ollama from ollama.com\n'
+                  '2. Run:  ollama pull llama3.2\n'
+                  '3. Keep Ollama running while you add habits.\n\n'
+                  'On a real iPhone later, Ollama runs on your computer, not the '
+                  'phone — set the Server URL to your computer\'s address, e.g. '
+                  'http://192.168.1.20:11434, or leave AI off to use the built-in '
+                  'estimate.',
+                  style: TextStyle(
+                      color: kTextTertiary, fontSize: 12, height: 1.5),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+Widget _aiField(String label, TextEditingController c, String hint,
+    {required bool enabled, required ValueChanged<String> onChanged}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 6),
+        child: Text(label,
+            style: const TextStyle(color: kTextTertiary, fontSize: 12)),
+      ),
+      TextField(
+        controller: c,
+        enabled: enabled,
+        style: const TextStyle(color: kTextPrimary),
+        decoration: InputDecoration(hintText: hint),
+        onChanged: onChanged,
+      ),
+    ],
+  );
 }
 
 // ── APPEARANCE (themes) ──────────────────────────────────────────────────────

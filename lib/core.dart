@@ -162,6 +162,10 @@ String inferRarity(String name) {
 int estimatedXp(String rarity) =>
     (100 * (rarityConfig[rarity]?.mult ?? 1.0) * 0.2).floor();
 
+// ── AI difficulty rating (Ollama) defaults — see lib/ai.dart ────────────────
+const String kDefaultAiBaseUrl = 'http://localhost:11434';
+const String kDefaultAiModel = 'llama3.2';
+
 String dateKey(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -200,6 +204,8 @@ class Habit {
     this.lastCompletedDate,
     this.todayAwardXp = 0,
     this.icon = '',
+    this.aiRated = false,
+    this.difficultyReason = '',
   });
 
   final String id;
@@ -210,6 +216,8 @@ class Habit {
   String? lastCompletedDate;
   int todayAwardXp;
   String icon;
+  bool aiRated; // true = an AI model picked this difficulty
+  String difficultyReason; // short "why this difficulty" shown in the UI
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -220,6 +228,8 @@ class Habit {
         'lastCompletedDate': lastCompletedDate,
         'todayAwardXp': todayAwardXp,
         'icon': icon,
+        'aiRated': aiRated,
+        'difficultyReason': difficultyReason,
       };
 
   factory Habit.fromMap(Map<String, dynamic> m) => Habit(
@@ -231,6 +241,8 @@ class Habit {
         lastCompletedDate: m['lastCompletedDate'] as String?,
         todayAwardXp: (m['todayAwardXp'] as int?) ?? 0,
         icon: (m['icon'] as String?) ?? '',
+        aiRated: (m['aiRated'] as bool?) ?? false,
+        difficultyReason: (m['difficultyReason'] as String?) ?? '',
       );
 }
 
@@ -442,6 +454,10 @@ class AppState extends ChangeNotifier {
   final Map<String, int> dailyScore = {}; // dateKey -> victory score
   int streakShields = 0;
   String? xpBoostDate; // 2x XP active while this == today
+  // AI difficulty rating (local Ollama) — see lib/ai.dart.
+  bool aiEnabled = true;
+  String aiBaseUrl = kDefaultAiBaseUrl;
+  String aiModel = kDefaultAiModel;
 
   int get level => levelFromXp(totalXp).level;
   bool get xpBoostActive => xpBoostDate == dateKey(DateTime.now());
@@ -492,6 +508,14 @@ class AppState extends ChangeNotifier {
   void setTheme(String id) {
     themeId = id;
     applyThemeColors(id);
+    notifyListeners();
+    _save();
+  }
+
+  void setAiConfig({bool? enabled, String? baseUrl, String? model}) {
+    if (enabled != null) aiEnabled = enabled;
+    if (baseUrl != null) aiBaseUrl = baseUrl.trim();
+    if (model != null) aiModel = model.trim();
     notifyListeners();
     _save();
   }
@@ -697,6 +721,9 @@ class AppState extends ChangeNotifier {
       }
       streakShields = (m['streakShields'] as int?) ?? 0;
       xpBoostDate = m['xpBoostDate'] as String?;
+      aiEnabled = (m['aiEnabled'] as bool?) ?? true;
+      aiBaseUrl = (m['aiBaseUrl'] as String?) ?? kDefaultAiBaseUrl;
+      aiModel = (m['aiModel'] as String?) ?? kDefaultAiModel;
     }
     applyThemeColors(themeId);
     final today = dateKey(DateTime.now());
@@ -769,6 +796,9 @@ class AppState extends ChangeNotifier {
           'dailyScore': dailyScore,
           'streakShields': streakShields,
           'xpBoostDate': xpBoostDate,
+          'aiEnabled': aiEnabled,
+          'aiBaseUrl': aiBaseUrl,
+          'aiModel': aiModel,
         }));
   }
 
@@ -935,15 +965,30 @@ class AppState extends ChangeNotifier {
     return level;
   }
 
-  void addHabit(String name, String rarity, [String icon = '']) {
-    habits.add(Habit(id: newId(), name: name, rarity: rarity, icon: icon));
+  void addHabit(String name, String rarity,
+      {String icon = '', bool aiRated = false, String reason = ''}) {
+    habits.add(Habit(
+      id: newId(),
+      name: name,
+      rarity: rarity,
+      icon: icon,
+      aiRated: aiRated,
+      difficultyReason: reason,
+    ));
     _afterAction();
   }
 
-  void editHabit(Habit h, {String? name, String? rarity, String? icon}) {
+  void editHabit(Habit h,
+      {String? name,
+      String? rarity,
+      String? icon,
+      bool? aiRated,
+      String? reason}) {
     if (name != null) h.name = name;
     if (rarity != null) h.rarity = rarity;
     if (icon != null) h.icon = icon;
+    if (aiRated != null) h.aiRated = aiRated;
+    if (reason != null) h.difficultyReason = reason;
     notifyListeners();
     _save();
   }

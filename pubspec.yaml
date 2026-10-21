@@ -44,6 +44,9 @@ dependencies:
   # Desktop preview: size the window like a phone screen.
   window_manager: ^0.4.0
 
+  # Talks to a local Ollama server to AI-rate habit difficulty (free, offline).
+  http: ^1.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

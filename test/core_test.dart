@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:habitrail/core.dart';
+import 'package:habitrail/ai.dart';
 
 void main() {
   // AppState mutations call _save() → SharedPreferences; give it a mock store.
@@ -56,6 +57,69 @@ void main() {
     });
     test('estimatedXp tracks rarity', () {
       expect(estimatedXp('common'), lessThan(estimatedXp('epic')));
+    });
+  });
+
+  group('ai difficulty rating', () {
+    test('heuristic verdict mirrors inferRarity and is not AI', () {
+      final v = heuristicVerdict('Morning workout');
+      expect(v.rarity, 'epic');
+      expect(v.fromAi, isFalse);
+      expect(v.reason, isNotEmpty);
+    });
+
+    test('parses a valid Ollama tier as an AI verdict', () {
+      final v = parseOllamaVerdict('{"tier":"legendary","reason":"hard run"}');
+      expect(v, isNotNull);
+      expect(v!.rarity, 'legendary');
+      expect(v.fromAi, isTrue);
+      expect(v.reason, 'hard run');
+      expect(v.multiplier, rarityConfig['legendary']!.mult);
+    });
+
+    test('maps effort-word synonyms to tiers', () {
+      expect(parseOllamaVerdict('{"tier":"easy"}')?.rarity, 'common');
+      expect(parseOllamaVerdict('{"tier":"hard"}')?.rarity, 'legendary');
+      expect(parseOllamaVerdict('{"tier":"extreme"}')?.rarity, 'mythic');
+    });
+
+    test('rejects malformed or unknown output', () {
+      expect(parseOllamaVerdict('not json'), isNull);
+      expect(parseOllamaVerdict('{"tier":"banana"}'), isNull);
+      expect(parseOllamaVerdict('{"reason":"no tier"}'), isNull);
+    });
+
+    test('classify falls back to the heuristic when AI is off', () async {
+      final v = await classifyDifficulty('Cold shower',
+          enabled: false, baseUrl: kDefaultAiBaseUrl, model: kDefaultAiModel);
+      expect(v.fromAi, isFalse);
+      expect(v.rarity, 'legendary');
+    });
+
+    test('classify returns common for an empty name', () async {
+      final v = await classifyDifficulty('   ',
+          enabled: true, baseUrl: kDefaultAiBaseUrl, model: kDefaultAiModel);
+      expect(v.rarity, 'common');
+    });
+
+    test('an AI rating freezes onto the habit and drives XP deterministically',
+        () {
+      final s = AppState();
+      s.addHabit('Deep work', 'legendary',
+          aiRated: true, reason: 'demanding focus');
+      final h = s.habits.single;
+      expect(h.aiRated, isTrue);
+      expect(h.difficultyReason, 'demanding focus');
+      // Survives a round-trip through storage.
+      final restored = Habit.fromMap(h.toMap());
+      expect(restored.rarity, 'legendary');
+      expect(restored.aiRated, isTrue);
+      expect(restored.difficultyReason, 'demanding focus');
+      // Reward path uses the frozen tier — no model call involved.
+      final before = s.totalXp;
+      s.toggle(h);
+      expect(s.totalXp - before,
+          calculateXpGain(h.baseXp, 'legendary', h.streak, comboMultiplier(1)));
     });
   });
 

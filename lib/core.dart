@@ -6,10 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // ── Exact palette from the web app (tailwind.config.ts) ─────────────────────
 const kBase = Color(0xFF07040F);
-const kElevated = Color(0xFF140828);
-const kCard = Color(0xFF160A2E);
+const kElevated = Color(0xD9221445); // translucent glass (secondary surface)
+const kCard = Color(0xCC1A0F34); // translucent glass (primary surface)
 const kSurfacePrimary = Color(0xFF0B0420);
-const kBorder = Color(0x14FFFFFF);
+const kBorder = Color(0x26FFFFFF); // luminous glass edge (white ~15%)
 // Accent trio — mutable so appearance themes can swap them at runtime.
 Color kPlasma = const Color(0xFF8B5CF6);
 Color kPlasmaBright = const Color(0xFFA78BFA);

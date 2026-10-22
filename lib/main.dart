@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -159,7 +160,7 @@ class HabitrailApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme:
             ColorScheme.fromSeed(seedColor: kPlasma, brightness: Brightness.dark),
-        scaffoldBackgroundColor: kBase,
+        scaffoldBackgroundColor: Colors.transparent,
         textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
             .apply(bodyColor: kTextPrimary, displayColor: kTextPrimary),
         splashColor: kPlasma.withValues(alpha: 0.12),
@@ -227,6 +228,13 @@ class HabitrailApp extends StatelessWidget {
           style: TextButton.styleFrom(foregroundColor: kPlasmaBright),
         ),
       ),
+      // One cosmic background behind every screen so glass surfaces read.
+      builder: (context, child) => Stack(
+        children: [
+          const Positioned.fill(child: _ParticleBackground()),
+          if (child != null) Positioned.fill(child: child),
+        ],
+      ),
       home: const AuthGate(),
     );
   }
@@ -271,7 +279,6 @@ class WelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(children: [
-        const Positioned.fill(child: _ParticleBackground()),
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(28),
@@ -692,7 +699,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final last = _page == _onbSlides.length - 1;
     return Scaffold(
       body: Stack(children: [
-        const Positioned.fill(child: _ParticleBackground()),
         SafeArea(
           child: Column(children: [
             Align(
@@ -779,7 +785,6 @@ Widget _authScaffold(BuildContext context,
     appBar:
         AppBar(backgroundColor: Colors.transparent, foregroundColor: kTextPrimary),
     body: Stack(children: [
-      const Positioned.fill(child: _ParticleBackground()),
       SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
@@ -1095,12 +1100,7 @@ class _HomeShellState extends State<HomeShell> {
         // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
         final screens = <Widget>[HomeScreen(), FocusScreen(), StatsScreen(), AwardsScreen(), JournalScreen()];
         return Scaffold(
-          body: Stack(
-            children: [
-              const Positioned.fill(child: _ParticleBackground()),
-              IndexedStack(index: _index, children: screens),
-            ],
-          ),
+          body: IndexedStack(index: _index, children: screens),
           floatingActionButton: _fab(),
           bottomNavigationBar: _BottomNav(
             index: _index,
@@ -1127,30 +1127,40 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: kSurfacePrimary,
-        border: Border(top: BorderSide(color: kBorder)),
-        boxShadow: [
-          BoxShadow(
-              color: Color(0x33000000), blurRadius: 16, offset: Offset(0, -4)),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              for (int i = 0; i < _items.length; i++)
-                _NavItem(
-                  icon: _items[i].$1,
-                  label: _items[i].$2,
-                  active: i == index,
-                  onTap: () => onTap(i),
-                ),
-            ],
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(26),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xCC140A2A),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: const Color(0x26FFFFFF)),
+                boxShadow: const [
+                  BoxShadow(
+                      color: Color(0x55000000),
+                      blurRadius: 24,
+                      offset: Offset(0, 8)),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  for (int i = 0; i < _items.length; i++)
+                    _NavItem(
+                      icon: _items[i].$1,
+                      label: _items[i].$2,
+                      active: i == index,
+                      onTap: () => onTap(i),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

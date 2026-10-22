@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core.dart';
 import 'ai.dart';
+import 'auth.dart';
 
 /// Single shared state object for the whole app (loads immediately).
 final appState = AppState()..load();
@@ -152,8 +153,662 @@ class HabitrailApp extends StatelessWidget {
         textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
             .apply(bodyColor: kTextPrimary, displayColor: kTextPrimary),
       ),
-      home: const HomeShell(),
+      home: const AuthGate(),
     );
+  }
+}
+
+// ── Auth gate: Welcome (signed out) → app (signed in or guest) ──────────────
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  @override
+  void initState() {
+    super.initState();
+    auth.init();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: auth,
+      builder: (context, _) {
+        if (auth.status == AuthStatus.unknown) {
+          return Scaffold(
+            body: Center(
+                child: CircularProgressIndicator(color: kPlasmaBright)),
+          );
+        }
+        final enter = auth.status == AuthStatus.signedIn || auth.guest;
+        return enter ? const HomeShell() : const WelcomeScreen();
+      },
+    );
+  }
+}
+
+// ── Welcome ──────────────────────────────────────────────────────────────────
+class WelcomeScreen extends StatelessWidget {
+  const WelcomeScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(children: [
+        const Positioned.fill(child: _ParticleBackground()),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Spacer(),
+                const Text('🔥', style: TextStyle(fontSize: 56)),
+                const SizedBox(height: 16),
+                Text('Habitrail',
+                    style: GoogleFonts.spaceGrotesk(
+                        color: kTextPrimary,
+                        fontSize: 42,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 10),
+                const Text('Build habits. Earn XP. Level up your life.',
+                    style: TextStyle(color: kTextSecondary, fontSize: 15)),
+                const Spacer(),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: kPlasma,
+                      minimumSize: const Size.fromHeight(52)),
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SignUpScreen())),
+                  child: const Text('Create account',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      foregroundColor: kPlasmaBright,
+                      side: BorderSide(color: kPlasma.withValues(alpha: 0.5))),
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const LoginScreen())),
+                  child: const Text('Log in'),
+                ),
+                const SizedBox(height: 6),
+                TextButton(
+                  onPressed: () => auth.continueAsGuest(),
+                  child: const Text('Continue without an account',
+                      style: TextStyle(color: kTextTertiary)),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Sign up ──────────────────────────────────────────────────────────────────
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
+  @override
+  State<SignUpScreen> createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends State<SignUpScreen> {
+  final _name = TextEditingController();
+  final _email = TextEditingController();
+  final _pw = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _email.dispose();
+    _pw.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final err = await auth.signUp(_email.text, _pw.text, _name.text);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (err == null) {
+      // New account → wipe any guest/previous progress and start at Level 1,
+      // then introduce the app with the onboarding flow.
+      appState.startFreshForAccount(auth.user?.name ?? '');
+      Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()));
+    } else {
+      setState(() => _error = err);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _authScaffold(
+      context,
+      title: 'Create account',
+      subtitle: 'Start earning XP for your habits.',
+      children: [
+        _authField(_name, 'Name', hint: 'What should we call you?'),
+        _authField(_email, 'Email',
+            keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
+        _authField(_pw, 'Password',
+            obscure: true, hint: 'At least 6 characters'),
+        if (_error != null) _authError(_error!),
+        const SizedBox(height: 4),
+        _authSubmit('Create account', _busy, _submit),
+        const SizedBox(height: 16),
+        _authDivider(),
+        const SizedBox(height: 16),
+        _appleButton(),
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton(
+            onPressed: () => Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (_) => const LoginScreen())),
+            child: Text('Already have an account? Log in',
+                style: TextStyle(color: kPlasmaBright)),
+          ),
+        ),
+        _authNote(),
+      ],
+    );
+  }
+}
+
+// ── Log in ───────────────────────────────────────────────────────────────────
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _email = TextEditingController();
+  final _pw = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _pw.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final err = await auth.signIn(_email.text, _pw.text);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (err == null) {
+      final u = auth.user;
+      if (u != null) appState.setDisplayName(u.name);
+      Navigator.of(context).popUntil((r) => r.isFirst);
+    } else {
+      setState(() => _error = err);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _authScaffold(
+      context,
+      title: 'Welcome back',
+      subtitle: 'Log in to pick up where you left off.',
+      children: [
+        _authField(_email, 'Email',
+            keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
+        _authField(_pw, 'Password', obscure: true, hint: 'Your password'),
+        if (_error != null) _authError(_error!),
+        const SizedBox(height: 4),
+        _authSubmit('Log in', _busy, _submit),
+        const SizedBox(height: 16),
+        _authDivider(),
+        const SizedBox(height: 16),
+        _appleButton(),
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton(
+            onPressed: () => Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (_) => const SignUpScreen())),
+            child: Text("New here? Create an account",
+                style: TextStyle(color: kPlasmaBright)),
+          ),
+        ),
+        _authNote(),
+      ],
+    );
+  }
+}
+
+// ── Account (signed in) ──────────────────────────────────────────────────────
+class AccountScreen extends StatelessWidget {
+  const AccountScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([auth, appState]),
+      builder: (context, _) {
+        final u = auth.user;
+        if (u == null) return const SizedBox.shrink();
+        final ld = levelFromXp(appState.totalXp);
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            foregroundColor: kTextPrimary,
+            title: Text('Account',
+                style: GoogleFonts.spaceGrotesk(
+                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+          ),
+          body: ListView(padding: const EdgeInsets.all(16), children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                  color: kCard,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kBorder)),
+              child: Column(children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(colors: [kPlasma, kBlue])),
+                  child: Text(u.name.isNotEmpty ? u.name[0].toUpperCase() : '?',
+                      style: GoogleFonts.spaceGrotesk(
+                          color: Colors.white,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800)),
+                ),
+                const SizedBox(height: 12),
+                Text(u.name,
+                    style: const TextStyle(
+                        color: kTextPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                Text(u.email,
+                    style: const TextStyle(color: kTextTertiary, fontSize: 13)),
+                if (_memberSince(u.createdAt).isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(_memberSince(u.createdAt),
+                      style:
+                          const TextStyle(color: kTextTertiary, fontSize: 11)),
+                ],
+              ]),
+            ),
+            const SizedBox(height: 4),
+            _sectionLabel('LIFETIME'),
+            Wrap(spacing: 10, runSpacing: 10, children: [
+              _statChip('Level', '${ld.level}'),
+              _statChip('Total XP', '${appState.totalXp}'),
+              _statChip('Best streak', '${appState.bestStreak}'),
+              _statChip('Habits', '${appState.habits.length}'),
+              _statChip('Prestige', '${appState.prestige}'),
+            ]),
+            _sectionLabel('ACCOUNT'),
+            _settingsTile(Icons.edit_rounded, 'Edit name', u.name,
+                () => _editAccountName(context)),
+            if (!auth.isRemote)
+              _settingsTile(Icons.cloud_off_rounded, 'Cloud sync',
+                  'On this device for now — Supabase wires in later', null),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                  backgroundColor: kElevated,
+                  foregroundColor: kRed,
+                  minimumSize: const Size.fromHeight(50)),
+              onPressed: () async {
+                await auth.signOut();
+                if (context.mounted) {
+                  Navigator.of(context).popUntil((r) => r.isFirst);
+                }
+              },
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: const Text('Sign out'),
+            ),
+          ]),
+        );
+      },
+    );
+  }
+}
+
+// ── Onboarding (first run, right after creating an account) ─────────────────
+class _OnbSlide {
+  const _OnbSlide(this.emoji, this.title, this.body);
+  final String emoji;
+  final String title;
+  final String body;
+}
+
+const _onbSlides = [
+  _OnbSlide('🔥', 'Welcome to Habitrail',
+      'Turn your daily habits into a game you actually want to play.'),
+  _OnbSlide('⚡', 'Earn XP, level up',
+      'Every habit you check off earns XP. Build streaks and combos for big multipliers, and climb from Level 1 to God-Tier.'),
+  _OnbSlide('🏆', 'Quests, bosses & Victory Score',
+      'Take on daily quests, defeat the weekly boss, and track each day with a 4-pillar Victory Score.'),
+  _OnbSlide('🐾', 'Companions & more',
+      'Adopt a companion, log nutrition, prestige, and make every single day count.'),
+];
+
+class OnboardingScreen extends StatefulWidget {
+  const OnboardingScreen({super.key});
+  @override
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  final _pc = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _pc.dispose();
+    super.dispose();
+  }
+
+  void _finish() => Navigator.of(context).popUntil((r) => r.isFirst);
+
+  void _next() {
+    if (_page >= _onbSlides.length - 1) {
+      _finish();
+    } else {
+      _pc.nextPage(
+          duration: const Duration(milliseconds: 280), curve: Curves.easeOut);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final last = _page == _onbSlides.length - 1;
+    return Scaffold(
+      body: Stack(children: [
+        const Positioned.fill(child: _ParticleBackground()),
+        SafeArea(
+          child: Column(children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _finish,
+                child:
+                    const Text('Skip', style: TextStyle(color: kTextTertiary)),
+              ),
+            ),
+            Expanded(
+              child: PageView.builder(
+                controller: _pc,
+                itemCount: _onbSlides.length,
+                onPageChanged: (i) => setState(() => _page = i),
+                itemBuilder: (_, i) {
+                  final s = _onbSlides[i];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(s.emoji, style: const TextStyle(fontSize: 72)),
+                        const SizedBox(height: 28),
+                        Text(s.title,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.spaceGrotesk(
+                                color: kTextPrimary,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 14),
+                        Text(s.body,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: kTextSecondary,
+                                fontSize: 15,
+                                height: 1.5)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_onbSlides.length, (i) {
+                final on = i == _page;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: on ? 22 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                      color: on ? kPlasma : kBorder,
+                      borderRadius: BorderRadius.circular(4)),
+                );
+              }),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(28),
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                    backgroundColor: kPlasma,
+                    minimumSize: const Size.fromHeight(52)),
+                onPressed: _next,
+                child: Text(last ? 'Get started' : 'Next',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Auth UI helpers ──────────────────────────────────────────────────────────
+Widget _authScaffold(BuildContext context,
+    {required String title,
+    required String subtitle,
+    required List<Widget> children}) {
+  return Scaffold(
+    appBar:
+        AppBar(backgroundColor: Colors.transparent, foregroundColor: kTextPrimary),
+    body: Stack(children: [
+      const Positioned.fill(child: _ParticleBackground()),
+      SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          children: [
+            Text(title,
+                style: GoogleFonts.spaceGrotesk(
+                    color: kTextPrimary,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text(subtitle,
+                style: const TextStyle(color: kTextSecondary, fontSize: 14)),
+            const SizedBox(height: 24),
+            ...children,
+          ],
+        ),
+      ),
+    ]),
+  );
+}
+
+Widget _authField(TextEditingController c, String label,
+    {bool obscure = false, TextInputType? keyboard, String? hint}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(label,
+              style: const TextStyle(color: kTextTertiary, fontSize: 12)),
+        ),
+        TextField(
+          controller: c,
+          obscureText: obscure,
+          keyboardType: keyboard,
+          style: const TextStyle(color: kTextPrimary),
+          decoration: InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: kElevated,
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: kBorder)),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: kPlasma)),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _authSubmit(String label, bool busy, VoidCallback onTap) => FilledButton(
+      style: FilledButton.styleFrom(
+          backgroundColor: kPlasma, minimumSize: const Size.fromHeight(52)),
+      onPressed: busy ? null : onTap,
+      child: busy
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white))
+          : Text(label,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+    );
+
+Widget _authError(String msg) => Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+          color: kRed.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: kRed.withValues(alpha: 0.4))),
+      child: Row(children: [
+        const Icon(Icons.error_outline_rounded, color: kRed, size: 17),
+        const SizedBox(width: 8),
+        Expanded(
+            child: Text(msg,
+                style: const TextStyle(color: kRed, fontSize: 12.5))),
+      ]),
+    );
+
+Widget _authDivider() => Row(children: [
+      Expanded(child: Container(height: 1, color: kBorder)),
+      const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10),
+          child: Text('or', style: TextStyle(color: kTextTertiary, fontSize: 12))),
+      Expanded(child: Container(height: 1, color: kBorder)),
+    ]);
+
+Widget _appleButton() => Column(children: [
+      OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(50),
+            foregroundColor: kTextSecondary,
+            side: BorderSide(color: kBorder)),
+        onPressed: null, // Sign in with Apple is wired on iOS later.
+        icon: const Icon(Icons.apple, size: 20),
+        label: const Text('Continue with Apple'),
+      ),
+      const SizedBox(height: 6),
+      const Text('Available on iOS',
+          style: TextStyle(color: kTextTertiary, fontSize: 11)),
+    ]);
+
+Widget _authNote() {
+  if (auth.isRemote) return const SizedBox.shrink();
+  return const Padding(
+    padding: EdgeInsets.only(top: 18),
+    child: Text(
+      'Accounts are stored on this device for now — cloud sync turns on when Supabase is connected.',
+      textAlign: TextAlign.center,
+      style: TextStyle(color: kTextTertiary, fontSize: 11, height: 1.4),
+    ),
+  );
+}
+
+Widget _statChip(String label, String value) => Container(
+      width: 104,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      decoration: BoxDecoration(
+          color: kCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: kBorder)),
+      child: Column(children: [
+        Text(value,
+            style: GoogleFonts.spaceGrotesk(
+                color: kTextPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800)),
+        const SizedBox(height: 2),
+        Text(label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: kTextTertiary, fontSize: 11)),
+      ]),
+    );
+
+String _memberSince(String iso) {
+  final d = DateTime.tryParse(iso);
+  if (d == null) return '';
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  return 'Member since ${months[d.month - 1]} ${d.year}';
+}
+
+Future<void> _editAccountName(BuildContext context) async {
+  final c = TextEditingController(text: auth.user?.name ?? '');
+  final name = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: kCard,
+      title: const Text('Your name', style: TextStyle(color: kTextPrimary)),
+      content: TextField(
+        controller: c,
+        autofocus: true,
+        style: const TextStyle(color: kTextPrimary),
+        decoration: const InputDecoration(hintText: 'Display name'),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: kPlasma),
+          onPressed: () => Navigator.pop(ctx, c.text.trim()),
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+  if (name != null && name.isNotEmpty) {
+    await auth.updateName(name);
+    appState.setDisplayName(name);
   }
 }
 
@@ -2674,8 +3329,25 @@ class SettingsScreen extends StatelessWidget {
                 ]),
               ),
               _sectionLabel('ACCOUNT'),
-              _settingsTile(Icons.cloud_off_rounded, 'Cloud sync & sign-in',
-                  'Local account — Apple/Supabase sign-in coming soon', null),
+              ListenableBuilder(
+                listenable: auth,
+                builder: (context, _) {
+                  final authed = auth.isAuthed;
+                  final u = auth.user;
+                  return _settingsTile(
+                    authed ? Icons.person_rounded : Icons.login_rounded,
+                    authed ? 'Account' : 'Sign in or create account',
+                    authed
+                        ? (auth.isRemote
+                            ? 'Signed in · ${u?.email ?? ''}'
+                            : '${u?.email ?? ''} · on this device')
+                        : 'Back up your progress & sync devices',
+                    () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) =>
+                            authed ? const AccountScreen() : const LoginScreen())),
+                  );
+                },
+              ),
               _sectionLabel('PREFERENCES'),
               _settingsTile(
                   Icons.palette_rounded,

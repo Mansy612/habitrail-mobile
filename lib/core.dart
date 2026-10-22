@@ -574,6 +574,20 @@ class AppState extends ChangeNotifier {
     _save();
   }
 
+  /// A brand-new account starts completely from zero: the fresh-install state
+  /// (Level 1, 0 XP, starter habits) PLUS the few carry-over fields resetAll
+  /// leaves alone, so nothing from a previous user or guest session remains.
+  void startFreshForAccount(String name) {
+    resetAll();
+    dailyScore.clear();
+    streakShields = 0;
+    xpBoostDate = null;
+    lastBriefingDate = ''; // show the morning briefing for the new user
+    if (name.trim().isNotEmpty) displayName = name.trim();
+    notifyListeners();
+    _save();
+  }
+
   // Today's logged macros.
   ({double calories, double protein, double carbs, double fat})
       todayNutrition() {

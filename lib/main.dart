@@ -260,7 +260,7 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final _name = TextEditingController();
+  final _username = TextEditingController();
   final _email = TextEditingController();
   final _pw = TextEditingController();
   bool _busy = false;
@@ -268,7 +268,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   void dispose() {
-    _name.dispose();
+    _username.dispose();
     _email.dispose();
     _pw.dispose();
     super.dispose();
@@ -279,7 +279,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _busy = true;
       _error = null;
     });
-    final err = await auth.signUp(_email.text, _pw.text, _name.text);
+    final err = await auth.signUp(_username.text, _email.text, _pw.text);
     if (!mounted) return;
     setState(() => _busy = false);
     if (err == null) {
@@ -300,7 +300,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       title: 'Create account',
       subtitle: 'Start earning XP for your habits.',
       children: [
-        _authField(_name, 'Name', hint: 'What should we call you?'),
+        _authField(_username, 'Username', hint: 'e.g. sam_92'),
         _authField(_email, 'Email',
             keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
         _authField(_pw, 'Password',
@@ -445,6 +445,14 @@ class AccountScreen extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(u.email,
                     style: const TextStyle(color: kTextTertiary, fontSize: 13)),
+                if (u.username.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text('@${u.username}',
+                      style: TextStyle(
+                          color: kPlasmaBright,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ],
                 if (_memberSince(u.createdAt).isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(_memberSince(u.createdAt),

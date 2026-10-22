@@ -18,21 +18,29 @@ class AuthUser {
   const AuthUser({
     required this.id,
     required this.email,
+    required this.username,
     required this.name,
     required this.createdAt,
   });
 
   final String id;
   final String email;
-  final String name;
+  final String username; // unique handle (@username)
+  final String name; // editable display name (starts as the username)
   final String createdAt; // ISO-8601
 
-  Map<String, dynamic> toMap() =>
-      {'id': id, 'email': email, 'name': name, 'createdAt': createdAt};
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'email': email,
+        'username': username,
+        'name': name,
+        'createdAt': createdAt,
+      };
 
   factory AuthUser.fromMap(Map<String, dynamic> m) => AuthUser(
         id: (m['id'] ?? '').toString(),
         email: (m['email'] ?? '').toString(),
+        username: (m['username'] ?? m['name'] ?? '').toString(),
         name: (m['name'] ?? '').toString(),
         createdAt: (m['createdAt'] ?? '').toString(),
       );
@@ -49,9 +57,12 @@ class AuthResult {
 bool isValidEmail(String email) =>
     RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.trim());
 
-/// A password/credential error message, or null when the inputs look valid.
-String? validateCredentials(String email, String password, {String? name}) {
-  if (name != null && name.trim().isEmpty) return 'Enter your name.';
+/// Usernames: 3–20 characters, letters/numbers/underscores only.
+bool isValidUsername(String username) =>
+    RegExp(r'^[a-zA-Z0-9_]{3,20}$').hasMatch(username.trim());
+
+/// An email/password error message, or null when both look valid.
+String? validateCredentials(String email, String password) {
   if (!isValidEmail(email)) return 'Enter a valid email address.';
   if (password.length < 6) return 'Password must be at least 6 characters.';
   return null;
@@ -63,7 +74,9 @@ abstract class AuthService {
   /// "local account" notices). The stub is false.
   bool get isRemote;
   Future<AuthResult> signUp(
-      {required String email, required String password, required String name});
+      {required String email,
+      required String password,
+      required String username});
   Future<AuthResult> signIn({required String email, required String password});
   Future<void> signOut();
   Future<AuthUser?> currentUser();
@@ -95,8 +108,13 @@ class StubAuthService implements AuthService {
   Future<AuthResult> signUp(
       {required String email,
       required String password,
-      required String name}) async {
-    final err = validateCredentials(email, password, name: name);
+      required String username}) async {
+    final uname = username.trim();
+    if (!isValidUsername(uname)) {
+      return const AuthResult.fail(
+          'Username must be 3–20 letters, numbers, or underscores.');
+    }
+    final err = validateCredentials(email, password);
     if (err != null) return AuthResult.fail(err);
     await Future<void>.delayed(const Duration(milliseconds: 350));
     final p = await SharedPreferences.getInstance();
@@ -105,10 +123,15 @@ class StubAuthService implements AuthService {
     if (accounts.containsKey(key)) {
       return const AuthResult.fail('An account with this email already exists.');
     }
+    final taken = accounts.values.any((a) =>
+        a is Map &&
+        (a['username'] ?? '').toString().toLowerCase() == uname.toLowerCase());
+    if (taken) return const AuthResult.fail('That username is already taken.');
     final user = AuthUser(
       id: _newId(),
       email: key,
-      name: name.trim(),
+      username: uname,
+      name: uname,
       createdAt: DateTime.now().toIso8601String(),
     );
     accounts[key] = {...user.toMap(), 'pw': _obscure(password)};
@@ -202,8 +225,9 @@ class Auth extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String?> signUp(String email, String password, String name) =>
-      _run(() => _service.signUp(email: email, password: password, name: name));
+  Future<String?> signUp(String username, String email, String password) => _run(
+      () => _service.signUp(
+          email: email, password: password, username: username));
 
   Future<String?> signIn(String email, String password) =>
       _run(() => _service.signIn(email: email, password: password));
@@ -235,7 +259,11 @@ class Auth extends ChangeNotifier {
     final u = user;
     if (u != null) {
       user = AuthUser(
-          id: u.id, email: u.email, name: name.trim(), createdAt: u.createdAt);
+          id: u.id,
+          email: u.email,
+          username: u.username,
+          name: name.trim(),
+          createdAt: u.createdAt);
     }
     notifyListeners();
   }

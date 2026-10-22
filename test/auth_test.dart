@@ -12,41 +12,66 @@ void main() {
       expect(isValidEmail('nope'), isFalse);
       expect(isValidEmail('a b@c.com'), isFalse);
     });
-    test('rules flag bad input', () {
+    test('username format', () {
+      expect(isValidUsername('sam_92'), isTrue);
+      expect(isValidUsername('ab'), isFalse); // too short
+      expect(isValidUsername('has space'), isFalse);
+      expect(isValidUsername('bad!'), isFalse);
+      expect(isValidUsername('a' * 21), isFalse); // too long
+    });
+    test('email/password rules flag bad input', () {
       expect(validateCredentials('a@b.com', '123456'), isNull);
       expect(validateCredentials('bad', '123456'), isNotNull);
       expect(validateCredentials('a@b.com', '123'), isNotNull);
-      expect(validateCredentials('a@b.com', '123456', name: '  '), isNotNull);
     });
   });
 
   group('StubAuthService', () {
     test('sign up creates an account and a session', () async {
       final s = StubAuthService();
-      final r =
-          await s.signUp(email: 'Sam@Example.com', password: 'secret1', name: 'Sam');
+      final r = await s.signUp(
+          email: 'Sam@Example.com', password: 'secret1', username: 'Sam_92');
       expect(r.ok, isTrue);
       expect(r.user!.email, 'sam@example.com'); // normalized to lowercase
-      expect(r.user!.name, 'Sam');
+      expect(r.user!.username, 'Sam_92');
+      expect(r.user!.name, 'Sam_92'); // display name starts as the username
       expect(await s.currentUser(), isNotNull);
     });
 
-    test('duplicate sign up fails', () async {
+    test('an invalid username is rejected', () async {
       final s = StubAuthService();
-      await s.signUp(email: 'a@b.com', password: 'secret1', name: 'A');
-      final r = await s.signUp(email: 'a@b.com', password: 'secret1', name: 'A');
+      final r =
+          await s.signUp(email: 'a@b.com', password: 'secret1', username: 'no');
       expect(r.ok, isFalse);
-      expect(r.error, contains('already exists'));
+      expect(r.error, contains('Username'));
+    });
+
+    test('duplicate email fails', () async {
+      final s = StubAuthService();
+      await s.signUp(email: 'a@b.com', password: 'secret1', username: 'userA');
+      final r = await s.signUp(
+          email: 'a@b.com', password: 'secret1', username: 'userB');
+      expect(r.ok, isFalse);
+      expect(r.error, contains('email'));
+    });
+
+    test('duplicate username fails (case-insensitive)', () async {
+      final s = StubAuthService();
+      await s.signUp(email: 'a@b.com', password: 'secret1', username: 'Taken');
+      final r = await s.signUp(
+          email: 'b@b.com', password: 'secret1', username: 'taken');
+      expect(r.ok, isFalse);
+      expect(r.error, contains('taken'));
     });
 
     test('sign in verifies the password', () async {
       final s = StubAuthService();
-      await s.signUp(email: 'a@b.com', password: 'secret1', name: 'A');
+      await s.signUp(email: 'a@b.com', password: 'secret1', username: 'userA');
       await s.signOut();
       expect((await s.signIn(email: 'a@b.com', password: 'wrong')).ok, isFalse);
       final good = await s.signIn(email: 'a@b.com', password: 'secret1');
       expect(good.ok, isTrue);
-      expect(good.user!.name, 'A');
+      expect(good.user!.username, 'userA');
     });
 
     test('sign in fails for an unknown email', () async {
@@ -58,21 +83,23 @@ void main() {
 
     test('sign out clears the session', () async {
       final s = StubAuthService();
-      await s.signUp(email: 'a@b.com', password: 'secret1', name: 'A');
+      await s.signUp(email: 'a@b.com', password: 'secret1', username: 'userA');
       await s.signOut();
       expect(await s.currentUser(), isNull);
     });
 
-    test('updateName renames the current account', () async {
+    test('updateName changes the display name but not the handle', () async {
       final s = StubAuthService();
-      await s.signUp(email: 'a@b.com', password: 'secret1', name: 'A');
+      await s.signUp(email: 'a@b.com', password: 'secret1', username: 'userA');
       await s.updateName('Alice');
-      expect((await s.currentUser())!.name, 'Alice');
+      final u = await s.currentUser();
+      expect(u!.name, 'Alice');
+      expect(u.username, 'userA'); // the unique handle is unchanged
     });
 
     test('deleteAccount removes the account and its session', () async {
       final s = StubAuthService();
-      await s.signUp(email: 'a@b.com', password: 'secret1', name: 'A');
+      await s.signUp(email: 'a@b.com', password: 'secret1', username: 'userA');
       await s.deleteAccount();
       expect(await s.currentUser(), isNull);
       // The account record is gone, so a later sign-in fails.
@@ -91,10 +118,11 @@ void main() {
     test('sign up signs in, sign out signs out', () async {
       final a = Auth(StubAuthService());
       await a.init();
-      final err = await a.signUp('a@b.com', 'secret1', 'A');
+      final err = await a.signUp('userA', 'a@b.com', 'secret1');
       expect(err, isNull);
       expect(a.status, AuthStatus.signedIn);
       expect(a.user!.email, 'a@b.com');
+      expect(a.user!.username, 'userA');
       await a.signOut();
       expect(a.status, AuthStatus.signedOut);
       expect(a.user, isNull);

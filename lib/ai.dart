@@ -318,3 +318,53 @@ Future<NutritionEstimate?> estimateNutrition(
     if (client == null) c.close();
   }
 }
+
+// ── AI daily coach (Ollama) ─────────────────────────────────────────────────
+
+const String _coachSystemPrompt =
+    'You are a concise, upbeat habit coach inside a gamified habit app. Given '
+    "the user's stats for today, reply with 1-2 short sentences (max 40 words): "
+    'one specific observation about their progress, then one concrete, '
+    'encouraging suggestion for the rest of the day. Plain text, no lists, at '
+    'most one emoji, speak directly to "you".';
+
+/// A short personalized coaching line from the local model, or null when AI is
+/// off / unreachable (the caller shows a templated line instead).
+Future<String?> aiCoachMessage(
+  String statsSummary, {
+  required bool enabled,
+  required String baseUrl,
+  required String model,
+  Duration timeout = const Duration(seconds: 25),
+  http.Client? client,
+}) async {
+  if (!enabled || statsSummary.trim().isEmpty) return null;
+  final http.Client c = client ?? http.Client();
+  try {
+    final res = await c
+        .post(
+          Uri.parse('${_root(baseUrl)}/api/chat'),
+          headers: const {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'model': model.trim().isEmpty ? kDefaultAiModel : model.trim(),
+            'stream': false,
+            'options': {'temperature': 0.6},
+            'messages': [
+              {'role': 'system', 'content': _coachSystemPrompt},
+              {'role': 'user', 'content': statsSummary},
+            ],
+          }),
+        )
+        .timeout(timeout);
+    if (res.statusCode != 200) return null;
+    final body = jsonDecode(utf8.decode(res.bodyBytes));
+    final content = (body is Map && body['message'] is Map)
+        ? (body['message']['content'] ?? '').toString().trim()
+        : '';
+    return content.isEmpty ? null : content;
+  } catch (_) {
+    return null;
+  } finally {
+    if (client == null) c.close();
+  }
+}

@@ -206,6 +206,7 @@ class Habit {
     this.icon = '',
     this.aiRated = false,
     this.difficultyReason = '',
+    this.reminderMinutes,
   });
 
   final String id;
@@ -218,6 +219,7 @@ class Habit {
   String icon;
   bool aiRated; // true = an AI model picked this difficulty
   String difficultyReason; // short "why this difficulty" shown in the UI
+  int? reminderMinutes; // daily reminder, minutes since midnight; null = off
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -230,6 +232,7 @@ class Habit {
         'icon': icon,
         'aiRated': aiRated,
         'difficultyReason': difficultyReason,
+        'reminderMinutes': reminderMinutes,
       };
 
   factory Habit.fromMap(Map<String, dynamic> m) => Habit(
@@ -243,6 +246,7 @@ class Habit {
         icon: (m['icon'] as String?) ?? '',
         aiRated: (m['aiRated'] as bool?) ?? false,
         difficultyReason: (m['difficultyReason'] as String?) ?? '',
+        reminderMinutes: m['reminderMinutes'] as int?,
       );
 }
 
@@ -465,6 +469,17 @@ class AppState extends ChangeNotifier {
   int get doneTodayCount => habits.where(doneToday).length;
   int get bestStreak =>
       habits.isEmpty ? 0 : habits.map((h) => h.streak).reduce(max);
+  int get totalPerfectDays => perfectDays.length;
+
+  /// Average Victory Score over the last [n] recorded days (0 when none yet).
+  double avgScoreLastDays(int n) {
+    if (dailyScore.isEmpty) return 0;
+    final keys = dailyScore.keys.toList()..sort();
+    final recent = keys.length <= n ? keys : keys.sublist(keys.length - n);
+    if (recent.isEmpty) return 0;
+    final sum = recent.fold<int>(0, (a, k) => a + (dailyScore[k] ?? 0));
+    return sum / recent.length;
+  }
 
   String newId() => DateTime.now().microsecondsSinceEpoch.toString();
 
@@ -980,7 +995,10 @@ class AppState extends ChangeNotifier {
   }
 
   void addHabit(String name, String rarity,
-      {String icon = '', bool aiRated = false, String reason = ''}) {
+      {String icon = '',
+      bool aiRated = false,
+      String reason = '',
+      int? reminderMinutes}) {
     habits.add(Habit(
       id: newId(),
       name: name,
@@ -988,8 +1006,23 @@ class AppState extends ChangeNotifier {
       icon: icon,
       aiRated: aiRated,
       difficultyReason: reason,
+      reminderMinutes: reminderMinutes,
     ));
     _afterAction();
+  }
+
+  // newIndex is already adjusted for the removal at oldIndex (onReorderItem).
+  void reorderHabits(int oldIndex, int newIndex) {
+    final h = habits.removeAt(oldIndex);
+    habits.insert(newIndex, h);
+    notifyListeners();
+    _save();
+  }
+
+  void setHabitReminder(Habit h, int? minutes) {
+    h.reminderMinutes = minutes;
+    notifyListeners();
+    _save();
   }
 
   void editHabit(Habit h,

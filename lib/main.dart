@@ -822,6 +822,45 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   bool _briefingChecked = false;
+  Timer? _reminderTimer;
+  final Set<String> _firedReminders = {}; // "date|habitId" already nudged today
+
+  @override
+  void initState() {
+    super.initState();
+    _reminderTimer =
+        Timer.periodic(const Duration(seconds: 30), (_) => _checkReminders());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkReminders());
+  }
+
+  @override
+  void dispose() {
+    _reminderTimer?.cancel();
+    super.dispose();
+  }
+
+  // In-app reminders while the app is open: nudge once per habit per day when
+  // its time has passed and it isn't done. (OS-level notifications on iOS get
+  // wired on top of the same reminderMinutes later.)
+  void _checkReminders() {
+    if (!mounted) return;
+    final now = DateTime.now();
+    final nowMin = now.hour * 60 + now.minute;
+    final day = dateKey(now);
+    for (final h in appState.habits) {
+      final rm = h.reminderMinutes;
+      if (rm == null || nowMin < rm || appState.doneToday(h)) continue;
+      final key = '$day|${h.id}';
+      if (_firedReminders.contains(key)) continue;
+      _firedReminders.add(key);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('⏰ Time for: ${h.name}'),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+            label: 'Done', onPressed: () => appState.toggle(h)),
+      ));
+    }
+  }
 
   Widget? _fab() {
     if (_index == 0) {
@@ -1103,7 +1142,16 @@ class HomeScreen extends StatelessWidget {
                   subtitle: 'Tap “Add habit” to start.'),
             )
           else
-            ...appState.habits.map((h) => Padding(
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: appState.habits.length,
+              onReorderItem: appState.reorderHabits,
+              itemBuilder: (ctx, i) {
+                final h = appState.habits[i];
+                return Padding(
+                  key: ValueKey('habit-${h.id}'),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: _HabitTile(
                     habit: h,
@@ -1111,8 +1159,11 @@ class HomeScreen extends StatelessWidget {
                     onToggle: () => onToggle(h),
                     onDelete: () => appState.deleteHabit(h),
                     onEdit: () => showHabitEditor(context, h),
+                    reorderIndex: i,
                   ),
-                )),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -1445,12 +1496,14 @@ class _HabitTile extends StatelessWidget {
     required this.onToggle,
     required this.onDelete,
     required this.onEdit,
+    this.reorderIndex,
   });
   final Habit habit;
   final bool done;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
+  final int? reorderIndex; // when set, shows a drag handle for reordering
 
   @override
   Widget build(BuildContext context) {
@@ -1510,18 +1563,33 @@ class _HabitTile extends StatelessWidget {
             Text(rc?.label ?? 'Common',
                 style: TextStyle(color: rarityColor, fontSize: 11)),
           ]),
-          trailing: habit.streak > 0
-              ? Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                      color: const Color(0x268B5CF6),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Text('🔥 ${habit.streak}',
-                      style: TextStyle(
-                          color: kPlasmaGlow, fontWeight: FontWeight.bold)),
-                )
-              : null,
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (habit.reminderMinutes != null)
+              const Padding(
+                padding: EdgeInsets.only(right: 4),
+                child: Icon(Icons.notifications_active_rounded,
+                    size: 15, color: kTextTertiary),
+              ),
+            if (habit.streak > 0)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                    color: const Color(0x268B5CF6),
+                    borderRadius: BorderRadius.circular(20)),
+                child: Text('🔥 ${habit.streak}',
+                    style: TextStyle(
+                        color: kPlasmaGlow, fontWeight: FontWeight.bold)),
+              ),
+            if (reorderIndex != null)
+              ReorderableDragStartListener(
+                index: reorderIndex!,
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 6),
+                  child: Icon(Icons.drag_indicator, color: kTextTertiary),
+                ),
+              ),
+          ]),
         ),
       ),
     );
@@ -1669,6 +1737,10 @@ class StatsScreen extends StatelessWidget {
           Icons.local_fire_department_rounded),
       ('Reflections', '${appState.reflections.length}', kPlasmaGlow,
           Icons.menu_book_rounded),
+      ('Perfect days', '${appState.totalPerfectDays}', kGreen,
+          Icons.verified_rounded),
+      ('Avg score 7d', '${appState.avgScoreLastDays(7).round()}',
+          kPlasmaBright, Icons.trending_up_rounded),
     ];
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -1710,6 +1782,7 @@ class StatsScreen extends StatelessWidget {
           ),
           const _WeekTrendCard(),
           const _HeatmapCard(),
+          const _HabitStreaksCard(),
           GridView.count(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             shrinkWrap: true,
@@ -1768,6 +1841,55 @@ class _StatCard extends StatelessWidget {
                   style: const TextStyle(color: kTextTertiary, fontSize: 12)),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitStreaksCard extends StatelessWidget {
+  const _HabitStreaksCard();
+  @override
+  Widget build(BuildContext context) {
+    final habits = [...appState.habits]
+      ..sort((a, b) => b.streak.compareTo(a.streak));
+    if (habits.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+          color: kCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kBorder)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: const [
+            Icon(Icons.local_fire_department_rounded, color: kGold, size: 18),
+            SizedBox(width: 8),
+            Text('Habit streaks',
+                style: TextStyle(
+                    color: kTextPrimary, fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 6),
+          ...habits.take(8).map((h) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(children: [
+                  Expanded(
+                    child: Text(
+                        h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: kTextSecondary, fontSize: 13)),
+                  ),
+                  Text(h.streak > 0 ? '🔥 ${h.streak}' : '—',
+                      style: TextStyle(
+                          color: h.streak > 0 ? kPlasmaGlow : kTextTertiary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13)),
+                ]),
+              )),
         ],
       ),
     );
@@ -1982,6 +2104,15 @@ void _showLevelUp(BuildContext context, int level) {
   );
 }
 
+String _fmtReminder(int minutes) {
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  final period = h < 12 ? 'AM' : 'PM';
+  var hh = h % 12;
+  if (hh == 0) hh = 12;
+  return '$hh:${m.toString().padLeft(2, '0')} $period';
+}
+
 Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
   final controller = TextEditingController(text: existing?.name ?? '');
   // The current difficulty decision — the AI (or heuristic) owns this; the user
@@ -1994,6 +2125,7 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
   Timer? debounce;
   int reqSeq = 0; // drops stale async results from earlier keystrokes
   String icon = existing?.icon ?? '';
+  int? reminderMinutes = existing?.reminderMinutes; // daily reminder time
   const emojis = [
     '💧', '📖', '🏋️', '😴', '🧘', '🏃', '🥗', '💻',
     '🎯', '✍️', '🎸', '☀️', '🧠', '💰', '🌱', '🚭'
@@ -2084,6 +2216,53 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
               ),
               const SizedBox(height: 16),
               _difficultyCard(verdict, analyzing),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 2, 6, 2),
+                decoration: BoxDecoration(
+                    color: kElevated,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: kBorder)),
+                child: Row(children: [
+                  Icon(Icons.notifications_active_rounded,
+                      size: 18,
+                      color: reminderMinutes != null
+                          ? kPlasmaBright
+                          : kTextTertiary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                        reminderMinutes == null
+                            ? 'No daily reminder'
+                            : 'Remind me at ${_fmtReminder(reminderMinutes!)}',
+                        style: const TextStyle(
+                            color: kTextSecondary, fontSize: 13)),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final init = reminderMinutes != null
+                          ? TimeOfDay(
+                              hour: reminderMinutes! ~/ 60,
+                              minute: reminderMinutes! % 60)
+                          : const TimeOfDay(hour: 20, minute: 0);
+                      final picked = await showTimePicker(
+                          context: ctx, initialTime: init);
+                      if (picked != null) {
+                        setLocal(() => reminderMinutes =
+                            picked.hour * 60 + picked.minute);
+                      }
+                    },
+                    child: Text(reminderMinutes == null ? 'Set' : 'Change'),
+                  ),
+                  if (reminderMinutes != null)
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => setLocal(() => reminderMinutes = null),
+                      icon: const Icon(Icons.close,
+                          size: 18, color: kTextTertiary),
+                    ),
+                ]),
+              ),
               const SizedBox(height: 18),
               Row(children: [
                 if (existing != null)
@@ -2108,7 +2287,10 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                     final v = verdict;
                     if (existing == null) {
                       appState.addHabit(name, v.rarity,
-                          icon: icon, aiRated: v.fromAi, reason: v.reason);
+                          icon: icon,
+                          aiRated: v.fromAi,
+                          reason: v.reason,
+                          reminderMinutes: reminderMinutes);
                     } else {
                       appState.editHabit(existing,
                           name: name,
@@ -2116,6 +2298,7 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                           icon: icon,
                           aiRated: v.fromAi,
                           reason: v.reason);
+                      appState.setHabitReminder(existing, reminderMinutes);
                     }
                     Navigator.pop(ctx);
                   },
@@ -4225,6 +4408,44 @@ class _DailyBriefing extends StatefulWidget {
 class _DailyBriefingState extends State<_DailyBriefing> {
   final _pc = PageController();
   int _page = 0;
+  String? _coach;
+  bool _coachLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCoach();
+  }
+
+  Future<void> _loadCoach() async {
+    final ld = levelFromXp(appState.totalXp);
+    final v = appState.victory();
+    final summary =
+        'Name: ${appState.displayName}. Level ${ld.level} (${levelTitle(ld.level)}). '
+        'Victory score today: ${v.score}/100 (${victoryLabel(v.score)}). '
+        'Habits done today: ${appState.doneTodayCount}/${appState.habits.length}. '
+        'Best streak: ${appState.bestStreak} days. Coins: ${appState.coins}.';
+    final msg = await aiCoachMessage(summary,
+        enabled: appState.aiEnabled,
+        baseUrl: appState.aiBaseUrl,
+        model: appState.aiModel);
+    if (!mounted) return;
+    setState(() {
+      _coach = msg;
+      _coachLoading = false;
+    });
+  }
+
+  String _coachFallback() {
+    final done = appState.doneTodayCount;
+    final total = appState.habits.length;
+    if (total == 0) return 'Add your first habit and start a streak today.';
+    final remaining = total - done;
+    if (remaining <= 0) {
+      return 'Perfect day — every habit done. Come back tomorrow to protect your streak!';
+    }
+    return "You've done $done of $total today. Knock out $remaining more for a perfect day.";
+  }
 
   @override
   void dispose() {
@@ -4248,6 +4469,33 @@ class _DailyBriefingState extends State<_DailyBriefing> {
     final v = appState.victory();
     final who = companionByType(appState.activeCompanion);
     final panels = <Widget>[
+      _briefPanel(
+        'COACH',
+        'Your coach',
+        Column(children: [
+          _CompanionOrb(color: who.color, icon: who.icon, size: 56),
+          const SizedBox(height: 18),
+          if (_coachLoading)
+            Column(children: [
+              SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: kPlasmaBright)),
+              const SizedBox(height: 10),
+              const Text('Reading your day…',
+                  style: TextStyle(color: kTextTertiary, fontSize: 13)),
+            ])
+          else
+            Text('"${_coach ?? _coachFallback()}"',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: kTextSecondary,
+                    fontSize: 15,
+                    fontStyle: FontStyle.italic,
+                    height: 1.5)),
+        ]),
+      ),
       _briefPanel(
         'BRIEFING',
         'Welcome back, ${appState.displayName}',

@@ -166,6 +166,39 @@ void main() {
     });
   });
 
+  group('habits & insights', () {
+    test('reorderHabits moves a habit to a new position', () {
+      final s = AppState();
+      s.habits.clear();
+      s.addHabit('A', 'common');
+      s.addHabit('B', 'common');
+      s.addHabit('C', 'common');
+      s.reorderHabits(2, 0); // move C to the front
+      expect(s.habits.map((h) => h.name).toList(), ['C', 'A', 'B']);
+    });
+
+    test('a reminder persists through storage and can be cleared', () {
+      final s = AppState();
+      s.addHabit('Meditate', 'epic', reminderMinutes: 480); // 8:00 AM
+      final h = s.habits.firstWhere((x) => x.name == 'Meditate');
+      expect(h.reminderMinutes, 480);
+      final restored = Habit.fromMap(h.toMap());
+      expect(restored.reminderMinutes, 480);
+      s.setHabitReminder(h, null);
+      expect(h.reminderMinutes, isNull);
+    });
+
+    test('avgScoreLastDays averages the most recent daily scores', () {
+      final s = AppState();
+      s.dailyScore['2026-01-01'] = 40;
+      s.dailyScore['2026-01-02'] = 60;
+      s.dailyScore['2026-01-03'] = 80;
+      expect(s.avgScoreLastDays(7), closeTo(60, 0.001)); // all three
+      expect(s.avgScoreLastDays(2), closeTo(70, 0.001)); // last two: 60, 80
+      expect(AppState().avgScoreLastDays(7), 0); // none recorded
+    });
+  });
+
   group('tdee + macros', () {
     final p = BodyProfile(
         weight: 80,

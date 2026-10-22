@@ -469,21 +469,6 @@ class AccountScreen extends StatelessWidget {
               _settingsTile(Icons.cloud_off_rounded, 'Cloud sync',
                   'On this device for now — Supabase wires in later', null),
             const SizedBox(height: 10),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                  backgroundColor: kElevated,
-                  foregroundColor: kRed,
-                  minimumSize: const Size.fromHeight(50)),
-              onPressed: () async {
-                await auth.signOut();
-                if (context.mounted) {
-                  Navigator.of(context).popUntil((r) => r.isFirst);
-                }
-              },
-              icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text('Sign out'),
-            ),
-            const SizedBox(height: 6),
             TextButton.icon(
               onPressed: () => _confirmDeleteAccount(context),
               icon: const Icon(Icons.delete_forever_rounded,

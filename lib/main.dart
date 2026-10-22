@@ -2465,38 +2465,136 @@ Widget _numField(TextEditingController c, String label, TextInputType kb) =>
     );
 
 Future<void> showAddFood(BuildContext context) async {
+  final meal = TextEditingController(); // free-text description for the AI
   final name = TextEditingController();
   final cal = TextEditingController();
   final p = TextEditingController();
   final c = TextEditingController();
   final f = TextEditingController();
+  bool busy = false;
+  bool aiFilled = false;
+
   final ok = await showDialog<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: kCard,
-      title: const Text('Log food', style: TextStyle(color: kTextPrimary)),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _numField(name, 'Food name', TextInputType.text),
-            _numField(cal, 'Calories (kcal)', TextInputType.number),
-            _numField(p, 'Protein (g)', TextInputType.number),
-            _numField(c, 'Carbs (g)', TextInputType.number),
-            _numField(f, 'Fat (g)', TextInputType.number),
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setLocal) {
+        // Ask the local model for macros, then pre-fill the editable fields.
+        Future<void> runAi() async {
+          final desc = meal.text.trim();
+          if (desc.isEmpty) return;
+          setLocal(() => busy = true);
+          final est = await estimateNutrition(desc,
+              enabled: appState.aiEnabled,
+              baseUrl: appState.aiBaseUrl,
+              model: appState.aiModel);
+          if (!ctx.mounted) return;
+          setLocal(() => busy = false);
+          if (est == null) {
+            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+              content: Text(appState.aiEnabled
+                  ? "Couldn't reach the AI — is Ollama running? You can enter the macros manually."
+                  : 'Turn on AI in Settings → AI difficulty, or enter the macros manually.'),
+            ));
+            return;
+          }
+          if (name.text.trim().isEmpty) name.text = est.name;
+          cal.text = est.calories.round().toString();
+          p.text = est.protein.round().toString();
+          c.text = est.carbs.round().toString();
+          f.text = est.fat.round().toString();
+          setLocal(() => aiFilled = true);
+        }
+
+        return AlertDialog(
+          backgroundColor: kCard,
+          title:
+              const Text('Log food', style: TextStyle(color: kTextPrimary)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: kElevated,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: kBorder)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Icon(Icons.auto_awesome_rounded,
+                            size: 15, color: kCyan),
+                        const SizedBox(width: 6),
+                        const Text('Describe your meal',
+                            style: TextStyle(
+                                color: kTextSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ]),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: meal,
+                        style: const TextStyle(color: kTextPrimary),
+                        textCapitalization: TextCapitalization.sentences,
+                        minLines: 1,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                            hintText:
+                                'e.g. 2 eggs, toast with butter, black coffee'),
+                        onSubmitted: (_) => runAi(),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                              backgroundColor: kPlasma,
+                              minimumSize: const Size.fromHeight(40)),
+                          onPressed: busy ? null : runAi,
+                          icon: busy
+                              ? const SizedBox(
+                                  width: 15,
+                                  height: 15,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.auto_awesome_rounded,
+                                  size: 16),
+                          label: Text(
+                              busy ? 'Calculating…' : 'Calculate macros with AI'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                if (aiFilled)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 2),
+                    child: Text('🤖 AI estimate — adjust anything below',
+                        style: TextStyle(color: kCyan, fontSize: 11)),
+                  ),
+                _numField(name, 'Food name', TextInputType.text),
+                _numField(cal, 'Calories (kcal)', TextInputType.number),
+                _numField(p, 'Protein (g)', TextInputType.number),
+                _numField(c, 'Carbs (g)', TextInputType.number),
+                _numField(f, 'Fat (g)', TextInputType.number),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: kPlasma),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Add'),
+            ),
           ],
-        ),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel')),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: kPlasma),
-          onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Add'),
-        ),
-      ],
+        );
+      },
     ),
   );
   if (ok == true) {

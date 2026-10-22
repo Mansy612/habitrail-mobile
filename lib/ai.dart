@@ -198,3 +198,123 @@ String _root(String url) {
   }
   return u;
 }
+
+// ── AI nutrition estimation (Ollama) ────────────────────────────────────────
+//
+// The user types what they ate in plain English and the local model estimates
+// the macros for the whole meal. The result just pre-fills the Log-food form —
+// the user can adjust every number before saving — so nothing here is in a
+// reward path, and when Ollama isn't reachable the form stays fully manual.
+
+class NutritionEstimate {
+  const NutritionEstimate({
+    required this.name,
+    required this.calories,
+    required this.protein,
+    required this.carbs,
+    required this.fat,
+    this.fromAi = true,
+  });
+  final String name;
+  final double calories;
+  final double protein;
+  final double carbs;
+  final double fat;
+  final bool fromAi;
+}
+
+double _num(dynamic v) {
+  if (v is num) return v.toDouble();
+  if (v is String) {
+    return double.tryParse(v.replaceAll(RegExp(r'[^0-9.\-]'), '')) ?? 0;
+  }
+  return 0;
+}
+
+/// Parses the JSON Ollama returns for a meal. Null when there are no usable
+/// numbers (all zero or unparseable) so the caller falls back to manual entry.
+NutritionEstimate? parseNutritionJson(String content, {String fallbackName = ''}) {
+  dynamic data;
+  try {
+    data = jsonDecode(content);
+  } catch (_) {
+    return null;
+  }
+  if (data is! Map) return null;
+  double field(List<String> keys) {
+    for (final k in keys) {
+      if (data[k] != null) return _num(data[k]).clamp(0, 100000).toDouble();
+    }
+    return 0;
+  }
+
+  final cal = field(['calories', 'kcal', 'cal']);
+  final protein = field(['protein', 'protein_g', 'proteins']);
+  final carbs = field(['carbs', 'carbohydrates', 'carbs_g']);
+  final fat = field(['fat', 'fat_g', 'fats']);
+  if (cal == 0 && protein == 0 && carbs == 0 && fat == 0) return null;
+  var name = (data['name'] ?? data['food'] ?? data['label'] ?? fallbackName)
+      .toString()
+      .trim();
+  if (name.isEmpty) name = fallbackName.trim();
+  if (name.length > 40) name = '${name.substring(0, 39)}…';
+  return NutritionEstimate(
+    name: name.isEmpty ? 'Meal' : name,
+    calories: cal,
+    protein: protein,
+    carbs: carbs,
+    fat: fat,
+  );
+}
+
+const String _nutritionSystemPrompt =
+    'You estimate nutrition for a habit tracker. Given a free-text description '
+    'of what someone ate, reply with ONLY a JSON object of the form '
+    '{"name": "<short label>", "calories": <kcal>, "protein": <grams>, '
+    '"carbs": <grams>, "fat": <grams>}. Sum ALL items in the description and '
+    'account for the quantities given. Use realistic typical values. The macro '
+    'values are plain numbers with no units.';
+
+/// Estimates macros for [description] via Ollama; null when AI is off, the
+/// input is empty, the server is unreachable/times out, or nothing usable
+/// comes back (the caller then lets the user enter macros by hand).
+Future<NutritionEstimate?> estimateNutrition(
+  String description, {
+  required bool enabled,
+  required String baseUrl,
+  required String model,
+  Duration timeout = const Duration(seconds: 25),
+  http.Client? client,
+}) async {
+  final trimmed = description.trim();
+  if (!enabled || trimmed.isEmpty) return null;
+  final http.Client c = client ?? http.Client();
+  try {
+    final res = await c
+        .post(
+          Uri.parse('${_root(baseUrl)}/api/chat'),
+          headers: const {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'model': model.trim().isEmpty ? kDefaultAiModel : model.trim(),
+            'stream': false,
+            'format': 'json',
+            'options': {'temperature': 0},
+            'messages': [
+              {'role': 'system', 'content': _nutritionSystemPrompt},
+              {'role': 'user', 'content': 'I ate: $trimmed'},
+            ],
+          }),
+        )
+        .timeout(timeout);
+    if (res.statusCode != 200) return null;
+    final body = jsonDecode(utf8.decode(res.bodyBytes));
+    final content = (body is Map && body['message'] is Map)
+        ? (body['message']['content'] ?? '').toString()
+        : '';
+    return parseNutritionJson(content, fallbackName: trimmed);
+  } catch (_) {
+    return null;
+  } finally {
+    if (client == null) c.close();
+  }
+}

@@ -123,6 +123,49 @@ void main() {
     });
   });
 
+  group('ai nutrition', () {
+    test('parses a meal into macros', () {
+      final e = parseNutritionJson(
+          '{"name":"Eggs & toast","calories":320,"protein":18,"carbs":26,"fat":15}');
+      expect(e, isNotNull);
+      expect(e!.name, 'Eggs & toast');
+      expect(e.calories, 320);
+      expect(e.protein, 18);
+      expect(e.carbs, 26);
+      expect(e.fat, 15);
+      expect(e.fromAi, isTrue);
+    });
+
+    test('coerces string numbers, clamps negatives, uses fallback name', () {
+      final e = parseNutritionJson(
+          '{"calories":"450 kcal","protein":"30","carbs":"-5","fat":10}',
+          fallbackName: 'Lunch');
+      expect(e, isNotNull);
+      expect(e!.calories, 450);
+      expect(e.protein, 30);
+      expect(e.carbs, 0); // negative clamped to 0
+      expect(e.name, 'Lunch'); // no name field → fallback
+    });
+
+    test('returns null on garbage or all-zero macros', () {
+      expect(parseNutritionJson('not json'), isNull);
+      expect(parseNutritionJson('{"calories":0,"protein":0,"carbs":0,"fat":0}'),
+          isNull);
+    });
+
+    test('estimate is null when AI is off', () async {
+      final e = await estimateNutrition('2 eggs and toast',
+          enabled: false, baseUrl: kDefaultAiBaseUrl, model: kDefaultAiModel);
+      expect(e, isNull);
+    });
+
+    test('estimate is null for an empty description', () async {
+      final e = await estimateNutrition('   ',
+          enabled: true, baseUrl: kDefaultAiBaseUrl, model: kDefaultAiModel);
+      expect(e, isNull);
+    });
+  });
+
   group('tdee + macros', () {
     final p = BodyProfile(
         weight: 80,

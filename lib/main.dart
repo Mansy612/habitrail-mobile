@@ -588,6 +588,8 @@ class AccountScreen extends StatelessWidget {
                     ),
                   ]),
                 ),
+                const SizedBox(height: 10),
+                _photoActions(context),
                 const SizedBox(height: 12),
                 Text(u.name,
                     style: const TextStyle(
@@ -1306,6 +1308,23 @@ Future<void> _pickProfilePhoto(BuildContext context) async {
     if (context.mounted) _toast(context, "Couldn't pick a photo.");
   }
 }
+
+// "Change photo" / "Remove" actions shown under the account avatar.
+Widget _photoActions(BuildContext context) => Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _secondaryPill('Change photo', () => _pickProfilePhoto(context)),
+        if (appState.pfpBase64.isNotEmpty) ...[
+          const SizedBox(width: 10),
+          TextButton(
+            onPressed: () => appState.setPfp(''),
+            child:
+                const Text('Remove', style: TextStyle(color: kTextTertiary)),
+          ),
+        ],
+      ],
+    );
 
 // Coins pill (→ Shop).
 Widget _coinsPill(BuildContext context) => GestureDetector(
@@ -4077,6 +4096,20 @@ class SettingsScreen extends StatelessWidget {
                         Text('Level ${ld.level} · ${levelTitle(ld.level)}',
                             style: const TextStyle(
                                 color: kTextTertiary, fontSize: 12)),
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: () => _pickProfilePhoto(context),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.camera_alt_rounded,
+                                size: 13, color: kPlasmaBright),
+                            const SizedBox(width: 4),
+                            Text('Change photo',
+                                style: TextStyle(
+                                    color: kPlasmaBright,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
                       ],
                     ),
                   ),

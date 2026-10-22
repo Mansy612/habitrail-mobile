@@ -272,6 +272,19 @@ void main() {
       expect(s.prestige, 1);
     });
 
+    test('prestige reverts a now-locked companion to the default', () {
+      final s = AppState();
+      var xp = 0;
+      for (var i = 1; i < 10; i++) {
+        xp += xpForLevel(i);
+      }
+      s.totalXp = xp; // level 10
+      expect(s.companionUnlocked('lynx'), isTrue); // unlocks at level 10
+      s.setCompanion('lynx');
+      s.doPrestige(); // back to level 1 → lynx re-locks
+      expect(s.activeCompanion, 'drone');
+    });
+
     test('shop: xp booster + streak shield cost coins', () {
       final s = AppState();
       s.coins = 300;

@@ -907,6 +907,9 @@ class AppState extends ChangeNotifier {
     for (final h in habits) {
       h.todayAwardXp = 0;
     }
+    // Level is back to 1, so re-lock any companion above it — if the active one
+    // is now locked, fall back to the default so it can't show locked + active.
+    if (!companionUnlocked(activeCompanion)) activeCompanion = 'drone';
     _logMilestone('prestige', 'Prestiged — now ★$prestige');
     _prevLevel = 1;
     notifyListeners();

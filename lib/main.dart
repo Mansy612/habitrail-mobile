@@ -857,7 +857,10 @@ class _HomeShellState extends State<HomeShell> {
         content: Text('⏰ Time for: ${h.name}'),
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
-            label: 'Done', onPressed: () => appState.toggle(h)),
+            label: 'Done',
+            onPressed: () {
+              if (!appState.doneToday(h)) appState.toggle(h);
+            }),
       ));
     }
   }
@@ -2636,7 +2639,8 @@ class _FoodTile extends StatelessWidget {
 
 double _parseNum(String s) => double.tryParse(s.trim()) ?? 0;
 
-Widget _numField(TextEditingController c, String label, TextInputType kb) =>
+Widget _numField(TextEditingController c, String label, TextInputType kb,
+        {ValueChanged<String>? onChanged}) =>
     Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextField(
@@ -2644,6 +2648,7 @@ Widget _numField(TextEditingController c, String label, TextInputType kb) =>
         keyboardType: kb,
         style: const TextStyle(color: kTextPrimary),
         decoration: InputDecoration(labelText: label),
+        onChanged: onChanged,
       ),
     );
 
@@ -3258,9 +3263,12 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _numField(_weight, 'Weight (kg)', TextInputType.number),
-          _numField(_height, 'Height (cm)', TextInputType.number),
-          _numField(_age, 'Age', TextInputType.number),
+          _numField(_weight, 'Weight (kg)', TextInputType.number,
+              onChanged: (_) => setState(() {})),
+          _numField(_height, 'Height (cm)', TextInputType.number,
+              onChanged: (_) => setState(() {})),
+          _numField(_age, 'Age', TextInputType.number,
+              onChanged: (_) => setState(() {})),
           _dropdown('Gender', _gender, const {'male': 'Male', 'female': 'Female'},
               (v) => setState(() => _gender = v)),
           _dropdown(

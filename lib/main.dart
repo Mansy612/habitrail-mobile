@@ -5102,17 +5102,14 @@ class AppearanceScreen extends StatelessWidget {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.3,
+            childAspectRatio: 1.1,
             children: kThemes.map((t) {
               final active = appState.themeId == t.id;
               final owned = appState.ownsTheme(t.id);
               return GestureDetector(
-                onTap: owned
-                    ? () => appState.setTheme(t.id)
-                    : () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const ShopScreen())),
+                onTap: owned ? () => appState.setTheme(t.id) : null,
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     gradient: _kGlassSheen,
                     borderRadius: BorderRadius.circular(16),
@@ -5138,28 +5135,28 @@ class AppearanceScreen extends StatelessWidget {
                       Text(t.name,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                              color: kTextPrimary, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
+                              color: kTextPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.5)),
+                      const SizedBox(height: 10),
                       if (active)
-                        const Text('ACTIVE',
-                            style: TextStyle(
-                                color: kCyan,
-                                fontSize: 10,
-                                letterSpacing: 1.5,
-                                fontWeight: FontWeight.bold))
-                      else if (!owned)
-                        Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.lock_outline_rounded,
-                                  size: 11, color: kGold),
-                              const SizedBox(width: 3),
-                              Text('${themeCost(t.id)}',
-                                  style: const TextStyle(
-                                      color: kGold,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold)),
-                            ]),
+                        _stateChip('ACTIVE', kCyan)
+                      else if (owned)
+                        _secondaryPill('Apply', () => appState.setTheme(t.id))
+                      else
+                        _buyPill(
+                          cost: themeCost(t.id),
+                          onTap: () {
+                            if (appState.buyTheme(t.id)) {
+                              appState.setTheme(t.id);
+                              celebrate(context);
+                              _toast(
+                                  context, '${t.name} unlocked & applied!');
+                            } else {
+                              _toast(context, 'Not enough coins');
+                            }
+                          },
+                        ),
                     ],
                   ),
                 ),

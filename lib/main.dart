@@ -162,6 +162,70 @@ class HabitrailApp extends StatelessWidget {
         scaffoldBackgroundColor: kBase,
         textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
             .apply(bodyColor: kTextPrimary, displayColor: kTextPrimary),
+        splashColor: kPlasma.withValues(alpha: 0.12),
+        highlightColor: kPlasma.withValues(alpha: 0.06),
+        // Smooth, consistent screen transitions on every platform.
+        pageTransitionsTheme: const PageTransitionsTheme(builders: {
+          TargetPlatform.android: ZoomPageTransitionsBuilder(),
+          TargetPlatform.iOS: ZoomPageTransitionsBuilder(),
+          TargetPlatform.macOS: ZoomPageTransitionsBuilder(),
+          TargetPlatform.windows: ZoomPageTransitionsBuilder(),
+          TargetPlatform.linux: ZoomPageTransitionsBuilder(),
+        }),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: false,
+        ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: kElevated,
+          contentTextStyle: const TextStyle(color: kTextPrimary),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          insetPadding: const EdgeInsets.all(16),
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: kCard,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: kCard,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: kElevated,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          hintStyle: const TextStyle(color: kTextTertiary),
+          labelStyle: const TextStyle(color: kTextTertiary),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kBorder)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kPlasma, width: 1.5)),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: kBorder)),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: kPlasma,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
+            textStyle:
+                GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(foregroundColor: kPlasmaBright),
+        ),
       ),
       home: const AuthGate(),
     );
@@ -1067,6 +1131,10 @@ class _BottomNav extends StatelessWidget {
       decoration: const BoxDecoration(
         color: kSurfacePrimary,
         border: Border(top: BorderSide(color: kBorder)),
+        boxShadow: [
+          BoxShadow(
+              color: Color(0x33000000), blurRadius: 16, offset: Offset(0, -4)),
+        ],
       ),
       child: SafeArea(
         top: false,

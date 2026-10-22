@@ -47,6 +47,10 @@ dependencies:
   # Talks to a local Ollama server to AI-rate habit difficulty (free, offline).
   http: ^1.2.2
 
+  # Profile pictures: pick an image, then downscale it so the stored avatar is tiny.
+  image_picker: ^1.1.2
+  image: ^4.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

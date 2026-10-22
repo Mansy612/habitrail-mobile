@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -56,6 +57,43 @@ void applyThemeColors(String id) {
   kPlasmaBright = t.bright;
   kPlasmaGlow = t.glow;
 }
+
+// ── Cosmetics: profile-picture borders (bought in the Shop) ─────────────────
+class BorderDef {
+  const BorderDef(this.id, this.name, this.cost, this.colors, {this.glow = false});
+  final String id;
+  final String name;
+  final int cost;
+  final List<Color> colors; // 1 color = solid ring, 2+ = gradient
+  final bool glow;
+}
+
+const List<BorderDef> kBorders = [
+  BorderDef('none', 'Simple', 0, [Color(0x33FFFFFF)]),
+  BorderDef('cyan', 'Cyan Pulse', 120, [Color(0xFF22D3EE)], glow: true),
+  BorderDef('gold', 'Gold', 180, [Color(0xFFFBBF24)], glow: true),
+  BorderDef('violet', 'Violet', 180, [Color(0xFF8B5CF6)], glow: true),
+  BorderDef('crimson', 'Crimson', 220, [Color(0xFFFB7185)], glow: true),
+  BorderDef('aurora', 'Aurora', 400,
+      [Color(0xFF22D3EE), Color(0xFF8B5CF6), Color(0xFFF472B6)], glow: true),
+  BorderDef('prism', 'Prismatic', 700, [
+    Color(0xFFFB7185),
+    Color(0xFFFBBF24),
+    Color(0xFF34D399),
+    Color(0xFF22D3EE),
+    Color(0xFF8B5CF6)
+  ], glow: true),
+];
+
+BorderDef borderById(String id) =>
+    kBorders.firstWhere((b) => b.id == id, orElse: () => kBorders.first);
+
+// Theme prices (violet is free). Bought in the Shop, applied in Appearance.
+const Map<String, int> kThemeCost = {
+  'violet': 0, 'tokyo': 200, 'matrix': 200,
+  'solar': 250, 'crimson': 250, 'arctic': 300,
+};
+int themeCost(String id) => kThemeCost[id] ?? 200;
 
 // ── Progression — ported 1:1 from lib/progression.ts ────────────────────────
 const Map<int, String> kLevelTitles = {
@@ -463,6 +501,12 @@ class AppState extends ChangeNotifier {
   bool aiEnabled = true;
   String aiBaseUrl = kDefaultAiBaseUrl;
   String aiModel = kDefaultAiModel;
+  // Profile / cosmetics
+  String pfpBase64 = ''; // downscaled JPEG as base64; '' = show the initial
+  Uint8List? pfpBytes; // decoded cache for display
+  String selectedBorder = 'none';
+  final Set<String> ownedBorders = {'none'};
+  final Set<String> ownedThemes = {'violet'};
 
   int get level => levelFromXp(totalXp).level;
   bool get xpBoostActive => xpBoostDate == dateKey(DateTime.now());
@@ -538,8 +582,53 @@ class AppState extends ChangeNotifier {
   }
 
   void setTheme(String id) {
+    if (!ownedThemes.contains(id)) return; // must own it (buy in the Shop)
     themeId = id;
     applyThemeColors(id);
+    notifyListeners();
+    _save();
+  }
+
+  void setPfp(String base64) {
+    pfpBase64 = base64;
+    try {
+      pfpBytes = base64.isEmpty ? null : base64Decode(base64);
+    } catch (_) {
+      pfpBytes = null;
+      pfpBase64 = '';
+    }
+    notifyListeners();
+    _save();
+  }
+
+  bool ownsTheme(String id) => ownedThemes.contains(id);
+  bool ownsBorder(String id) => ownedBorders.contains(id);
+
+  bool buyTheme(String id) {
+    if (ownedThemes.contains(id)) return true;
+    final c = themeCost(id);
+    if (coins < c) return false;
+    coins -= c;
+    ownedThemes.add(id);
+    notifyListeners();
+    _save();
+    return true;
+  }
+
+  bool buyBorder(String id) {
+    if (ownedBorders.contains(id)) return true;
+    final c = borderById(id).cost;
+    if (coins < c) return false;
+    coins -= c;
+    ownedBorders.add(id);
+    notifyListeners();
+    _save();
+    return true;
+  }
+
+  void setBorder(String id) {
+    if (!ownedBorders.contains(id)) return;
+    selectedBorder = id;
     notifyListeners();
     _save();
   }
@@ -598,6 +687,17 @@ class AppState extends ChangeNotifier {
     _prevLevel = 1;
     activeCompanion = 'drone';
     lastCompanionLine = '';
+    pfpBase64 = '';
+    pfpBytes = null;
+    selectedBorder = 'none';
+    ownedBorders
+      ..clear()
+      ..add('none');
+    ownedThemes
+      ..clear()
+      ..add('violet');
+    themeId = 'violet';
+    applyThemeColors('violet');
     notifyListeners();
     _save();
   }
@@ -763,6 +863,20 @@ class AppState extends ChangeNotifier {
       aiModel = (m['aiModel'] as String?) ?? kDefaultAiModel;
       earnedAchievements.addAll(
           ((m['earnedAchievements'] as List?) ?? const []).map((e) => e as String));
+      pfpBase64 = (m['pfpBase64'] as String?) ?? '';
+      try {
+        pfpBytes = pfpBase64.isEmpty ? null : base64Decode(pfpBase64);
+      } catch (_) {
+        pfpBytes = null;
+        pfpBase64 = '';
+      }
+      selectedBorder = (m['selectedBorder'] as String?) ?? 'none';
+      ownedBorders.addAll(
+          ((m['ownedBorders'] as List?) ?? const []).map((e) => e as String));
+      ownedThemes.addAll(
+          ((m['ownedThemes'] as List?) ?? const []).map((e) => e as String));
+      ownedThemes.add(themeId); // keep the active theme owned (back-compat)
+      if (!ownedBorders.contains(selectedBorder)) selectedBorder = 'none';
     }
     applyThemeColors(themeId);
     final today = dateKey(DateTime.now());
@@ -840,6 +954,10 @@ class AppState extends ChangeNotifier {
           'aiBaseUrl': aiBaseUrl,
           'aiModel': aiModel,
           'earnedAchievements': earnedAchievements.toList(),
+          'pfpBase64': pfpBase64,
+          'selectedBorder': selectedBorder,
+          'ownedBorders': ownedBorders.toList(),
+          'ownedThemes': ownedThemes.toList(),
         }));
   }
 

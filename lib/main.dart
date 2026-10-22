@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
 import 'core.dart';
 import 'ai.dart';
 import 'auth.dart';
@@ -500,18 +503,24 @@ class AccountScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: kBorder)),
               child: Column(children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(colors: [kPlasma, kBlue])),
-                  child: Text(u.name.isNotEmpty ? u.name[0].toUpperCase() : '?',
-                      style: GoogleFonts.spaceGrotesk(
-                          color: Colors.white,
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800)),
+                GestureDetector(
+                  onTap: () => _pickProfilePhoto(context),
+                  child: Stack(children: [
+                    const _Avatar(size: 76),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: kPlasma,
+                            border: Border.all(color: kCard, width: 2)),
+                        child: const Icon(Icons.camera_alt_rounded,
+                            size: 12, color: Colors.white),
+                      ),
+                    ),
+                  ]),
                 ),
                 const SizedBox(height: 12),
                 Text(u.name,
@@ -1132,30 +1141,123 @@ class _NavItem extends StatelessWidget {
 }
 
 // ── Reusable app bar with the coins pill ────────────────────────────────────
+// A circular profile picture (or the user's initial) wrapped in the selected
+// border. Used in the app bar and on the account/settings screens.
+class _Avatar extends StatelessWidget {
+  const _Avatar({this.size = 40});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final ringW = (size * 0.07).clamp(2.0, 5.0);
+    final inner = size - ringW * 2;
+    final name = appState.displayName;
+    final Widget pic = appState.pfpBytes != null
+        ? Image.memory(appState.pfpBytes!,
+            width: inner, height: inner, fit: BoxFit.cover, gaplessPlayback: true)
+        : Container(
+            width: inner,
+            height: inner,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [kPlasma, kBlue])),
+            child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: GoogleFonts.spaceGrotesk(
+                    color: Colors.white,
+                    fontSize: inner * 0.42,
+                    fontWeight: FontWeight.w800)),
+          );
+    final avatar = ClipOval(child: pic);
+    final b = borderById(appState.selectedBorder);
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(ringW),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: b.colors.length == 1 ? b.colors.first : null,
+        gradient: b.colors.length > 1
+            ? SweepGradient(colors: [...b.colors, b.colors.first])
+            : null,
+        boxShadow: b.glow
+            ? [
+                BoxShadow(
+                    color: b.colors.first.withValues(alpha: 0.6),
+                    blurRadius: size * 0.22,
+                    spreadRadius: 0.5)
+              ]
+            : null,
+      ),
+      child: avatar,
+    );
+  }
+}
+
+// A preview ring of a specific border (for the Shop), independent of the
+// currently-selected one.
+Widget _borderPreview(BorderDef b, {double size = 42}) {
+  final ringW = (size * 0.1).clamp(2.0, 5.0);
+  return Container(
+    width: size,
+    height: size,
+    padding: EdgeInsets.all(ringW),
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: b.colors.length == 1 ? b.colors.first : null,
+      gradient: b.colors.length > 1
+          ? SweepGradient(colors: [...b.colors, b.colors.first])
+          : null,
+      boxShadow: b.glow
+          ? [BoxShadow(color: b.colors.first.withValues(alpha: 0.5), blurRadius: 8)]
+          : null,
+    ),
+    child: const DecoratedBox(
+        decoration: BoxDecoration(shape: BoxShape.circle, color: kElevated)),
+  );
+}
+
+// Pick a photo, center-crop + downscale to a tiny JPEG, and store it.
+Future<void> _pickProfilePhoto(BuildContext context) async {
+  try {
+    final x = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, maxWidth: 512, imageQuality: 85);
+    if (x == null) return;
+    final bytes = await x.readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) {
+      if (context.mounted) _toast(context, "Couldn't read that image.");
+      return;
+    }
+    final side = decoded.width < decoded.height ? decoded.width : decoded.height;
+    final cropped = img.copyCrop(decoded,
+        x: (decoded.width - side) ~/ 2,
+        y: (decoded.height - side) ~/ 2,
+        width: side,
+        height: side);
+    final resized = img.copyResize(cropped, width: 256, height: 256);
+    appState.setPfp(base64Encode(img.encodeJpg(resized, quality: 82)));
+  } catch (_) {
+    if (context.mounted) _toast(context, "Couldn't pick a photo.");
+  }
+}
+
 PreferredSizeWidget _titleBar(String title) {
   return AppBar(
     backgroundColor: Colors.transparent,
-    title: Text(title,
-        style: GoogleFonts.spaceGrotesk(
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.5,
-            color: kTextPrimary)),
+    title: title.isEmpty
+        ? null
+        : Text(title,
+            style: GoogleFonts.spaceGrotesk(
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.5,
+                color: kTextPrimary)),
     actions: [
-      Builder(
-        builder: (context) => IconButton(
-          icon: const Icon(Icons.settings_rounded,
-              color: kTextTertiary, size: 20),
-          tooltip: 'Settings',
-          onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen())),
-        ),
-      ),
+      // Coins → shop
       Builder(
         builder: (context) => GestureDetector(
           onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ShopScreen())),
           child: Container(
-            margin: const EdgeInsets.only(right: 14),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: kElevated,
@@ -1180,6 +1282,28 @@ PreferredSizeWidget _titleBar(String title) {
           ),
         ),
       ),
+      Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.storefront_rounded,
+              color: kTextTertiary, size: 20),
+          tooltip: 'Shop',
+          onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ShopScreen())),
+        ),
+      ),
+      // Profile picture → settings
+      Builder(
+        builder: (context) => Padding(
+          padding: const EdgeInsets.only(right: 12, left: 2),
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsScreen())),
+            child: ListenableBuilder(
+                listenable: appState,
+                builder: (_, _) => const _Avatar(size: 34)),
+          ),
+        ),
+      ),
     ],
   );
 }
@@ -1190,7 +1314,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ld = levelFromXp(appState.totalXp);
     void onToggle(Habit h) {
       final old = appState.level;
       final oldStreak = h.streak;
@@ -1227,11 +1350,10 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _titleBar('🔥 Habitrail'),
+      appBar: _titleBar(''),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 96),
         children: [
-          _LevelHeader(ld: ld),
           const _CompanionCard(),
           const _VictoryCard(),
           const _NutritionCard(),
@@ -1518,89 +1640,6 @@ void _showBossDefeat(BuildContext context) {
       ),
     ),
   );
-}
-
-class _LevelHeader extends StatelessWidget {
-  const _LevelHeader({required this.ld});
-  final ({int level, int currentXp, int requiredXp, double progress}) ld;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2A1458), Color(0xFF160B2E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: kBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(
-              width: 52,
-              height: 52,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(colors: [kPlasma, kBlue]),
-              ),
-              child: Text('${ld.level}',
-                  style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800)),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(levelTitle(ld.level).toUpperCase(),
-                      style: GoogleFonts.spaceGrotesk(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1)),
-                  const SizedBox(height: 2),
-                  Row(children: [
-                    Text('Level ${ld.level}',
-                        style: const TextStyle(
-                            color: kTextTertiary, fontSize: 12)),
-                    if (appState.prestige > 0) ...[
-                      const SizedBox(width: 6),
-                      Text('★' * appState.prestige,
-                          style: const TextStyle(color: kGold, fontSize: 12)),
-                    ],
-                  ]),
-                ],
-              ),
-            ),
-            Text('${appState.doneTodayCount}/${appState.habits.length} today',
-                style: const TextStyle(color: kCyan, fontSize: 13)),
-          ]),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: ld.progress.clamp(0.0, 1.0).toDouble(),
-              minHeight: 9,
-              backgroundColor: const Color(0x14FFFFFF),
-              valueColor: AlwaysStoppedAnimation<Color>(kPlasmaBright),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text('${ld.currentXp} / ${ld.requiredXp} XP',
-              style: const TextStyle(color: kTextSecondary, fontSize: 12)),
-        ],
-      ),
-    );
-  }
 }
 
 class _HabitTile extends StatelessWidget {
@@ -3673,9 +3712,6 @@ class SettingsScreen extends StatelessWidget {
       listenable: appState,
       builder: (context, _) {
         final ld = levelFromXp(appState.totalXp);
-        final initial = appState.displayName.isNotEmpty
-            ? appState.displayName[0].toUpperCase()
-            : '?';
         return Scaffold(
           appBar: AppBar(
             backgroundColor: Colors.transparent,
@@ -3694,18 +3730,24 @@ class SettingsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: kBorder)),
                 child: Row(children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(colors: [kPlasma, kBlue])),
-                    child: Text(initial,
-                        style: GoogleFonts.spaceGrotesk(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800)),
+                  GestureDetector(
+                    onTap: () => _pickProfilePhoto(context),
+                    child: Stack(children: [
+                      const _Avatar(size: 58),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: kPlasma,
+                              border: Border.all(color: kCard, width: 2)),
+                          child: const Icon(Icons.camera_alt_rounded,
+                              size: 10, color: Colors.white),
+                        ),
+                      ),
+                    ]),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -4207,12 +4249,120 @@ class ShopScreen extends StatelessWidget {
                         ? 'Streak Shield added!'
                         : 'Not enough coins'),
               ),
+              _sectionLabel('PROFILE BORDERS'),
+              ...kBorders.map((b) => _borderShopTile(context, b)),
+              _sectionLabel('THEMES'),
+              ...kThemes.map((t) => _themeShopTile(context, t)),
             ],
           ),
         );
       },
     );
   }
+}
+
+Widget _borderShopTile(BuildContext context, BorderDef b) {
+  final owned = appState.ownsBorder(b.id);
+  final selected = appState.selectedBorder == b.id;
+  return Container(
+    margin: const EdgeInsets.symmetric(vertical: 4),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+        color: kCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: selected ? kPlasma : kBorder)),
+    child: Row(children: [
+      _borderPreview(b, size: 42),
+      const SizedBox(width: 14),
+      Expanded(
+          child: Text(b.name,
+              style: const TextStyle(
+                  color: kTextPrimary, fontWeight: FontWeight.w600))),
+      if (owned)
+        selected
+            ? const Text('SELECTED',
+                style: TextStyle(
+                    color: kCyan,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1))
+            : TextButton(
+                onPressed: () => appState.setBorder(b.id),
+                child: const Text('Select'))
+      else
+        FilledButton(
+          style: FilledButton.styleFrom(
+              backgroundColor: kElevated, foregroundColor: kGold),
+          onPressed: () {
+            if (appState.buyBorder(b.id)) {
+              appState.setBorder(b.id);
+              _toast(context, '${b.name} unlocked & applied!');
+            } else {
+              _toast(context, 'Not enough coins');
+            }
+          },
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.bolt, size: 14, color: kGold),
+            const SizedBox(width: 4),
+            Text('${b.cost}'),
+          ]),
+        ),
+    ]),
+  );
+}
+
+Widget _themeShopTile(BuildContext context, AppThemeDef t) {
+  final owned = appState.ownsTheme(t.id);
+  final active = appState.themeId == t.id;
+  return Container(
+    margin: const EdgeInsets.symmetric(vertical: 4),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+        color: kCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: active ? t.accent : kBorder)),
+    child: Row(children: [
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        _swatch(t.accent),
+        _swatch(t.bright),
+        _swatch(t.glow),
+      ]),
+      const SizedBox(width: 10),
+      Expanded(
+          child: Text(t.name,
+              style: const TextStyle(
+                  color: kTextPrimary, fontWeight: FontWeight.w600))),
+      if (owned)
+        active
+            ? const Text('ACTIVE',
+                style: TextStyle(
+                    color: kCyan,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1))
+            : TextButton(
+                onPressed: () => appState.setTheme(t.id),
+                child: const Text('Apply'))
+      else
+        FilledButton(
+          style: FilledButton.styleFrom(
+              backgroundColor: kElevated, foregroundColor: kGold),
+          onPressed: () {
+            if (appState.buyTheme(t.id)) {
+              appState.setTheme(t.id);
+              _toast(context, '${t.name} unlocked & applied!');
+            } else {
+              _toast(context, 'Not enough coins');
+            }
+          },
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.bolt, size: 14, color: kGold),
+            const SizedBox(width: 4),
+            Text('${themeCost(t.id)}'),
+          ]),
+        ),
+    ]),
+  );
 }
 
 // ── CONFETTI ─────────────────────────────────────────────────────────────────
@@ -4469,8 +4619,12 @@ class AppearanceScreen extends StatelessWidget {
             childAspectRatio: 1.3,
             children: kThemes.map((t) {
               final active = appState.themeId == t.id;
+              final owned = appState.ownsTheme(t.id);
               return GestureDetector(
-                onTap: () => appState.setTheme(t.id),
+                onTap: owned
+                    ? () => appState.setTheme(t.id)
+                    : () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const ShopScreen())),
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -4483,28 +4637,43 @@ class AppearanceScreen extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _swatch(t.accent),
-                          _swatch(t.bright),
-                          _swatch(t.glow),
-                        ],
+                      Opacity(
+                        opacity: owned ? 1 : 0.5,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _swatch(t.accent),
+                            _swatch(t.bright),
+                            _swatch(t.glow),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Text(t.name,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                               color: kTextPrimary, fontWeight: FontWeight.bold)),
-                      if (active) ...[
-                        const SizedBox(height: 4),
+                      const SizedBox(height: 4),
+                      if (active)
                         const Text('ACTIVE',
                             style: TextStyle(
                                 color: kCyan,
                                 fontSize: 10,
                                 letterSpacing: 1.5,
-                                fontWeight: FontWeight.bold)),
-                      ],
+                                fontWeight: FontWeight.bold))
+                      else if (!owned)
+                        Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.lock_outline_rounded,
+                                  size: 11, color: kGold),
+                              const SizedBox(width: 3),
+                              Text('${themeCost(t.id)}',
+                                  style: const TextStyle(
+                                      color: kGold,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold)),
+                            ]),
                     ],
                   ),
                 ),

@@ -265,14 +265,82 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _pw = TextEditingController();
   bool _busy = false;
   String? _error;
+  Timer? _unameDebounce;
+  int _unameSeq = 0;
+  bool _unameChecking = false;
+  bool? _unameAvailable; // null = unknown/invalid, true/false = checked
 
   @override
   void dispose() {
+    _unameDebounce?.cancel();
     _username.dispose();
     _email.dispose();
     _pw.dispose();
     super.dispose();
   }
+
+  void _onUsernameChanged(String v) {
+    _unameDebounce?.cancel();
+    final u = v.trim();
+    if (u.isEmpty || !isValidUsername(u)) {
+      setState(() {
+        _unameChecking = false;
+        _unameAvailable = null;
+      });
+      return;
+    }
+    setState(() {
+      _unameChecking = true;
+      _unameAvailable = null;
+    });
+    final seq = ++_unameSeq;
+    _unameDebounce = Timer(const Duration(milliseconds: 400), () async {
+      final ok = await auth.isUsernameAvailable(u);
+      if (!mounted || seq != _unameSeq) return;
+      setState(() {
+        _unameChecking = false;
+        _unameAvailable = ok;
+      });
+    });
+  }
+
+  Widget _usernameStatus() {
+    final u = _username.text.trim();
+    if (u.isEmpty) return const SizedBox.shrink();
+    if (!isValidUsername(u)) {
+      return _unameStatusLine(kTextTertiary, Icons.info_outline_rounded,
+          '3–20 letters, numbers, or underscores');
+    }
+    if (_unameChecking) {
+      return const Padding(
+        padding: EdgeInsets.only(left: 4, bottom: 10),
+        child: Row(children: [
+          SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2)),
+          SizedBox(width: 8),
+          Text('Checking…', style: TextStyle(color: kTextTertiary, fontSize: 12)),
+        ]),
+      );
+    }
+    if (_unameAvailable == true) {
+      return _unameStatusLine(kGreen, Icons.check_circle_rounded, 'Available');
+    }
+    if (_unameAvailable == false) {
+      return _unameStatusLine(kRed, Icons.cancel_rounded, 'Unavailable');
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _unameStatusLine(Color c, IconData icon, String text) => Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 10),
+        child: Row(children: [
+          Icon(icon, size: 14, color: c),
+          const SizedBox(width: 6),
+          Text(text, style: TextStyle(color: c, fontSize: 12)),
+        ]),
+      );
 
   Future<void> _submit() async {
     setState(() {
@@ -300,7 +368,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       title: 'Create account',
       subtitle: 'Start earning XP for your habits.',
       children: [
-        _authField(_username, 'Username', hint: 'e.g. sam_92'),
+        _authField(_username, 'Username',
+            hint: 'e.g. sam_92', onChanged: _onUsernameChanged),
+        _usernameStatus(),
         _authField(_email, 'Email',
             keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
         _authField(_pw, 'Password',
@@ -652,7 +722,10 @@ Widget _authScaffold(BuildContext context,
 }
 
 Widget _authField(TextEditingController c, String label,
-    {bool obscure = false, TextInputType? keyboard, String? hint}) {
+    {bool obscure = false,
+    TextInputType? keyboard,
+    String? hint,
+    ValueChanged<String>? onChanged}) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 14),
     child: Column(
@@ -667,6 +740,7 @@ Widget _authField(TextEditingController c, String label,
           controller: c,
           obscureText: obscure,
           keyboardType: keyboard,
+          onChanged: onChanged,
           style: const TextStyle(color: kTextPrimary),
           decoration: InputDecoration(
             hintText: hint,

@@ -105,6 +105,15 @@ void main() {
       // The account record is gone, so a later sign-in fails.
       expect((await s.signIn(email: 'a@b.com', password: 'secret1')).ok, isFalse);
     });
+
+    test('isUsernameAvailable reflects taken handles (case-insensitive)',
+        () async {
+      final s = StubAuthService();
+      expect(await s.isUsernameAvailable('free_name'), isTrue);
+      await s.signUp(email: 'a@b.com', password: 'secret1', username: 'Taken');
+      expect(await s.isUsernameAvailable('taken'), isFalse); // case-insensitive
+      expect(await s.isUsernameAvailable('other'), isTrue);
+    });
   });
 
   group('Auth state', () {

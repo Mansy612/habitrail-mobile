@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:ui' show ImageFilter;
+import 'dart:ui' show ImageFilter, MaskFilter, BlurStyle;
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -1461,6 +1461,76 @@ class GlowBar extends StatelessWidget {
   }
 }
 
+// Luminous gradient progress ring.
+class GlowRing extends StatelessWidget {
+  const GlowRing(
+      {required this.value,
+      required this.size,
+      this.stroke = 6,
+      this.colors,
+      super.key});
+  final double value;
+  final double size;
+  final double stroke;
+  final List<Color>? colors;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          painter: _RingPainter(
+              value.clamp(0.0, 1.0).toDouble(), stroke, colors ?? _kAccentGradient),
+        ),
+      );
+}
+
+class _RingPainter extends CustomPainter {
+  _RingPainter(this.value, this.stroke, this.colors);
+  final double value;
+  final double stroke;
+  final List<Color> colors;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - stroke) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..color = const Color(0x1FFFFFFF));
+    if (value <= 0) return;
+    final sweep = 2 * pi * value;
+    final ring = colors.length > 1 ? colors : [colors.first, colors.first];
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        colors: [...ring, ring.first],
+        transform: const GradientRotation(-pi / 2),
+      ).createShader(rect);
+    canvas.drawArc(
+        rect,
+        -pi / 2,
+        sweep,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..strokeCap = StrokeCap.round
+          ..color = ring.last.withValues(alpha: 0.4)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+    canvas.drawArc(rect, -pi / 2, sweep, false, arc);
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.value != value || old.colors != colors || old.stroke != stroke;
+}
+
 // Dashboard app bar: profile picture + level on the LEFT, coins + shop RIGHT.
 PreferredSizeWidget _dashboardBar() {
   return AppBar(
@@ -1658,15 +1728,11 @@ class _VictoryCard extends StatelessWidget {
           width: 64,
           height: 64,
           child: Stack(alignment: Alignment.center, children: [
-            SizedBox(
-              width: 64,
-              height: 64,
-              child: CircularProgressIndicator(
-                value: v.score / 100,
-                strokeWidth: 6,
-                backgroundColor: const Color(0x14FFFFFF),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
+            GlowRing(
+              value: v.score / 100,
+              size: 64,
+              stroke: 6,
+              colors: [color, Color.lerp(color, Colors.white, 0.35)!],
             ),
             Text('${v.score}',
                 style: GoogleFonts.spaceGrotesk(
@@ -1903,7 +1969,7 @@ class _HabitTile extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 5),
         decoration: BoxDecoration(
-          color: kCard,
+          gradient: _kGlassSheen,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: done ? kPlasma : kBorder),
         ),
@@ -2328,7 +2394,7 @@ class _AchievementCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kCard,
+        gradient: _kGlassSheen,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: on ? color : kBorder),
       ),
@@ -2412,16 +2478,43 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 48)),
-          const SizedBox(height: 12),
-          Text(title,
-              style: const TextStyle(color: kTextSecondary, fontSize: 18)),
-          const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: kTextTertiary)),
-        ],
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+        decoration: glassDecoration(radius: 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 74,
+              height: 74,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(colors: _kAccentGradient),
+                boxShadow: [
+                  BoxShadow(
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
+                      blurRadius: 22,
+                      spreadRadius: 1),
+                ],
+              ),
+              child: Text(emoji, style: const TextStyle(fontSize: 36)),
+            ),
+            const SizedBox(height: 16),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.spaceGrotesk(
+                    color: kTextPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text(subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: kTextTertiary, fontSize: 13, height: 1.4)),
+          ],
+        ),
       ),
     );
   }
@@ -5060,16 +5153,14 @@ class _DailyBriefingState extends State<_DailyBriefing> {
             width: 96,
             height: 96,
             child: Stack(alignment: Alignment.center, children: [
-              SizedBox(
-                width: 96,
-                height: 96,
-                child: CircularProgressIndicator(
-                  value: v.score / 100,
-                  strokeWidth: 8,
-                  backgroundColor: const Color(0x14FFFFFF),
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(victoryColor(v.score)),
-                ),
+              GlowRing(
+                value: v.score / 100,
+                size: 96,
+                stroke: 8,
+                colors: [
+                  victoryColor(v.score),
+                  Color.lerp(victoryColor(v.score), Colors.white, 0.35)!,
+                ],
               ),
               Text('${v.score}',
                   style: GoogleFonts.spaceGrotesk(

@@ -285,6 +285,21 @@ void main() {
       expect(s.activeCompanion, 'drone');
     });
 
+    test('earned achievements persist through prestige', () {
+      final s = AppState();
+      var xp = 0;
+      for (var i = 1; i < 10; i++) {
+        xp += xpForLevel(i);
+      }
+      s.totalXp = xp; // level 10
+      s.addHabit('Test', 'common'); // _afterAction records level-based awards
+      final lvl5 = kAchievements.firstWhere((a) => a.id == 'lvl5');
+      expect(s.isAchievementEarned(lvl5), isTrue);
+      s.doPrestige(); // back to level 1
+      expect(lvl5.unlocked(s), isFalse); // live condition no longer met
+      expect(s.isAchievementEarned(lvl5), isTrue); // but it stays earned
+    });
+
     test('shop: xp booster + streak shield cost coins', () {
       final s = AppState();
       s.coins = 300;

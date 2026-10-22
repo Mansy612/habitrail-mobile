@@ -68,6 +68,7 @@ abstract class AuthService {
   Future<void> signOut();
   Future<AuthUser?> currentUser();
   Future<void> updateName(String name);
+  Future<void> deleteAccount();
 }
 
 /// On-device stand-in for Supabase auth. Accounts + the current session live in
@@ -157,6 +158,18 @@ class StubAuthService implements AuthService {
   }
 
   @override
+  Future<void> deleteAccount() async {
+    final p = await SharedPreferences.getInstance();
+    final key = p.getString(_sessionKey);
+    if (key != null) {
+      final accounts = await _accounts(p);
+      accounts.remove(key);
+      await p.setString(_accountsKey, jsonEncode(accounts));
+    }
+    await p.remove(_sessionKey);
+  }
+
+  @override
   Future<AuthUser?> currentUser() async {
     final p = await SharedPreferences.getInstance();
     final key = p.getString(_sessionKey);
@@ -224,6 +237,13 @@ class Auth extends ChangeNotifier {
       user = AuthUser(
           id: u.id, email: u.email, name: name.trim(), createdAt: u.createdAt);
     }
+    notifyListeners();
+  }
+
+  Future<void> deleteAccount() async {
+    await _service.deleteAccount();
+    user = null;
+    status = AuthStatus.signedOut;
     notifyListeners();
   }
 

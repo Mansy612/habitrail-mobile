@@ -69,6 +69,15 @@ void main() {
       await s.updateName('Alice');
       expect((await s.currentUser())!.name, 'Alice');
     });
+
+    test('deleteAccount removes the account and its session', () async {
+      final s = StubAuthService();
+      await s.signUp(email: 'a@b.com', password: 'secret1', name: 'A');
+      await s.deleteAccount();
+      expect(await s.currentUser(), isNull);
+      // The account record is gone, so a later sign-in fails.
+      expect((await s.signIn(email: 'a@b.com', password: 'secret1')).ok, isFalse);
+    });
   });
 
   group('Auth state', () {

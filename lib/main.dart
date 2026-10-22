@@ -483,6 +483,14 @@ class AccountScreen extends StatelessWidget {
               icon: const Icon(Icons.logout_rounded, size: 18),
               label: const Text('Sign out'),
             ),
+            const SizedBox(height: 6),
+            TextButton.icon(
+              onPressed: () => _confirmDeleteAccount(context),
+              icon: const Icon(Icons.delete_forever_rounded,
+                  size: 18, color: kRed),
+              label:
+                  const Text('Delete account', style: TextStyle(color: kRed)),
+            ),
           ]),
         );
       },
@@ -809,6 +817,35 @@ Future<void> _editAccountName(BuildContext context) async {
   if (name != null && name.isNotEmpty) {
     await auth.updateName(name);
     appState.setDisplayName(name);
+  }
+}
+
+Future<void> _confirmDeleteAccount(BuildContext context) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: kCard,
+      title:
+          const Text('Delete account?', style: TextStyle(color: kTextPrimary)),
+      content: const Text(
+          'This removes your account and signs you out. Your habits and progress stay on this device — use "Reset all progress" to clear those. This cannot be undone.',
+          style: TextStyle(color: kTextSecondary)),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel')),
+        FilledButton(
+          style: FilledButton.styleFrom(
+              backgroundColor: kRed, foregroundColor: Colors.white),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  if (ok == true && context.mounted) {
+    await auth.deleteAccount();
+    if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
   }
 }
 
@@ -1905,7 +1942,8 @@ class AwardsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unlocked = kAchievements.where((a) => a.unlocked(appState)).length;
+    final unlocked =
+        kAchievements.where((a) => appState.isAchievementEarned(a)).length;
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: _titleBar('Awards'),
@@ -1947,7 +1985,7 @@ class _AchievementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final on = a.unlocked(appState);
+    final on = appState.isAchievementEarned(a);
     final color = rarityConfig[a.rarity]?.color ?? kTextTertiary;
     return Container(
       padding: const EdgeInsets.all(14),
@@ -3669,6 +3707,29 @@ class SettingsScreen extends StatelessWidget {
                   'Wipe habits, XP, and history',
                   () => _confirmReset(context),
                   danger: true),
+              ListenableBuilder(
+                listenable: auth,
+                builder: (context, _) {
+                  if (!auth.isAuthed) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                          backgroundColor: kElevated,
+                          foregroundColor: kRed,
+                          minimumSize: const Size.fromHeight(50)),
+                      onPressed: () async {
+                        await auth.signOut();
+                        if (context.mounted) {
+                          Navigator.of(context).popUntil((r) => r.isFirst);
+                        }
+                      },
+                      icon: const Icon(Icons.logout_rounded, size: 18),
+                      label: const Text('Log out'),
+                    ),
+                  );
+                },
+              ),
               const SizedBox(height: 20),
               const Center(
                 child: Text('Habitrail · v1.0.0\nRebuilt from the Habitrail web app',

@@ -449,6 +449,7 @@ class AppState extends ChangeNotifier {
   BodyProfile? bodyProfile;
 
   final List<MilestoneEvent> milestoneLog = [];
+  final Set<String> earnedAchievements = {}; // persist once earned (survives prestige)
   int totalBossDefeats = 0;
   int highestLevel = 1;
   int _prevLevel = 1;
@@ -567,6 +568,7 @@ class AppState extends ChangeNotifier {
     milestoneLog.clear();
     perfectDays.clear();
     questClaimedIds.clear();
+    earnedAchievements.clear();
     totalXp = 0;
     coins = 100;
     focusMinutesToday = 0;
@@ -753,6 +755,8 @@ class AppState extends ChangeNotifier {
       aiEnabled = (m['aiEnabled'] as bool?) ?? true;
       aiBaseUrl = (m['aiBaseUrl'] as String?) ?? kDefaultAiBaseUrl;
       aiModel = (m['aiModel'] as String?) ?? kDefaultAiModel;
+      earnedAchievements.addAll(
+          ((m['earnedAchievements'] as List?) ?? const []).map((e) => e as String));
     }
     applyThemeColors(themeId);
     final today = dateKey(DateTime.now());
@@ -787,6 +791,7 @@ class AppState extends ChangeNotifier {
     }
     _prevLevel = level;
     if (level > highestLevel) highestLevel = level;
+    _checkAchievements(); // backfill anything already satisfied
     loading = false;
     notifyListeners();
   }
@@ -828,12 +833,14 @@ class AppState extends ChangeNotifier {
           'aiEnabled': aiEnabled,
           'aiBaseUrl': aiBaseUrl,
           'aiModel': aiModel,
+          'earnedAchievements': earnedAchievements.toList(),
         }));
   }
 
   void _afterAction() {
     _checkQuests();
     _updateBoss();
+    _checkAchievements();
     final nl = level;
     if (nl > _prevLevel) {
       _logMilestone('level_up', 'Reached Level $nl · ${levelTitle(nl)}');
@@ -875,6 +882,19 @@ class AppState extends ChangeNotifier {
       }
     }
   }
+
+  // Record any achievement whose condition is currently met. Once earned, an
+  // achievement stays earned — so XP/level ones don't re-lock after prestige.
+  void _checkAchievements() {
+    for (final a in kAchievements) {
+      if (!earnedAchievements.contains(a.id) && a.unlocked(this)) {
+        earnedAchievements.add(a.id);
+      }
+    }
+  }
+
+  bool isAchievementEarned(Achievement a) =>
+      earnedAchievements.contains(a.id) || a.unlocked(this);
 
   void _updateBoss() {
     final count = perfectDaysThisWeek();

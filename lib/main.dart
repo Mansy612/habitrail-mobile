@@ -4437,6 +4437,199 @@ void _toast(BuildContext context, String msg) =>
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: kElevated));
 
+// Gold affordability-aware buy pill. Affordable → glowing gold; otherwise a
+// muted pill that still taps through to show the "not enough coins" toast.
+Widget _buyPill({required int cost, required VoidCallback onTap}) {
+  final canAfford = appState.coins >= cost;
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: canAfford
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFD873), Color(0xFFF5A623)])
+              : null,
+          color: canAfford ? null : kElevated,
+          border: canAfford ? null : Border.all(color: kBorder),
+          boxShadow: canAfford
+              ? [
+                  BoxShadow(
+                      color: const Color(0xFFF5A623).withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3))
+                ]
+              : null,
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.bolt,
+              size: 15, color: canAfford ? const Color(0xFF3A2A05) : kGold),
+          const SizedBox(width: 3),
+          Text('$cost',
+              style: TextStyle(
+                  color: canAfford ? const Color(0xFF3A2A05) : kTextSecondary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13)),
+        ]),
+      ),
+    ),
+  );
+}
+
+// Small status chip for an owned/active cosmetic (check + label).
+Widget _stateChip(String label, Color color) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.check_rounded, size: 13, color: color),
+        const SizedBox(width: 4),
+        Text(label,
+            style: TextStyle(
+                color: color,
+                fontSize: 10.5,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.8)),
+      ]),
+    );
+
+// Outline pill for a secondary action (Select / Apply an owned cosmetic).
+Widget _secondaryPill(String label, VoidCallback onTap) => Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: kPlasma.withValues(alpha: 0.6)),
+          ),
+          child: Text(label,
+              style: TextStyle(
+                  color: kPlasmaGlow,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13)),
+        ),
+      ),
+    );
+
+// Section header with an optional right-aligned owned-count ("3 / 7").
+Widget _shopSectionHeader(String title, String trailing) => Padding(
+      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+      child: Row(children: [
+        Expanded(
+            child: Text(title,
+                style: const TextStyle(
+                    color: kTextTertiary,
+                    fontSize: 11,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.bold))),
+        if (trailing.isNotEmpty)
+          Text(trailing,
+              style: const TextStyle(
+                  color: kTextTertiary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700)),
+      ]),
+    );
+
+// Coins balance hero at the top of the shop.
+Widget _balanceHero() => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2E1A5C), Color(0xFF1A0F38)]),
+        border: Border.all(color: kGold.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+              color: kGold.withValues(alpha: 0.12),
+              blurRadius: 28,
+              offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Row(children: [
+        Container(
+          width: 58,
+          height: 58,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+                colors: [Color(0xFFFFD873), Color(0xFFF5A623)]),
+            boxShadow: [
+              BoxShadow(
+                  color: const Color(0xFFF5A623).withValues(alpha: 0.5),
+                  blurRadius: 18),
+            ],
+          ),
+          child: const Icon(Icons.bolt, color: Color(0xFF3A2A05), size: 32),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('YOUR BALANCE',
+                  style: TextStyle(
+                      color: kTextTertiary,
+                      fontSize: 11,
+                      letterSpacing: 1.5,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 3),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text('${appState.coins}',
+                      style: GoogleFonts.spaceGrotesk(
+                          color: kGold,
+                          fontSize: 34,
+                          height: 1,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(width: 6),
+                  const Text('coins',
+                      style: TextStyle(color: kTextSecondary, fontSize: 13)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (appState.xpBoostActive)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+            decoration: BoxDecoration(
+              color: kPlasma.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: kPlasma.withValues(alpha: 0.5)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('2×',
+                  style: TextStyle(
+                      color: kPlasmaGlow,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14)),
+              const SizedBox(width: 4),
+              Text('XP',
+                  style: TextStyle(
+                      color: kPlasmaGlow,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11)),
+            ]),
+          ),
+      ]),
+    );
+
 Widget _shopItem({
   required IconData icon,
   required Color color,
@@ -4455,12 +4648,21 @@ Widget _shopItem({
         border: Border.all(color: kBorder)),
     child: Row(children: [
       Container(
-        width: 44,
-        height: 44,
+        width: 46,
+        height: 46,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-            shape: BoxShape.circle, color: color.withValues(alpha: 0.15)),
-        child: Icon(icon, color: color),
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withValues(alpha: 0.28),
+                color.withValues(alpha: 0.10)
+              ]),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Icon(icon, color: color, size: 22),
       ),
       const SizedBox(width: 14),
       Expanded(
@@ -4469,30 +4671,23 @@ Widget _shopItem({
           children: [
             Text(title,
                 style: const TextStyle(
-                    color: kTextPrimary, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
+                    color: kTextPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15)),
+            const SizedBox(height: 3),
             Text(desc,
-                style: const TextStyle(color: kTextTertiary, fontSize: 11)),
+                style: const TextStyle(
+                    color: kTextTertiary, fontSize: 11.5, height: 1.3)),
           ],
         ),
       ),
       const SizedBox(width: 10),
       if (activeLabel != null)
-        Text(activeLabel,
-            style: const TextStyle(
-                color: kGreen, fontWeight: FontWeight.bold, fontSize: 11))
+        _stateChip(activeLabel, kGreen)
+      else if (onBuy != null)
+        _buyPill(cost: cost, onTap: onBuy)
       else
-        FilledButton(
-          style: FilledButton.styleFrom(
-              backgroundColor: onBuy == null ? kElevated : kPlasma,
-              foregroundColor: Colors.white),
-          onPressed: onBuy,
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.bolt, size: 14, color: kGold),
-            const SizedBox(width: 3),
-            Text('$cost'),
-          ]),
-        ),
+        _stateChip('OWNED', kGreen),
     ]),
   );
 }
@@ -4504,6 +4699,10 @@ class ShopScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) {
+        final ownedBorders =
+            kBorders.where((b) => appState.ownsBorder(b.id)).length;
+        final ownedThemes =
+            kThemes.where((t) => appState.ownsTheme(t.id)).length;
         return Scaffold(
           appBar: AppBar(
             backgroundColor: Colors.transparent,
@@ -4512,28 +4711,17 @@ class ShopScreen extends StatelessWidget {
                     fontWeight: FontWeight.bold, color: kTextPrimary)),
           ),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                        colors: [Color(0xFF2A1458), Color(0xFF160B2E)]),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: kBorder)),
-                child: Row(children: [
-                  const Icon(Icons.bolt, color: kGold, size: 28),
-                  const SizedBox(width: 10),
-                  Text('${appState.coins}',
-                      style: GoogleFonts.spaceGrotesk(
-                          color: kGold,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800)),
-                  const SizedBox(width: 8),
-                  const Text('coins', style: TextStyle(color: kTextSecondary)),
-                ]),
+              _balanceHero(),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(4, 14, 4, 0),
+                child: Text(
+                    'Spend coins on power-ups and cosmetics to personalize your journey.',
+                    style: TextStyle(
+                        color: kTextTertiary, fontSize: 12.5, height: 1.4)),
               ),
-              const SizedBox(height: 8),
+              _shopSectionHeader('POWER-UPS', ''),
               _shopItem(
                 icon: Icons.bolt_rounded,
                 color: kGold,
@@ -4564,9 +4752,10 @@ class ShopScreen extends StatelessWidget {
                         ? 'Streak Shield added!'
                         : 'Not enough coins'),
               ),
-              _sectionLabel('PROFILE BORDERS'),
+              _shopSectionHeader(
+                  'PROFILE BORDERS', '$ownedBorders / ${kBorders.length}'),
               ...kBorders.map((b) => _borderShopTile(context, b)),
-              _sectionLabel('THEMES'),
+              _shopSectionHeader('THEMES', '$ownedThemes / ${kThemes.length}'),
               ...kThemes.map((t) => _themeShopTile(context, t)),
             ],
           ),
@@ -4580,47 +4769,38 @@ Widget _borderShopTile(BuildContext context, BorderDef b) {
   final owned = appState.ownsBorder(b.id);
   final selected = appState.selectedBorder == b.id;
   return Container(
-    margin: const EdgeInsets.symmetric(vertical: 4),
-    padding: const EdgeInsets.all(12),
+    margin: const EdgeInsets.symmetric(vertical: 5),
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
         gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: selected ? kPlasma : kBorder)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: selected ? kPlasma : kBorder, width: selected ? 1.5 : 1)),
     child: Row(children: [
       _borderPreview(b, size: 42),
       const SizedBox(width: 14),
       Expanded(
           child: Text(b.name,
               style: const TextStyle(
-                  color: kTextPrimary, fontWeight: FontWeight.w600))),
+                  color: kTextPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14.5))),
       if (owned)
         selected
-            ? const Text('SELECTED',
-                style: TextStyle(
-                    color: kCyan,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1))
-            : TextButton(
-                onPressed: () => appState.setBorder(b.id),
-                child: const Text('Select'))
+            ? _stateChip('SELECTED', kCyan)
+            : _secondaryPill('Select', () => appState.setBorder(b.id))
       else
-        FilledButton(
-          style: FilledButton.styleFrom(
-              backgroundColor: kElevated, foregroundColor: kGold),
-          onPressed: () {
+        _buyPill(
+          cost: b.cost,
+          onTap: () {
             if (appState.buyBorder(b.id)) {
               appState.setBorder(b.id);
+              celebrate(context);
               _toast(context, '${b.name} unlocked & applied!');
             } else {
               _toast(context, 'Not enough coins');
             }
           },
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.bolt, size: 14, color: kGold),
-            const SizedBox(width: 4),
-            Text('${b.cost}'),
-          ]),
         ),
     ]),
   );
@@ -4630,12 +4810,13 @@ Widget _themeShopTile(BuildContext context, AppThemeDef t) {
   final owned = appState.ownsTheme(t.id);
   final active = appState.themeId == t.id;
   return Container(
-    margin: const EdgeInsets.symmetric(vertical: 4),
-    padding: const EdgeInsets.all(12),
+    margin: const EdgeInsets.symmetric(vertical: 5),
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
         gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: active ? t.accent : kBorder)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: active ? t.accent : kBorder, width: active ? 1.5 : 1)),
     child: Row(children: [
       Row(mainAxisSize: MainAxisSize.min, children: [
         _swatch(t.accent),
@@ -4646,35 +4827,25 @@ Widget _themeShopTile(BuildContext context, AppThemeDef t) {
       Expanded(
           child: Text(t.name,
               style: const TextStyle(
-                  color: kTextPrimary, fontWeight: FontWeight.w600))),
+                  color: kTextPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14.5))),
       if (owned)
         active
-            ? const Text('ACTIVE',
-                style: TextStyle(
-                    color: kCyan,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1))
-            : TextButton(
-                onPressed: () => appState.setTheme(t.id),
-                child: const Text('Apply'))
+            ? _stateChip('ACTIVE', kCyan)
+            : _secondaryPill('Apply', () => appState.setTheme(t.id))
       else
-        FilledButton(
-          style: FilledButton.styleFrom(
-              backgroundColor: kElevated, foregroundColor: kGold),
-          onPressed: () {
+        _buyPill(
+          cost: themeCost(t.id),
+          onTap: () {
             if (appState.buyTheme(t.id)) {
               appState.setTheme(t.id);
+              celebrate(context);
               _toast(context, '${t.name} unlocked & applied!');
             } else {
               _toast(context, 'Not enough coins');
             }
           },
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.bolt, size: 14, color: kGold),
-            const SizedBox(width: 4),
-            Text('${themeCost(t.id)}'),
-          ]),
         ),
     ]),
   );

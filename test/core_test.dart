@@ -197,6 +197,16 @@ void main() {
       expect(s.avgScoreLastDays(2), closeTo(70, 0.001)); // last two: 60, 80
       expect(AppState().avgScoreLastDays(7), 0); // none recorded
     });
+
+    test('a fresh account seeds 9 habits, 100 coins, level 1, unique ids', () {
+      final s = AppState();
+      s.startFreshForAccount('newuser');
+      expect(s.habits.length, 9);
+      expect(s.coins, 100);
+      expect(s.totalXp, 0);
+      expect(s.level, 1);
+      expect(s.habits.map((h) => h.id).toSet().length, 9); // no duplicate ids
+    });
   });
 
   group('tdee + macros', () {

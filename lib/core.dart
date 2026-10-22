@@ -482,7 +482,23 @@ class AppState extends ChangeNotifier {
     return sum / recent.length;
   }
 
-  String newId() => DateTime.now().microsecondsSinceEpoch.toString();
+  int _idSeq = 0;
+  // Counter-suffixed so ids stay unique even when several are created in the
+  // same microsecond (e.g. seeding habits) — needed for stable widget keys.
+  String newId() => '${DateTime.now().microsecondsSinceEpoch}-${_idSeq++}';
+
+  /// The default habits every new account / fresh install starts with.
+  List<Habit> _seedHabits() => [
+        Habit(id: newId(), name: 'Drink water', icon: '💧'),
+        Habit(id: newId(), name: 'Read 10 pages', rarity: 'rare', icon: '📖'),
+        Habit(id: newId(), name: 'Exercise', rarity: 'epic', icon: '🏋️'),
+        Habit(id: newId(), name: 'Sleep 7h+', icon: '😴'),
+        Habit(id: newId(), name: 'Meditate 10 min', rarity: 'epic', icon: '🧘'),
+        Habit(id: newId(), name: 'Walk 30 min', rarity: 'rare', icon: '🚶'),
+        Habit(id: newId(), name: 'Stretch', icon: '🤸'),
+        Habit(id: newId(), name: 'Journal', rarity: 'rare', icon: '✍️'),
+        Habit(id: newId(), name: 'Healthy meal', rarity: 'rare', icon: '🥗'),
+      ];
 
   bool _sleepDoneToday() =>
       habits.any((h) => h.name.toLowerCase().contains('sleep') && doneToday(h));
@@ -557,12 +573,7 @@ class AppState extends ChangeNotifier {
   void resetAll() {
     habits
       ..clear()
-      ..addAll([
-        Habit(id: newId(), name: 'Drink water', icon: '💧'),
-        Habit(id: newId(), name: 'Read 10 pages', rarity: 'rare', icon: '📖'),
-        Habit(id: newId(), name: 'Exercise', rarity: 'epic', icon: '🏋️'),
-        Habit(id: newId(), name: 'Sleep 7h+', icon: '😴'),
-      ]);
+      ..addAll(_seedHabits());
     reflections.clear();
     foodLog.clear();
     milestoneLog.clear();
@@ -714,12 +725,7 @@ class AppState extends ChangeNotifier {
         ..addAll((jsonDecode(raw) as List)
             .map((e) => Habit.fromMap(e as Map<String, dynamic>)));
     } else {
-      habits.addAll([
-        Habit(id: newId(), name: 'Drink water', icon: '💧'),
-        Habit(id: newId(), name: 'Read 10 pages', rarity: 'rare', icon: '📖'),
-        Habit(id: newId(), name: 'Exercise', rarity: 'epic', icon: '🏋️'),
-        Habit(id: newId(), name: 'Sleep 7h+', icon: '😴'),
-      ]);
+      habits.addAll(_seedHabits());
     }
     final meta = prefs.getString(_metaKey);
     if (meta != null && meta.isNotEmpty) {

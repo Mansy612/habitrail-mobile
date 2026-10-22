@@ -710,7 +710,10 @@ class AppState extends ChangeNotifier {
     dailyScore.clear();
     streakShields = 0;
     xpBoostDate = null;
-    lastBriefingDate = ''; // show the morning briefing for the new user
+    // Mark today's briefing as seen so a new account doesn't get the morning
+    // briefing immediately after the onboarding flow (double welcome). The first
+    // real briefing then appears the next day.
+    lastBriefingDate = dateKey(DateTime.now());
     if (name.trim().isNotEmpty) displayName = name.trim();
     notifyListeners();
     _save();

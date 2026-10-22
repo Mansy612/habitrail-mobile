@@ -10,7 +10,11 @@ import 'ai.dart';
 import 'auth.dart';
 
 /// Single shared state object for the whole app (loads immediately).
-final appState = AppState()..load();
+// Loaded eagerly in main() before the app renders — see main(). (Must NOT
+// auto-load here: appState is a lazily-initialized top-level, so a new user's
+// first access during sign-up would start load() AFTER the fresh-start reset
+// and clobber it with the old saved state.)
+final appState = AppState();
 
 // ── Living background — drifting particles + ambient glow (the web's
 //    ParticleUniverse / "every screen is a place" atmosphere). ───────────────
@@ -133,6 +137,9 @@ void main() async {
       await windowManager.focus();
     });
   }
+  // Load persisted state before the first frame so it can't finish mid-session
+  // and overwrite a fresh-account reset.
+  await appState.load();
   runApp(const HabitrailApp());
 }
 

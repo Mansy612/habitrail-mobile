@@ -565,7 +565,7 @@ class AccountScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                  color: kCard,
+                  gradient: _kGlassSheen,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: kBorder)),
               child: Column(children: [
@@ -906,7 +906,7 @@ Widget _statChip(String label, String value) => Container(
       width: 104,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
-          color: kCard,
+          gradient: _kGlassSheen,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: kBorder)),
       child: Column(children: [
@@ -2195,7 +2195,7 @@ class StatsScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Material(
-              color: kCard,
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(16),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -2204,6 +2204,7 @@ class StatsScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
+                      gradient: _kGlassSheen,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: kBorder)),
                   child: Row(children: [
@@ -2302,7 +2303,7 @@ class _HabitStreaksCard extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: kCard,
+          gradient: _kGlassSheen,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: kBorder)),
       child: Column(
@@ -2443,7 +2444,7 @@ class JournalScreen extends StatelessWidget {
                   margin: const EdgeInsets.symmetric(vertical: 5),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: kCard,
+                    gradient: _kGlassSheen,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: kBorder),
                   ),
@@ -2889,7 +2890,7 @@ class _NutritionCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Material(
-        color: kCard,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -2898,6 +2899,7 @@ class _NutritionCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
+              gradient: _kGlassSheen,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: kBorder),
             ),
@@ -2967,7 +2969,7 @@ class NutritionScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                    color: kCard,
+                    gradient: _kGlassSheen,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: kBorder)),
                 child: Column(children: [
@@ -3076,7 +3078,7 @@ class _FoodTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 5),
       padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
       decoration: BoxDecoration(
-          color: kCard,
+          gradient: _kGlassSheen,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: kBorder)),
       child: Row(children: [
@@ -3299,7 +3301,7 @@ class _CompanionCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Material(
-        color: kCard,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -3308,6 +3310,7 @@ class _CompanionCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
+                gradient: _kGlassSheen,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: kBorder)),
             child: Row(children: [
@@ -3384,7 +3387,7 @@ class CompanionsScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: kCard,
+                    gradient: _kGlassSheen,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                         color: active ? c.color : kBorder,
@@ -3758,7 +3761,7 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                  color: kCard,
+                  gradient: _kGlassSheen,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: kBorder)),
               child: Column(
@@ -3874,7 +3877,7 @@ class LegacyScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                    color: kCard,
+                    gradient: _kGlassSheen,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: kBorder)),
                 child: Column(
@@ -3926,7 +3929,7 @@ class _MilestoneTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 5),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-          color: kCard,
+          gradient: _kGlassSheen,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: kBorder)),
       child: Row(children: [
@@ -3968,7 +3971,7 @@ Widget _settingsTile(IconData icon, String title, String subtitle,
   return Container(
     margin: const EdgeInsets.symmetric(vertical: 4),
     child: Material(
-      color: kCard,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -3976,6 +3979,7 @@ Widget _settingsTile(IconData icon, String title, String subtitle,
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
+              gradient: _kGlassSheen,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: kBorder)),
           child: Row(children: [
@@ -4037,7 +4041,7 @@ class SettingsScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                    color: kCard,
+                    gradient: _kGlassSheen,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: kBorder)),
                 child: Row(children: [
@@ -4286,7 +4290,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                    color: kCard,
+                    gradient: _kGlassSheen,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: kBorder)),
                 child: Column(
@@ -4317,7 +4321,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               const SizedBox(height: 16),
               Container(
                 decoration: BoxDecoration(
-                    color: kCard,
+                    gradient: _kGlassSheen,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: kBorder)),
                 child: SwitchListTile(
@@ -4579,7 +4583,7 @@ Widget _borderShopTile(BuildContext context, BorderDef b) {
     margin: const EdgeInsets.symmetric(vertical: 4),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-        color: kCard,
+        gradient: _kGlassSheen,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: selected ? kPlasma : kBorder)),
     child: Row(children: [
@@ -4629,7 +4633,7 @@ Widget _themeShopTile(BuildContext context, AppThemeDef t) {
     margin: const EdgeInsets.symmetric(vertical: 4),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-        color: kCard,
+        gradient: _kGlassSheen,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: active ? t.accent : kBorder)),
     child: Row(children: [
@@ -4800,7 +4804,7 @@ class _HeatmapCard extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: kCard,
+          gradient: _kGlassSheen,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: kBorder)),
       child: Column(
@@ -4850,7 +4854,7 @@ class _WeekTrendCard extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: kCard,
+          gradient: _kGlassSheen,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: kBorder)),
       child: Column(
@@ -4939,7 +4943,7 @@ class AppearanceScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: kCard,
+                    gradient: _kGlassSheen,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                         color: active ? t.accent : kBorder,

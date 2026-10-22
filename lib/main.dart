@@ -297,15 +297,10 @@ class WelcomeScreen extends StatelessWidget {
                 const Text('Build habits. Earn XP. Level up your life.',
                     style: TextStyle(color: kTextSecondary, fontSize: 15)),
                 const Spacer(),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                      backgroundColor: kPlasma,
-                      minimumSize: const Size.fromHeight(52)),
+                GradientButton(
+                  label: 'Create account',
                   onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const SignUpScreen())),
-                  child: const Text('Create account',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15)),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
@@ -759,14 +754,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             Padding(
               padding: const EdgeInsets.all(28),
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                    backgroundColor: kPlasma,
-                    minimumSize: const Size.fromHeight(52)),
+              child: GradientButton(
+                label: last ? 'Get started' : 'Next',
                 onPressed: _next,
-                child: Text(last ? 'Get started' : 'Next',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 15)),
               ),
             ),
           ]),
@@ -846,20 +836,20 @@ Widget _authField(TextEditingController c, String label,
   );
 }
 
-Widget _authSubmit(String label, bool busy, VoidCallback onTap) => FilledButton(
-      style: FilledButton.styleFrom(
-          backgroundColor: kPlasma, minimumSize: const Size.fromHeight(52)),
-      onPressed: busy ? null : onTap,
-      child: busy
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white))
-          : Text(label,
-              style:
-                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-    );
+Widget _authSubmit(String label, bool busy, VoidCallback onTap) => busy
+    ? Container(
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: const LinearGradient(colors: _kAccentGradient)),
+        child: const SizedBox(
+            width: 20,
+            height: 20,
+            child:
+                CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+      )
+    : GradientButton(label: label, onPressed: onTap);
 
 Widget _authError(String msg) => Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1056,20 +1046,18 @@ class _HomeShellState extends State<HomeShell> {
 
   Widget? _fab() {
     if (_index == 0) {
-      return FloatingActionButton.extended(
-        onPressed: () => showHabitEditor(context),
-        backgroundColor: kPlasma,
-        icon: const Icon(Icons.add),
-        label: const Text('Add habit'),
-      );
+      return GradientButton(
+          label: 'Add habit',
+          icon: Icons.add,
+          expand: false,
+          onPressed: () => showHabitEditor(context));
     }
     if (_index == 4) {
-      return FloatingActionButton.extended(
-        onPressed: () => showAddReflection(context),
-        backgroundColor: kPlasma,
-        icon: const Icon(Icons.edit),
-        label: const Text('Reflect'),
-      );
+      return GradientButton(
+          label: 'Reflect',
+          icon: Icons.edit,
+          expand: false,
+          onPressed: () => showAddReflection(context));
     }
     return null;
   }
@@ -1355,6 +1343,124 @@ Widget _shopButton(BuildContext context) => IconButton(
           .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
     );
 
+// ── Glass phase-2 helpers ───────────────────────────────────────────────────
+
+// Glass surface with a top sheen (brighter top → darker bottom), luminous edge,
+// and soft shadow. Drop-in for a card's BoxDecoration.
+const LinearGradient _kGlassSheen = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0xE02A1B4F), Color(0xCC170B2E)],
+);
+
+BoxDecoration glassDecoration({double radius = 18, Color? border}) =>
+    BoxDecoration(
+      borderRadius: BorderRadius.circular(radius),
+      gradient: _kGlassSheen,
+      border: Border.all(color: border ?? kBorder),
+      boxShadow: const [
+        BoxShadow(color: Color(0x40000000), blurRadius: 18, offset: Offset(0, 8)),
+      ],
+    );
+
+const List<Color> _kAccentGradient = [Color(0xFF8B5CF6), Color(0xFF22D3EE)];
+
+// Violet → cyan gradient primary button.
+class GradientButton extends StatelessWidget {
+  const GradientButton({
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.height = 52,
+    this.expand = true,
+    super.key,
+  });
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final double height;
+  final bool expand;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return Opacity(
+      opacity: enabled ? 1 : 0.5,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            height: height,
+            padding: EdgeInsets.symmetric(horizontal: expand ? 0 : 20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(colors: _kAccentGradient),
+              boxShadow: [
+                BoxShadow(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: Colors.white),
+                  const SizedBox(width: 8),
+                ],
+                Text(label,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Luminous gradient progress bar.
+class GlowBar extends StatelessWidget {
+  const GlowBar({required this.value, this.height = 8, this.colors, super.key});
+  final double value; // 0..1
+  final double height;
+  final List<Color>? colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = colors ?? _kAccentGradient;
+    final v = value.clamp(0.0, 1.0);
+    return SizedBox(
+      height: height,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(height),
+        child: Stack(children: [
+          const Positioned.fill(child: ColoredBox(color: Color(0x22FFFFFF))),
+          FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: v,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: c),
+                boxShadow: [
+                  BoxShadow(color: c.last.withValues(alpha: 0.5), blurRadius: 6),
+                ],
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
 // Dashboard app bar: profile picture + level on the LEFT, coins + shop RIGHT.
 PreferredSizeWidget _dashboardBar() {
   return AppBar(
@@ -1384,18 +1490,11 @@ PreferredSizeWidget _dashboardBar() {
                           fontSize: 15,
                           height: 1.1)),
                   const SizedBox(height: 3),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: SizedBox(
-                      width: 96,
-                      child: LinearProgressIndicator(
+                  SizedBox(
+                    width: 96,
+                    child: GlowBar(
                         value: ld.progress.clamp(0.0, 1.0).toDouble(),
-                        minHeight: 5,
-                        backgroundColor: const Color(0x22FFFFFF),
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(kPlasmaBright),
-                      ),
-                    ),
+                        height: 6),
                   ),
                 ],
               ),
@@ -1550,7 +1649,7 @@ class _VictoryCard extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kCard,
+        gradient: _kGlassSheen,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: kBorder),
       ),
@@ -1612,11 +1711,8 @@ class _BossCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: kCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: defeated ? kGold : kBorder),
-      ),
+      decoration:
+          glassDecoration(radius: 16, border: defeated ? kGold : kBorder),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1634,15 +1730,10 @@ class _BossCard extends StatelessWidget {
                     fontWeight: FontWeight.bold)),
           ]),
           const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
+          GlowBar(
               value: (count / kBossGoal).clamp(0.0, 1.0).toDouble(),
-              minHeight: 8,
-              backgroundColor: const Color(0x14FFFFFF),
-              valueColor: const AlwaysStoppedAnimation<Color>(kGold),
-            ),
-          ),
+              height: 8,
+              colors: const [Color(0xFFFBBF24), Color(0xFFFCD34D)]),
           const SizedBox(height: 8),
           Text(
               defeated
@@ -1669,7 +1760,7 @@ class _QuestsPanel extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kCard,
+        gradient: _kGlassSheen,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: kBorder),
       ),
@@ -2105,7 +2196,7 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kCard,
+        gradient: _kGlassSheen,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: kBorder),
       ),
@@ -2873,15 +2964,11 @@ Widget _macroBar(
           ],
         ),
         const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: (target <= 0 ? 0.0 : value / target).clamp(0.0, 1.0).toDouble(),
-            minHeight: 7,
-            backgroundColor: const Color(0x14FFFFFF),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-        ),
+        GlowBar(
+            value:
+                (target <= 0 ? 0.0 : value / target).clamp(0.0, 1.0).toDouble(),
+            height: 7,
+            colors: [color, color]),
       ],
     ),
   );
@@ -3263,11 +3350,8 @@ class _PrestigeCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: kCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: appState.prestige > 0 ? kGold : kBorder),
-      ),
+      decoration: glassDecoration(
+          radius: 16, border: appState.prestige > 0 ? kGold : kBorder),
       child: Row(children: [
         const Icon(Icons.auto_awesome_rounded, color: kGold, size: 22),
         const SizedBox(width: 14),
@@ -4269,7 +4353,7 @@ Widget _shopItem({
     margin: const EdgeInsets.symmetric(vertical: 6),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-        color: kCard,
+        gradient: _kGlassSheen,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: kBorder)),
     child: Row(children: [
@@ -5078,12 +5162,9 @@ class _DailyBriefingState extends State<_DailyBriefing> {
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
             child: SizedBox(
               width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                    backgroundColor: kPlasma,
-                    padding: const EdgeInsets.symmetric(vertical: 14)),
+              child: GradientButton(
+                label: _page >= last ? 'Start the day' : 'Next',
                 onPressed: () => _next(last),
-                child: Text(_page >= last ? 'Start the day' : 'Next'),
               ),
             ),
           ),

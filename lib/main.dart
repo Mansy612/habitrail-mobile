@@ -1241,6 +1241,100 @@ Future<void> _pickProfilePhoto(BuildContext context) async {
   }
 }
 
+// Coins pill (→ Shop).
+Widget _coinsPill(BuildContext context) => GestureDetector(
+      onTap: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: kElevated,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: kBorder),
+        ),
+        child: Row(children: [
+          if (appState.xpBoostActive) ...[
+            Text('2×',
+                style: TextStyle(
+                    color: kPlasmaGlow,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12)),
+            const SizedBox(width: 6),
+          ],
+          const Icon(Icons.bolt, size: 16, color: kGold),
+          const SizedBox(width: 5),
+          Text('${appState.coins}',
+              style: const TextStyle(color: kGold, fontWeight: FontWeight.bold)),
+        ]),
+      ),
+    );
+
+Widget _shopButton(BuildContext context) => IconButton(
+      icon:
+          const Icon(Icons.storefront_rounded, color: kTextTertiary, size: 20),
+      tooltip: 'Shop',
+      onPressed: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
+    );
+
+// Dashboard app bar: profile picture + level on the LEFT, coins + shop RIGHT.
+PreferredSizeWidget _dashboardBar() {
+  return AppBar(
+    backgroundColor: Colors.transparent,
+    automaticallyImplyLeading: false,
+    titleSpacing: 14,
+    title: Builder(
+      builder: (context) => GestureDetector(
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+        child: ListenableBuilder(
+          listenable: appState,
+          builder: (_, _) {
+            final ld = levelFromXp(appState.totalXp);
+            return Row(mainAxisSize: MainAxisSize.min, children: [
+              const _Avatar(size: 38),
+              const SizedBox(width: 10),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Lv.${ld.level}',
+                      style: GoogleFonts.spaceGrotesk(
+                          color: kTextPrimary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          height: 1.1)),
+                  const SizedBox(height: 3),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: SizedBox(
+                      width: 96,
+                      child: LinearProgressIndicator(
+                        value: ld.progress.clamp(0.0, 1.0).toDouble(),
+                        minHeight: 5,
+                        backgroundColor: const Color(0x22FFFFFF),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(kPlasmaBright),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ]);
+          },
+        ),
+      ),
+    ),
+    actions: [
+      Builder(builder: (context) => _coinsPill(context)),
+      Builder(builder: (context) => _shopButton(context)),
+      const SizedBox(width: 8),
+    ],
+  );
+}
+
+// Standard app bar for the other tabs: title left; coins + shop + avatar right.
 PreferredSizeWidget _titleBar(String title) {
   return AppBar(
     backgroundColor: Colors.transparent,
@@ -1252,46 +1346,8 @@ PreferredSizeWidget _titleBar(String title) {
                 letterSpacing: -0.5,
                 color: kTextPrimary)),
     actions: [
-      // Coins → shop
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ShopScreen())),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: kElevated,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: kBorder),
-            ),
-            child: Row(children: [
-              if (appState.xpBoostActive) ...[
-                Text('2×',
-                    style: TextStyle(
-                        color: kPlasmaGlow,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12)),
-                const SizedBox(width: 6),
-              ],
-              const Icon(Icons.bolt, size: 16, color: kGold),
-              const SizedBox(width: 5),
-              Text('${appState.coins}',
-                  style: const TextStyle(
-                      color: kGold, fontWeight: FontWeight.bold)),
-            ]),
-          ),
-        ),
-      ),
-      Builder(
-        builder: (context) => IconButton(
-          icon: const Icon(Icons.storefront_rounded,
-              color: kTextTertiary, size: 20),
-          tooltip: 'Shop',
-          onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ShopScreen())),
-        ),
-      ),
-      // Profile picture → settings
+      Builder(builder: (context) => _coinsPill(context)),
+      Builder(builder: (context) => _shopButton(context)),
       Builder(
         builder: (context) => Padding(
           padding: const EdgeInsets.only(right: 12, left: 2),
@@ -1350,7 +1406,7 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _titleBar(''),
+      appBar: _dashboardBar(),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 96),
         children: [

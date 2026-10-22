@@ -1217,8 +1217,15 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ringW = (size * 0.07).clamp(2.0, 5.0);
-    final inner = size - ringW * 2;
+    final b = borderById(appState.selectedBorder);
+    final hasBorder = b.id != 'none';
+    // Thicker, glowing ring with a thin dark gap so the colour reads as a
+    // distinct border against both the avatar and the cosmic background.
+    final ringW = hasBorder
+        ? (size * 0.11).clamp(3.0, 7.0)
+        : (size * 0.06).clamp(2.0, 4.0);
+    final gapW = hasBorder ? (size * 0.03).clamp(1.5, 3.0) : 0.0;
+    final inner = size - (ringW + gapW) * 2;
     final name = appState.displayName;
     final Widget pic = appState.pfpBytes != null
         ? Image.memory(appState.pfpBytes!,
@@ -1235,8 +1242,16 @@ class _Avatar extends StatelessWidget {
                     fontSize: inner * 0.42,
                     fontWeight: FontWeight.w800)),
           );
-    final avatar = ClipOval(child: pic);
-    final b = borderById(appState.selectedBorder);
+    Widget avatar = ClipOval(child: pic);
+    // Dark separator ring between the colour and the avatar.
+    if (gapW > 0) {
+      avatar = Container(
+        decoration: const BoxDecoration(
+            shape: BoxShape.circle, color: Color(0xFF140B2B)),
+        padding: EdgeInsets.all(gapW),
+        child: avatar,
+      );
+    }
     return Container(
       width: size,
       height: size,
@@ -1250,9 +1265,9 @@ class _Avatar extends StatelessWidget {
         boxShadow: b.glow
             ? [
                 BoxShadow(
-                    color: b.colors.first.withValues(alpha: 0.6),
-                    blurRadius: size * 0.22,
-                    spreadRadius: 0.5)
+                    color: b.colors.first.withValues(alpha: 0.75),
+                    blurRadius: size * 0.3,
+                    spreadRadius: 1.0)
               ]
             : null,
       ),

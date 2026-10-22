@@ -69,19 +69,19 @@ class BorderDef {
 }
 
 const List<BorderDef> kBorders = [
-  BorderDef('none', 'Simple', 0, [Color(0x33FFFFFF)]),
-  BorderDef('cyan', 'Cyan Pulse', 120, [Color(0xFF22D3EE)], glow: true),
-  BorderDef('gold', 'Gold', 180, [Color(0xFFFBBF24)], glow: true),
-  BorderDef('violet', 'Violet', 180, [Color(0xFF8B5CF6)], glow: true),
-  BorderDef('crimson', 'Crimson', 220, [Color(0xFFFB7185)], glow: true),
+  BorderDef('none', 'Simple', 0, [Color(0x4DFFFFFF)]),
+  BorderDef('cyan', 'Cyan Pulse', 120, [Color(0xFF3DE7FF)], glow: true),
+  BorderDef('gold', 'Gold', 180, [Color(0xFFFFD23F)], glow: true),
+  BorderDef('violet', 'Violet', 180, [Color(0xFFC08BFF)], glow: true),
+  BorderDef('crimson', 'Crimson', 220, [Color(0xFFFF6B8A)], glow: true),
   BorderDef('aurora', 'Aurora', 400,
-      [Color(0xFF22D3EE), Color(0xFF8B5CF6), Color(0xFFF472B6)], glow: true),
+      [Color(0xFF3DE7FF), Color(0xFFB06BFF), Color(0xFFFF7AD1)], glow: true),
   BorderDef('prism', 'Prismatic', 700, [
-    Color(0xFFFB7185),
-    Color(0xFFFBBF24),
-    Color(0xFF34D399),
-    Color(0xFF22D3EE),
-    Color(0xFF8B5CF6)
+    Color(0xFFFF6B8A),
+    Color(0xFFFFD23F),
+    Color(0xFF4ADE80),
+    Color(0xFF3DE7FF),
+    Color(0xFFB06BFF)
   ], glow: true),
 ];
 

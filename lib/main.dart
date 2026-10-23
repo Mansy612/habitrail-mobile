@@ -278,55 +278,140 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(children: [
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Spacer(),
-                const Text('🔥', style: TextStyle(fontSize: 56)),
-                const SizedBox(height: 16),
-                Text('Habitrail',
-                    style: GoogleFonts.spaceGrotesk(
-                        color: kTextPrimary,
-                        fontSize: 42,
-                        fontWeight: FontWeight.w800)),
-                const SizedBox(height: 10),
-                const Text('Build habits. Earn XP. Level up your life.',
-                    style: TextStyle(color: kTextSecondary, fontSize: 15)),
-                const Spacer(),
-                GradientButton(
-                  label: 'Create account',
-                  onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SignUpScreen())),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(28, 12, 28, 24),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 28),
+                      Center(
+                        child: Container(
+                          width: 104,
+                          height: 104,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: _kAccentGradient),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: kPlasma.withValues(alpha: 0.5),
+                                  blurRadius: 40,
+                                  spreadRadius: 2),
+                            ],
+                          ),
+                          child:
+                              const Text('🔥', style: TextStyle(fontSize: 50)),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text('Habitrail',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.spaceGrotesk(
+                              color: kTextPrimary,
+                              fontSize: 42,
+                              fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 10),
+                      const Text('Build habits. Earn XP. Level up your life.',
+                          textAlign: TextAlign.center,
+                          style:
+                              TextStyle(color: kTextSecondary, fontSize: 15)),
+                      const SizedBox(height: 28),
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: glassDecoration(radius: 18),
+                        child: Column(children: [
+                          _welcomeFeature('⚡', 'Earn XP & level up',
+                              'Check off habits, build streaks and combos.'),
+                          _welcomeFeature(
+                              '🏆',
+                              'Quests, bosses & Victory Score',
+                              'Daily quests, a weekly boss, and a score to beat.'),
+                          _welcomeFeature('🐾', 'Companions & rewards',
+                              'Adopt companions and spend coins in the shop.'),
+                        ]),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                      foregroundColor: kPlasmaBright,
-                      side: BorderSide(color: kPlasma.withValues(alpha: 0.5))),
-                  onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const LoginScreen())),
-                  child: const Text('Log in'),
-                ),
-                const SizedBox(height: 6),
-                TextButton(
-                  onPressed: () => auth.continueAsGuest(),
-                  child: const Text('Continue without an account',
-                      style: TextStyle(color: kTextTertiary)),
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
+              ),
+              GradientButton(
+                label: 'Create account',
+                onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SignUpScreen())),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    foregroundColor: kPlasmaBright,
+                    side: BorderSide(color: kPlasma.withValues(alpha: 0.5))),
+                onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const LoginScreen())),
+                child: const Text('Log in'),
+              ),
+              const SizedBox(height: 6),
+              TextButton(
+                onPressed: () => auth.continueAsGuest(),
+                child: const Text('Continue without an account',
+                    style: TextStyle(color: kTextTertiary)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// A feature highlight row on the welcome screen (emoji badge + title + blurb).
+Widget _welcomeFeature(String emoji, String title, String subtitle) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: Row(children: [
+        Container(
+          width: 44,
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  kPlasma.withValues(alpha: 0.30),
+                  kCyan.withValues(alpha: 0.18)
+                ]),
+            border: Border.all(color: kBorder),
+          ),
+          child: Text(emoji, style: const TextStyle(fontSize: 20)),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      color: kTextPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style: const TextStyle(
+                      color: kTextTertiary, fontSize: 12, height: 1.3)),
+            ],
           ),
         ),
       ]),
     );
-  }
-}
 
 // ── Sign up ──────────────────────────────────────────────────────────────────
 class SignUpScreen extends StatefulWidget {
@@ -647,21 +732,34 @@ class AccountScreen extends StatelessWidget {
 
 // ── Onboarding (first run, right after creating an account) ─────────────────
 class _OnbSlide {
-  const _OnbSlide(this.emoji, this.title, this.body);
+  const _OnbSlide(this.emoji, this.title, this.body, this.accent);
   final String emoji;
   final String title;
   final String body;
+  final Color accent;
 }
 
 const _onbSlides = [
-  _OnbSlide('🔥', 'Welcome to Habitrail',
-      'Turn your daily habits into a game you actually want to play.'),
-  _OnbSlide('⚡', 'Earn XP, level up',
-      'Every habit you check off earns XP. Build streaks and combos for big multipliers, and climb from Level 1 to God-Tier.'),
-  _OnbSlide('🏆', 'Quests, bosses & Victory Score',
-      'Take on daily quests, defeat the weekly boss, and track each day with a 4-pillar Victory Score.'),
-  _OnbSlide('🐾', 'Companions & more',
-      'Adopt a companion, log nutrition, prestige, and make every single day count.'),
+  _OnbSlide(
+      '🔥',
+      'Welcome to Habitrail',
+      'Turn your daily habits into a game you actually want to play.',
+      Color(0xFFFF8A4C)),
+  _OnbSlide(
+      '⚡',
+      'Earn XP, level up',
+      'Every habit you check off earns XP. Build streaks and combos for big multipliers, and climb from Level 1 to God-Tier.',
+      Color(0xFF3DE7FF)),
+  _OnbSlide(
+      '🏆',
+      'Quests, bosses & Victory Score',
+      'Take on daily quests, defeat the weekly boss, and track each day with a 4-pillar Victory Score.',
+      Color(0xFFFFD23F)),
+  _OnbSlide(
+      '🐾',
+      'Companions & more',
+      'Adopt a companion, log nutrition, prestige, and make every single day count.',
+      Color(0xFF4ADE80)),
 ];
 
 class OnboardingScreen extends StatefulWidget {
@@ -718,8 +816,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(s.emoji, style: const TextStyle(fontSize: 72)),
-                        const SizedBox(height: 28),
+                        Container(
+                          width: 128,
+                          height: 128,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(colors: [
+                              s.accent.withValues(alpha: 0.35),
+                              s.accent.withValues(alpha: 0.04)
+                            ]),
+                            border: Border.all(
+                                color: s.accent.withValues(alpha: 0.45)),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: s.accent.withValues(alpha: 0.3),
+                                  blurRadius: 44,
+                                  spreadRadius: 4)
+                            ],
+                          ),
+                          child: Text(s.emoji,
+                              style: const TextStyle(fontSize: 60)),
+                        ),
+                        const SizedBox(height: 32),
                         Text(s.title,
                             textAlign: TextAlign.center,
                             style: GoogleFonts.spaceGrotesk(
@@ -749,7 +868,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   width: on ? 22 : 8,
                   height: 8,
                   decoration: BoxDecoration(
-                      color: on ? kPlasma : kBorder,
+                      color: on ? _onbSlides[_page].accent : kBorder,
                       borderRadius: BorderRadius.circular(4)),
                 );
               }),

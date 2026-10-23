@@ -1691,6 +1691,7 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 96),
         children: [
+          const _DashboardHero(),
           const _CompanionCard(),
           const _VictoryCard(),
           const _NutritionCard(),
@@ -1739,6 +1740,123 @@ class HomeScreen extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+// Greeting hero at the top of the dashboard: time-aware greeting, name,
+// today's completion ring, streak chip, and a motivating nudge.
+class _DashboardHero extends StatelessWidget {
+  const _DashboardHero();
+  @override
+  Widget build(BuildContext context) {
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? 'Good morning'
+        : hour < 18
+            ? 'Good afternoon'
+            : 'Good evening';
+    final name = appState.displayName;
+    final total = appState.habits.length;
+    final done = appState.doneTodayCount;
+    final pct = total == 0 ? 0.0 : done / total;
+    final allDone = total > 0 && done == total;
+    final streak = appState.bestStreak;
+    final sub = total == 0
+        ? 'Add your first habit to begin.'
+        : allDone
+            ? 'Perfect day — every habit done!'
+            : done == 0
+                ? "Let's get the first one done."
+                : '${total - done} to go — finish strong.';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF301C62), Color(0xFF1A0F38)]),
+        border: Border.all(color: kBorder),
+        boxShadow: [
+          BoxShadow(
+              color: kPlasma.withValues(alpha: 0.18),
+              blurRadius: 26,
+              offset: const Offset(0, 10)),
+        ],
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(greeting,
+                  style: const TextStyle(color: kTextTertiary, fontSize: 13)),
+              const SizedBox(height: 2),
+              Text(name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.spaceGrotesk(
+                      color: kTextPrimary,
+                      fontSize: 24,
+                      height: 1.05,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(height: 10),
+              if (streak > 0) ...[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: kGold.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: kGold.withValues(alpha: 0.35)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('🔥', style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 5),
+                    Text('$streak day streak',
+                        style: const TextStyle(
+                            color: kGold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+                const SizedBox(height: 10),
+              ],
+              Text(sub,
+                  style: const TextStyle(
+                      color: kTextSecondary, fontSize: 13, height: 1.3)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 14),
+        SizedBox(
+          width: 78,
+          height: 78,
+          child: Stack(alignment: Alignment.center, children: [
+            GlowRing(
+              value: pct,
+              size: 78,
+              stroke: 7,
+              colors: allDone
+                  ? [kGreen, const Color(0xFF8BF0C0)]
+                  : [kPlasma, kCyan],
+            ),
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('$done/$total',
+                  style: GoogleFonts.spaceGrotesk(
+                      color: Colors.white,
+                      fontSize: 18,
+                      height: 1,
+                      fontWeight: FontWeight.w800)),
+              const Text('today',
+                  style: TextStyle(
+                      color: kTextTertiary, fontSize: 9, letterSpacing: 0.5)),
+            ]),
+          ]),
+        ),
+      ]),
     );
   }
 }

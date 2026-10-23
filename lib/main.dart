@@ -549,7 +549,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // then introduce the app with the onboarding flow.
       appState.startFreshForAccount(auth.user?.name ?? '');
       Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const OnboardingScreen()));
+          MaterialPageRoute(builder: (_) => const OnboardingQuizScreen()));
     } else {
       setState(() => _error = err);
     }
@@ -690,7 +690,7 @@ class AccountScreen extends StatelessWidget {
                 GestureDetector(
                   onTap: () => _pickProfilePhoto(context),
                   child: Stack(children: [
-                    const _Avatar(size: 76),
+                    _Avatar(size: 76),
                     Positioned(
                       right: 0,
                       bottom: 0,
@@ -924,6 +924,372 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ]),
         ),
       ]),
+    );
+  }
+}
+
+// ── ONBOARDING QUIZ (personalize a new account) ──────────────────────────────
+const List<(String, String, String)> _kAreas = [
+  ('fitness', 'Fitness', '🏋️'),
+  ('nutrition', 'Nutrition', '🥗'),
+  ('mind', 'Mindfulness', '🧘'),
+  ('sleep', 'Sleep', '😴'),
+  ('learning', 'Learning', '📖'),
+  ('productivity', 'Productivity', '💻'),
+];
+
+String _areaLabel(String id) =>
+    _kAreas.firstWhere((a) => a.$1 == id, orElse: () => (id, id, '')).$2;
+
+class OnboardingQuizScreen extends StatefulWidget {
+  const OnboardingQuizScreen({super.key});
+  @override
+  State<OnboardingQuizScreen> createState() => _OnboardingQuizScreenState();
+}
+
+class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
+  final _pc = PageController();
+  int _page = 0;
+  static const _last = 6; // pages 0..6 (6 = summary)
+
+  final Set<String> _areas = {};
+  String _gender = 'male';
+  final _age = TextEditingController();
+  final _height = TextEditingController();
+  final _weight = TextEditingController();
+  String _activity = 'moderate';
+  String _goal = 'maintain';
+
+  @override
+  void dispose() {
+    _pc.dispose();
+    _age.dispose();
+    _height.dispose();
+    _weight.dispose();
+    super.dispose();
+  }
+
+  bool get _canAdvance {
+    switch (_page) {
+      case 0:
+        return _areas.isNotEmpty;
+      case 2:
+        return (int.tryParse(_age.text.trim()) ?? 0) > 0;
+      case 3:
+        return (double.tryParse(_height.text.trim()) ?? 0) > 0 &&
+            (double.tryParse(_weight.text.trim()) ?? 0) > 0;
+      default:
+        return true;
+    }
+  }
+
+  void _skip() => Navigator.of(context).popUntil((r) => r.isFirst);
+
+  void _finish() {
+    final a = int.tryParse(_age.text.trim()) ?? 0;
+    final h = double.tryParse(_height.text.trim()) ?? 0;
+    final w = double.tryParse(_weight.text.trim()) ?? 0;
+    if (a > 0 && h > 0 && w > 0) {
+      appState.setBodyProfile(BodyProfile(
+          weight: w,
+          height: h,
+          age: a,
+          gender: _gender,
+          activity: _activity,
+          goal: _goal));
+    }
+    appState.seedHabitsForAreas(_areas);
+    Navigator.of(context).popUntil((r) => r.isFirst);
+  }
+
+  void _next() {
+    if (_page >= _last) {
+      _finish();
+    } else {
+      _pc.nextPage(
+          duration: const Duration(milliseconds: 260), curve: Curves.easeOut);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final last = _page == _last;
+    return Scaffold(
+      body: SafeArea(
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+            child: Row(children: [
+              SizedBox(
+                width: 44,
+                child: _page > 0
+                    ? IconButton(
+                        icon: const Icon(Icons.arrow_back_rounded,
+                            color: kTextTertiary),
+                        onPressed: () => _pc.previousPage(
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeOut))
+                    : null,
+              ),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (_page + 1) / (_last + 1),
+                    minHeight: 6,
+                    backgroundColor: kBorder,
+                    valueColor: AlwaysStoppedAnimation(kPlasma),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 54,
+                child: last
+                    ? null
+                    : TextButton(
+                        onPressed: _skip,
+                        child: const Text('Skip',
+                            style: TextStyle(color: kTextTertiary))),
+              ),
+            ]),
+          ),
+          Expanded(
+            child: PageView(
+              controller: _pc,
+              physics: const NeverScrollableScrollPhysics(),
+              onPageChanged: (i) => setState(() => _page = i),
+              children: [
+                _areasPage(),
+                _genderPage(),
+                _agePage(),
+                _bodyPage(),
+                _activityPage(),
+                _goalPage(),
+                _summaryPage(),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: GradientButton(
+              label: last ? "Let's go!" : 'Continue',
+              onPressed: _canAdvance ? _next : null,
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _quizPage(String title, String? subtitle, Widget content) => ListView(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+        children: [
+          Text(title,
+              style: GoogleFonts.spaceGrotesk(
+                  color: kTextPrimary,
+                  fontSize: 26,
+                  height: 1.15,
+                  fontWeight: FontWeight.w800)),
+          if (subtitle != null) ...[
+            const SizedBox(height: 8),
+            Text(subtitle,
+                style: const TextStyle(
+                    color: kTextSecondary, fontSize: 14, height: 1.4)),
+          ],
+          const SizedBox(height: 24),
+          content,
+        ],
+      );
+
+  Widget _areasPage() => _quizPage(
+        'What do you want to work on?',
+        "Pick a few — we'll set up starter habits for each.",
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [for (final a in _kAreas) _areaChip(a.$1, a.$2, a.$3)],
+        ),
+      );
+
+  Widget _areaChip(String id, String label, String emoji) {
+    final on = _areas.contains(id);
+    return GestureDetector(
+      onTap: () => setState(() => on ? _areas.remove(id) : _areas.add(id)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: on
+              ? const LinearGradient(colors: _kAccentGradient)
+              : _kGlassSheen,
+          border: Border.all(color: on ? Colors.transparent : kBorder),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(emoji, style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 8),
+          Text(label,
+              style: TextStyle(
+                  color: on ? Colors.white : kTextPrimary,
+                  fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _genderPage() => _quizPage(
+        'How do you identify?',
+        'Used only to personalize your nutrition targets.',
+        Column(children: [
+          _choiceRow(
+              'male', 'Male', '♂️', _gender, (v) => setState(() => _gender = v)),
+          _choiceRow('female', 'Female', '♀️', _gender,
+              (v) => setState(() => _gender = v)),
+          _choiceRow('other', 'Other / prefer not to say', '⚧️', _gender,
+              (v) => setState(() => _gender = v)),
+        ]),
+      );
+
+  Widget _agePage() =>
+      _quizPage('How old are you?', null, _numberField(_age, 'Age', 'years'));
+
+  Widget _bodyPage() => _quizPage(
+        'Your height & weight',
+        'We use these for your calorie & macro targets.',
+        Column(children: [
+          _numberField(_height, 'Height', 'cm'),
+          const SizedBox(height: 14),
+          _numberField(_weight, 'Weight', 'kg'),
+        ]),
+      );
+
+  Widget _activityPage() => _quizPage(
+        'How active are you?',
+        null,
+        Column(children: [
+          _choiceRow('sedentary', 'Sedentary — little exercise', '🪑',
+              _activity, (v) => setState(() => _activity = v)),
+          _choiceRow('light', 'Lightly active — 1–3 days/wk', '🚶', _activity,
+              (v) => setState(() => _activity = v)),
+          _choiceRow('moderate', 'Moderately active — 3–5 days/wk', '🏃',
+              _activity, (v) => setState(() => _activity = v)),
+          _choiceRow('active', 'Very active — 6–7 days/wk', '🏋️', _activity,
+              (v) => setState(() => _activity = v)),
+          _choiceRow('very_active', 'Athlete — intense daily', '🔥', _activity,
+              (v) => setState(() => _activity = v)),
+        ]),
+      );
+
+  Widget _goalPage() => _quizPage(
+        "What's your goal?",
+        'This sets your daily calorie target.',
+        Column(children: [
+          _choiceRow('cut', 'Lose weight', '📉', _goal,
+              (v) => setState(() => _goal = v)),
+          _choiceRow('maintain', 'Maintain', '⚖️', _goal,
+              (v) => setState(() => _goal = v)),
+          _choiceRow('bulk', 'Build muscle', '📈', _goal,
+              (v) => setState(() => _goal = v)),
+        ]),
+      );
+
+  Widget _summaryPage() {
+    final a = int.tryParse(_age.text.trim()) ?? 0;
+    final h = double.tryParse(_height.text.trim()) ?? 0;
+    final w = double.tryParse(_weight.text.trim()) ?? 0;
+    final hasBody = a > 0 && h > 0 && w > 0;
+    final cals = hasBody
+        ? computeMacroTargets(BodyProfile(
+                weight: w,
+                height: h,
+                age: a,
+                gender: _gender,
+                activity: _activity,
+                goal: _goal))
+            .calories
+            .round()
+        : null;
+    return _quizPage(
+      "You're all set!",
+      'Your plan is personalized — tap below to start.',
+      Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _summaryTile(Icons.local_fire_department_rounded, 'Daily calorie target',
+            hasBody ? '$cals kcal' : 'Add body stats later'),
+        const SizedBox(height: 12),
+        _summaryTile(
+            Icons.checklist_rounded,
+            'Focus areas',
+            _areas.isEmpty
+                ? 'Default starter habits'
+                : _areas.map(_areaLabel).join(' · ')),
+      ]),
+    );
+  }
+
+  Widget _summaryTile(IconData icon, String title, String value) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            gradient: _kGlassSheen,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: kBorder)),
+        child: Row(children: [
+          Icon(icon, color: kPlasmaBright, size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(color: kTextTertiary, fontSize: 12)),
+                const SizedBox(height: 2),
+                Text(value,
+                    style: const TextStyle(
+                        color: kTextPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ]),
+      );
+
+  Widget _numberField(TextEditingController c, String hint, String suffix) =>
+      TextField(
+        controller: c,
+        keyboardType: TextInputType.number,
+        onChanged: (_) => setState(() {}),
+        style: GoogleFonts.spaceGrotesk(
+            color: kTextPrimary, fontSize: 20, fontWeight: FontWeight.w700),
+        decoration: InputDecoration(hintText: hint, suffixText: suffix),
+      );
+
+  Widget _choiceRow(String id, String label, String emoji, String group,
+      ValueChanged<String> onTap) {
+    final on = group == id;
+    return GestureDetector(
+      onTap: () => onTap(id),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: _kGlassSheen,
+          border:
+              Border.all(color: on ? kPlasma : kBorder, width: on ? 1.5 : 1),
+        ),
+        child: Row(children: [
+          Text(emoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                    color: kTextPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
+          ),
+          if (on)
+            Icon(Icons.check_circle_rounded, color: kPlasmaGlow, size: 22),
+        ]),
+      ),
     );
   }
 }
@@ -1741,7 +2107,7 @@ PreferredSizeWidget _dashboardBar() {
           builder: (_, _) {
             final ld = levelFromXp(appState.totalXp);
             return Row(mainAxisSize: MainAxisSize.min, children: [
-              const _Avatar(size: 38),
+              _Avatar(size: 38),
               const SizedBox(width: 10),
               Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1798,7 +2164,7 @@ PreferredSizeWidget _titleBar(String title) {
                 MaterialPageRoute(builder: (_) => const SettingsScreen())),
             child: ListenableBuilder(
                 listenable: appState,
-                builder: (_, _) => const _Avatar(size: 34)),
+                builder: (_, _) => _Avatar(size: 34)),
           ),
         ),
       ),
@@ -2747,7 +3113,7 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                           ],
                         ),
                         const SizedBox(height: 22),
-                        const _Avatar(size: 92),
+                        _Avatar(size: 92),
                         const SizedBox(height: 14),
                         Text(appState.displayName,
                             maxLines: 1,
@@ -2966,7 +3332,7 @@ Widget _friendsRankHero(int rank, int total) {
       ],
     ),
     child: Row(children: [
-      const _Avatar(size: 54),
+      _Avatar(size: 54),
       const SizedBox(width: 16),
       Expanded(
         child: Column(
@@ -3024,7 +3390,7 @@ Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
       ),
       const SizedBox(width: 8),
       e.isMe
-          ? const _Avatar(size: 40)
+          ? _Avatar(size: 40)
           : _FriendAvatar(name: e.name, borderId: e.borderId, size: 40),
       const SizedBox(width: 12),
       Expanded(
@@ -5020,7 +5386,10 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
               onChanged: (_) => setState(() {})),
           _numField(_age, 'Age', TextInputType.number,
               onChanged: (_) => setState(() {})),
-          _dropdown('Gender', _gender, const {'male': 'Male', 'female': 'Female'},
+          _dropdown(
+              'Gender',
+              _gender,
+              const {'male': 'Male', 'female': 'Female', 'other': 'Other'},
               (v) => setState(() => _gender = v)),
           _dropdown(
               'Activity',
@@ -5334,7 +5703,7 @@ class SettingsScreen extends StatelessWidget {
                   GestureDetector(
                     onTap: () => _pickProfilePhoto(context),
                     child: Stack(children: [
-                      const _Avatar(size: 58),
+                      _Avatar(size: 58),
                       Positioned(
                         right: 0,
                         bottom: 0,

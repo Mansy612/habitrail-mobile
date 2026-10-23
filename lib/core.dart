@@ -414,7 +414,11 @@ const Map<String, double> kActivityMultipliers = {
 double computeBMR(BodyProfile p) => (10 * p.weight +
         6.25 * p.height -
         5 * p.age +
-        (p.gender == 'male' ? 5 : -161))
+        (p.gender == 'male'
+            ? 5
+            : p.gender == 'female'
+                ? -161
+                : -78)) // 'other' → midpoint of the male/female constants
     .roundToDouble();
 
 double computeTDEE(BodyProfile p) =>
@@ -543,6 +547,59 @@ class AppState extends ChangeNotifier {
         Habit(id: newId(), name: 'Journal', rarity: 'rare', icon: '✍️'),
         Habit(id: newId(), name: 'Healthy meal', rarity: 'rare', icon: '🥗'),
       ];
+
+  // Starter habits grouped by onboarding focus area.
+  static const Map<String, List<(String, String, String)>> _areaHabits = {
+    'fitness': [
+      ('Exercise', '🏋️', 'epic'),
+      ('Walk 30 min', '🚶', 'rare'),
+      ('Stretch', '🤸', 'common'),
+    ],
+    'nutrition': [
+      ('Drink water', '💧', 'common'),
+      ('Healthy meal', '🥗', 'rare'),
+      ('Log nutrition', '🍎', 'common'),
+    ],
+    'mind': [
+      ('Meditate 10 min', '🧘', 'epic'),
+      ('Journal', '✍️', 'rare'),
+      ('Gratitude note', '🙏', 'common'),
+    ],
+    'sleep': [
+      ('Sleep 7h+', '😴', 'common'),
+      ('No screens before bed', '📵', 'rare'),
+    ],
+    'learning': [
+      ('Read 10 pages', '📖', 'rare'),
+      ('Learn something new', '🧠', 'rare'),
+    ],
+    'productivity': [
+      ('Plan my day', '🗂️', 'common'),
+      ('Deep work 1h', '💻', 'epic'),
+    ],
+  };
+
+  /// Replaces the starter habits with ones matching the chosen focus areas
+  /// (onboarding). Keeps the default seed when no area is chosen.
+  void seedHabitsForAreas(Set<String> areas) {
+    final defs = <(String, String, String)>[];
+    for (final a in areas) {
+      defs.addAll(_areaHabits[a] ?? const []);
+    }
+    if (defs.isEmpty) return;
+    final seen = <String>{};
+    final out = <Habit>[];
+    for (final d in defs) {
+      if (seen.add(d.$1) && out.length < 9) {
+        out.add(Habit(id: newId(), name: d.$1, icon: d.$2, rarity: d.$3));
+      }
+    }
+    habits
+      ..clear()
+      ..addAll(out);
+    notifyListeners();
+    _save();
+  }
 
   bool _sleepDoneToday() =>
       habits.any((h) => h.name.toLowerCase().contains('sleep') && doneToday(h));

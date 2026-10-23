@@ -2789,12 +2789,14 @@ Widget _shareStat(String emoji, String label, String value) => Expanded(
 
 // A ranked entry (you or a friend) for the leaderboard.
 class _Ranked {
-  _Ranked(this.name, this.totalXp, this.streak, this.borderId, this.isMe);
+  _Ranked(this.name, this.totalXp, this.streak, this.borderId, this.isMe,
+      {this.friendId});
   final String name;
   final int totalXp;
   final int streak;
   final String borderId;
   final bool isMe;
+  final String? friendId; // null for the current user
 }
 
 class FriendsScreen extends StatelessWidget {
@@ -2808,8 +2810,9 @@ class FriendsScreen extends StatelessWidget {
         final board = <_Ranked>[
           _Ranked(appState.displayName, appState.totalXp, appState.bestStreak,
               appState.selectedBorder, true),
-          ...friends.friends.map((f) =>
-              _Ranked(f.name, f.totalXp, f.streak, f.borderId, false)),
+          ...friends.friends.map((f) => _Ranked(
+              f.name, f.totalXp, f.streak, f.borderId, false,
+              friendId: f.id)),
         ]..sort((a, b) => b.totalXp.compareTo(a.totalXp));
         final myRank = board.indexWhere((e) => e.isMe) + 1;
         return Scaffold(
@@ -2821,7 +2824,8 @@ class FriendsScreen extends StatelessWidget {
               _friendsRankHero(myRank, board.length),
               const _AddFriendField(),
               _sectionLabel('LEADERBOARD'),
-              for (int i = 0; i < board.length; i++) _leaderRow(i + 1, board[i]),
+              for (int i = 0; i < board.length; i++)
+                _leaderRow(context, i + 1, board[i]),
               _sectionLabel('YOUR FRIENDS'),
               if (friends.friends.isEmpty)
                 const Padding(
@@ -2957,7 +2961,7 @@ Widget _friendsRankHero(int rank, int total) {
   );
 }
 
-Widget _leaderRow(int rank, _Ranked e) {
+Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
   final ld = levelFromXp(e.totalXp);
   final label = rank == 1
       ? '🥇'
@@ -2966,7 +2970,7 @@ Widget _leaderRow(int rank, _Ranked e) {
           : rank == 3
               ? '🥉'
               : '$rank';
-  return Container(
+  final row = Container(
     margin: const EdgeInsets.symmetric(vertical: 4),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     decoration: BoxDecoration(
@@ -3026,11 +3030,23 @@ Widget _leaderRow(int rank, _Ranked e) {
       ),
     ]),
   );
+  return e.friendId == null
+      ? row
+      : GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => FriendProfileScreen(friendId: e.friendId!))),
+          child: row,
+        );
 }
 
 Widget _friendCard(BuildContext context, Friend f) {
   final ld = levelFromXp(f.totalXp);
-  return Container(
+  return GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: f.id))),
+    child: Container(
     margin: const EdgeInsets.symmetric(vertical: 4),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
@@ -3090,6 +3106,7 @@ Widget _friendCard(BuildContext context, Friend f) {
         onPressed: () => _confirmRemoveFriend(context, f),
       ),
     ]),
+    ),
   );
 }
 
@@ -3165,6 +3182,170 @@ class _AddFriendFieldState extends State<_AddFriendField> {
         const SizedBox(width: 10),
         GradientButton(label: 'Add', expand: false, onPressed: _add),
       ]),
+    );
+  }
+}
+
+// Full profile / stat card for a friend (opened by tapping a friend).
+class FriendProfileScreen extends StatelessWidget {
+  const FriendProfileScreen({super.key, required this.friendId});
+  final String friendId;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([appState, friends]),
+      builder: (context, _) {
+        final matches = friends.friends.where((x) => x.id == friendId).toList();
+        final f = matches.isEmpty ? null : matches.first;
+        if (f == null) {
+          return Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                foregroundColor: kTextPrimary),
+            body: const Center(
+                child: Text('This friend was removed.',
+                    style: TextStyle(color: kTextTertiary))),
+          );
+        }
+        final ld = levelFromXp(f.totalXp);
+        final myXp = appState.totalXp;
+        final ranked = [myXp, ...friends.friends.map((x) => x.totalXp)]
+          ..sort((a, b) => b.compareTo(a));
+        final rank = ranked.indexOf(f.totalXp) + 1;
+        final diff = f.totalXp - myXp;
+        final cmp = diff == 0
+            ? "You're dead even — go break the tie!"
+            : diff > 0
+                ? '${f.name} leads you by $diff XP.'
+                : 'You lead ${f.name} by ${-diff} XP.';
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            foregroundColor: kTextPrimary,
+            title: Text(f.name,
+                style: GoogleFonts.spaceGrotesk(
+                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+          ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2A1458), Color(0xFF160B2E)]),
+                  border: Border.all(color: kBorder),
+                ),
+                child: Column(children: [
+                  _FriendAvatar(name: f.name, borderId: f.borderId, size: 96),
+                  const SizedBox(height: 14),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Flexible(
+                      child: Text(f.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.spaceGrotesk(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                    if (f.prestige > 0) ...[
+                      const SizedBox(width: 8),
+                      Text('★${f.prestige}',
+                          style: const TextStyle(
+                              color: kGold,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ]),
+                  const SizedBox(height: 3),
+                  Text('@${f.username}',
+                      style: TextStyle(
+                          color: kPlasmaBright,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text('Level ${ld.level} · ${levelTitle(ld.level)}',
+                      style:
+                          const TextStyle(color: kTextTertiary, fontSize: 13)),
+                  const SizedBox(height: 20),
+                  Row(children: [
+                    _shareStat('⭐', 'Level', '${ld.level}'),
+                    _shareStat('⚡', 'Total XP', '${f.totalXp}'),
+                    _shareStat('🔥', 'Streak', '${f.streak}'),
+                  ]),
+                  const SizedBox(height: 14),
+                  Row(children: [
+                    _shareStat('👑', 'Prestige', '${f.prestige}'),
+                    _shareStat('🏅', 'Rank', '#$rank'),
+                  ]),
+                ]),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: _kGlassSheen,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('COMPARED TO YOU',
+                        style: TextStyle(
+                            color: kTextTertiary,
+                            fontSize: 11,
+                            letterSpacing: 1.5,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text(cmp,
+                        style: const TextStyle(
+                            color: kTextSecondary, fontSize: 13, height: 1.3)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              TextButton.icon(
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: kElevated,
+                    title: Text('Remove ${f.name}?',
+                        style: const TextStyle(color: kTextPrimary)),
+                    content: Text('You can add @${f.username} again any time.',
+                        style: const TextStyle(color: kTextSecondary)),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel')),
+                      FilledButton(
+                        style: FilledButton.styleFrom(backgroundColor: kRed),
+                        onPressed: () {
+                          friends.remove(f.id);
+                          Navigator.pop(ctx);
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Remove'),
+                      ),
+                    ],
+                  ),
+                ),
+                icon: const Icon(Icons.person_remove_rounded,
+                    size: 18, color: kRed),
+                label:
+                    const Text('Remove friend', style: TextStyle(color: kRed)),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

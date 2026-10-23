@@ -319,6 +319,20 @@ void main() {
       expect(s.consumeNewAchievements(), isEmpty); // queue cleared
     });
 
+    test('nutrition score is 0 on a fresh day, even with a body profile', () {
+      final s = AppState();
+      expect(s.nutritionScore(), 0);
+      // Onboarding sets a body profile (targets) — still 0 until food is logged.
+      s.setBodyProfile(BodyProfile(
+          weight: 70,
+          height: 175,
+          age: 25,
+          gender: 'male',
+          activity: 'moderate',
+          goal: 'maintain'));
+      expect(s.nutritionScore(), 0);
+    });
+
     test('shop: xp booster + streak shield cost coins', () {
       final s = AppState();
       s.coins = 300;

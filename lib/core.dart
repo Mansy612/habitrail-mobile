@@ -794,6 +794,11 @@ class AppState extends ChangeNotifier {
   /// energy(40%) + recovery(30%) + (100 − fatigue)(30%).
   int nutritionScore() {
     final n = todayNutrition();
+    // Nothing logged today → score 0. (Otherwise the fatigue model credits
+    // "100 − fatigue" on an empty day and a fresh account shows a phantom ~5.)
+    if (n.calories <= 0 && n.protein <= 0 && n.carbs <= 0 && n.fat <= 0) {
+      return 0;
+    }
     final t = targets();
     // Energy availability
     final maxPossible = t.protein * 0.4 + t.carbs * 0.4 + t.fat * 0.2;

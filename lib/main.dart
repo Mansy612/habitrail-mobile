@@ -2625,26 +2625,14 @@ class AwardsScreen extends StatelessWidget {
       appBar: _titleBar('Awards'),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Achievements',
-                    style: TextStyle(color: kTextSecondary)),
-                Text('$unlocked / ${kAchievements.length} unlocked',
-                    style: const TextStyle(
-                        color: kCyan, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
+          _awardsHero(unlocked, kAchievements.length),
           Expanded(
             child: GridView.count(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
               crossAxisCount: 2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.05,
+              childAspectRatio: 0.95,
               children:
                   kAchievements.map((a) => _AchievementCard(a)).toList(),
             ),
@@ -2655,6 +2643,74 @@ class AwardsScreen extends StatelessWidget {
   }
 }
 
+// Awards progress hero: gold ring + unlocked count.
+Widget _awardsHero(int unlocked, int total) {
+  final pct = total == 0 ? 0.0 : unlocked / total;
+  return Container(
+    margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(18),
+      gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2E1A5C), Color(0xFF1A0F38)]),
+      border: Border.all(color: kGold.withValues(alpha: 0.25)),
+      boxShadow: [
+        BoxShadow(
+            color: kGold.withValues(alpha: 0.12),
+            blurRadius: 24,
+            offset: const Offset(0, 8)),
+      ],
+    ),
+    child: Row(children: [
+      SizedBox(
+        width: 70,
+        height: 70,
+        child: Stack(alignment: Alignment.center, children: [
+          GlowRing(
+              value: pct,
+              size: 70,
+              stroke: 7,
+              colors: [kGold, const Color(0xFFFFE08A)]),
+          Text('$unlocked',
+              style: GoogleFonts.spaceGrotesk(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800)),
+        ]),
+      ),
+      const SizedBox(width: 16),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('ACHIEVEMENTS',
+                style: TextStyle(
+                    color: kTextTertiary,
+                    fontSize: 11,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text('$unlocked of $total unlocked',
+                style: GoogleFonts.spaceGrotesk(
+                    color: kTextPrimary,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(height: 3),
+            Text(
+                unlocked >= total
+                    ? 'Legend — every award earned!'
+                    : 'Keep building habits to unlock them all.',
+                style: const TextStyle(
+                    color: kTextSecondary, fontSize: 12.5, height: 1.3)),
+          ],
+        ),
+      ),
+    ]),
+  );
+}
+
 class _AchievementCard extends StatelessWidget {
   const _AchievementCard(this.a);
   final Achievement a;
@@ -2662,29 +2718,87 @@ class _AchievementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final on = appState.isAchievementEarned(a);
-    final color = rarityConfig[a.rarity]?.color ?? kTextTertiary;
+    final cfg = rarityConfig[a.rarity];
+    final color = cfg?.color ?? kTextTertiary;
+    final rarity = (cfg?.label ?? a.rarity).toUpperCase();
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: _kGlassSheen,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: on ? color : kBorder),
+        border: Border.all(
+            color: on ? color.withValues(alpha: 0.7) : kBorder,
+            width: on ? 1.5 : 1),
+        boxShadow: on
+            ? [
+                BoxShadow(
+                    color: color.withValues(alpha: 0.22),
+                    blurRadius: 18,
+                    spreadRadius: -2)
+              ]
+            : null,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(on ? a.icon : Icons.lock_outline_rounded,
-              size: 34, color: on ? color : kTextTertiary),
+          Container(
+            width: 54,
+            height: 54,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: on
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color.withValues(alpha: 0.4),
+                        color.withValues(alpha: 0.12)
+                      ])
+                  : null,
+              color: on ? null : const Color(0x14FFFFFF),
+              border: Border.all(
+                  color: on ? color.withValues(alpha: 0.5) : kBorder),
+              boxShadow: on
+                  ? [
+                      BoxShadow(
+                          color: color.withValues(alpha: 0.4), blurRadius: 14)
+                    ]
+                  : null,
+            ),
+            child: Icon(on ? a.icon : Icons.lock_outline_rounded,
+                size: 26, color: on ? color : kTextTertiary),
+          ),
           const SizedBox(height: 10),
           Text(a.title,
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  color: on ? Colors.white : kTextTertiary,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text(a.description,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: kTextTertiary, fontSize: 11)),
+                  color: on ? Colors.white : kTextSecondary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13.5)),
+          const SizedBox(height: 6),
+          on
+              ? Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text(rarity,
+                      style: TextStyle(
+                          color: color,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8)),
+                )
+              : Text(a.description,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(color: kTextTertiary, fontSize: 10.5)),
         ],
       ),
     );

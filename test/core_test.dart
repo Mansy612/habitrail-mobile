@@ -310,6 +310,15 @@ void main() {
       expect(s.isAchievementEarned(lvl5), isTrue); // but it stays earned
     });
 
+    test('consumeNewAchievements returns freshly-earned awards then clears', () {
+      final s = AppState();
+      s.addHabit('Run', 'common');
+      s.toggle(s.habits.single); // first completion unlocks "First Step"
+      final earned = s.consumeNewAchievements();
+      expect(earned.any((a) => a.id == 'first'), isTrue);
+      expect(s.consumeNewAchievements(), isEmpty); // queue cleared
+    });
+
     test('shop: xp booster + streak shield cost coins', () {
       final s = AppState();
       s.coins = 300;

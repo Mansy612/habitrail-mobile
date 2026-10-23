@@ -1788,6 +1788,7 @@ class HomeScreen extends StatelessWidget {
       final total = appState.habits.length;
       appState.toggle(h);
       final who = appState.activeCompanion;
+      bool shownMajor = false;
       if (appState.consumeBossDefeat()) {
         appState.setCompanionLine(companionLine(who, 'boss_defeat'));
         celebrate(context);
@@ -1796,10 +1797,12 @@ class HomeScreen extends StatelessWidget {
         } else {
           _showBossDefeat(context);
         }
+        shownMajor = true;
       } else if (appState.level > old) {
         appState.setCompanionLine(companionLine(who, 'level_up'));
         celebrate(context);
         _showLevelUp(context, appState.level);
+        shownMajor = true;
       } else {
         if (h.streak == 30 && oldStreak != 30) {
           appState.setCompanionLine(companionLine(who, 'streak_30'));
@@ -1811,6 +1814,15 @@ class HomeScreen extends StatelessWidget {
         // A perfect day just completed → a little confetti.
         if (total > 0 && doneBefore < total && appState.doneTodayCount == total) {
           celebrate(context);
+        }
+      }
+      // Celebrate any freshly-unlocked achievements — unless a bigger popup is
+      // already showing, in which case they stay queued for the next toggle.
+      if (!shownMajor) {
+        final newAch = appState.consumeNewAchievements();
+        if (newAch.isNotEmpty) {
+          celebrate(context);
+          _showAchievementUnlocked(context, newAch);
         }
       }
     }
@@ -3112,6 +3124,88 @@ void _showLevelUp(BuildContext context, int level) {
               style: FilledButton.styleFrom(backgroundColor: kPlasma),
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Continue'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+void _showAchievementUnlocked(BuildContext context, List<Achievement> items) {
+  if (items.isEmpty) return;
+  final a = items.first;
+  final color = rarityConfig[a.rarity]?.color ?? kGold;
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF2A1458), Color(0xFF160B2E)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: color),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('🏆 ACHIEVEMENT UNLOCKED',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    letterSpacing: 2,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            Container(
+              width: 84,
+              height: 84,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      color.withValues(alpha: 0.4),
+                      color.withValues(alpha: 0.12)
+                    ]),
+                border: Border.all(color: color.withValues(alpha: 0.6)),
+                boxShadow: [
+                  BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 24)
+                ],
+              ),
+              child: Icon(a.icon, color: color, size: 42),
+            ),
+            const SizedBox(height: 16),
+            Text(a.title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.spaceGrotesk(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text(a.description,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: kTextSecondary, fontSize: 12)),
+            if (items.length > 1) ...[
+              const SizedBox(height: 8),
+              Text('+${items.length - 1} more unlocked',
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold)),
+            ],
+            const SizedBox(height: 20),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: kPlasma),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Nice!'),
             ),
           ],
         ),

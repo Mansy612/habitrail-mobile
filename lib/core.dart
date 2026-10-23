@@ -914,7 +914,7 @@ class AppState extends ChangeNotifier {
     }
     _prevLevel = level;
     if (level > highestLevel) highestLevel = level;
-    _checkAchievements(); // backfill anything already satisfied
+    _checkAchievements(silent: true); // backfill anything already satisfied
     loading = false;
     notifyListeners();
   }
@@ -1012,16 +1012,30 @@ class AppState extends ChangeNotifier {
 
   // Record any achievement whose condition is currently met. Once earned, an
   // achievement stays earned — so XP/level ones don't re-lock after prestige.
-  void _checkAchievements() {
+  // Newly-earned achievement ids awaiting a celebration popup (transient,
+  // never persisted — a fresh launch starts with none pending).
+  final List<String> _pendingAchievements = [];
+
+  void _checkAchievements({bool silent = false}) {
     for (final a in kAchievements) {
       if (!earnedAchievements.contains(a.id) && a.unlocked(this)) {
         earnedAchievements.add(a.id);
+        if (!silent) _pendingAchievements.add(a.id);
       }
     }
   }
 
   bool isAchievementEarned(Achievement a) =>
       earnedAchievements.contains(a.id) || a.unlocked(this);
+
+  // Returns the achievements earned since the last call, then clears the queue
+  // so each unlock is only celebrated once.
+  List<Achievement> consumeNewAchievements() {
+    if (_pendingAchievements.isEmpty) return const [];
+    final ids = _pendingAchievements.toList();
+    _pendingAchievements.clear();
+    return kAchievements.where((a) => ids.contains(a.id)).toList();
+  }
 
   void _updateBoss() {
     final count = perfectDaysThisWeek();

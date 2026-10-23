@@ -50,6 +50,7 @@ dependencies:
   # Profile pictures: pick an image, then downscale it so the stored avatar is tiny.
   image_picker: ^1.1.2
   image: ^4.3.0
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:

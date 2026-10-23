@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
-import 'dart:ui' show ImageFilter, MaskFilter, BlurStyle;
+import 'dart:ui' show ImageFilter, MaskFilter, BlurStyle, ImageByteFormat;
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:image/image.dart' as img;
@@ -709,6 +712,14 @@ class AccountScreen extends StatelessWidget {
               _statChip('Habits', '${appState.habits.length}'),
               _statChip('Prestige', '${appState.prestige}'),
             ]),
+            const SizedBox(height: 16),
+            GradientButton(
+              label: 'Share my progress',
+              icon: Icons.ios_share_rounded,
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const ShareCardScreen())),
+            ),
+            const SizedBox(height: 4),
             _sectionLabel('ACCOUNT'),
             _settingsTile(Icons.edit_rounded, 'Edit name', u.name,
                 () => _editAccountName(context)),
@@ -2611,6 +2622,153 @@ class _HabitStreaksCard extends StatelessWidget {
     );
   }
 }
+
+// ── SHARE CARD ───────────────────────────────────────────────────────────────
+class ShareCardScreen extends StatefulWidget {
+  const ShareCardScreen({super.key});
+  @override
+  State<ShareCardScreen> createState() => _ShareCardScreenState();
+}
+
+class _ShareCardScreenState extends State<ShareCardScreen> {
+  final GlobalKey _cardKey = GlobalKey();
+  bool _busy = false;
+
+  Future<void> _share() async {
+    setState(() => _busy = true);
+    try {
+      final boundary =
+          _cardKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final box = context.findRenderObject() as RenderBox?;
+      final origin =
+          box != null ? (box.localToGlobal(Offset.zero) & box.size) : null;
+      final image = await boundary.toImage(pixelRatio: 3);
+      final data = await image.toByteData(format: ImageByteFormat.png);
+      if (data == null) throw 'encode failed';
+      final file = File(
+          '${Directory.systemTemp.path}/habitrail_progress_${DateTime.now().millisecondsSinceEpoch}.png');
+      await file.writeAsBytes(data.buffer.asUint8List());
+      await SharePlus.instance.share(ShareParams(
+        files: [XFile(file.path)],
+        text:
+            "I'm Level ${appState.level} on Habitrail with a ${appState.bestStreak}-day streak! 🔥 Build habits, earn XP, level up.",
+        sharePositionOrigin: origin,
+      ));
+    } catch (_) {
+      if (mounted) _toast(context, "Couldn't share right now.");
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final ld = levelFromXp(appState.totalXp);
+        final v = appState.victory();
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: _titleBar('Share progress'),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+            children: [
+              Center(
+                child: RepaintBoundary(
+                  key: _cardKey,
+                  child: Container(
+                    width: 340,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF2A1458), Color(0xFF130A2A)]),
+                      border: Border.all(color: kBorder),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('🔥', style: TextStyle(fontSize: 22)),
+                            const SizedBox(width: 8),
+                            Text('Habitrail',
+                                style: GoogleFonts.spaceGrotesk(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800)),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        const _Avatar(size: 92),
+                        const SizedBox(height: 14),
+                        Text(appState.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.spaceGrotesk(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 3),
+                        Text('Level ${ld.level} · ${levelTitle(ld.level)}',
+                            style: const TextStyle(
+                                color: kTextTertiary, fontSize: 13)),
+                        const SizedBox(height: 22),
+                        Row(children: [
+                          _shareStat('🔥', 'Streak', '${appState.bestStreak}'),
+                          _shareStat('🏆', 'Victory', '${v.score}'),
+                          _shareStat('⭐', 'Level', '${ld.level}'),
+                        ]),
+                        const SizedBox(height: 14),
+                        Row(children: [
+                          _shareStat('⚡', 'Total XP', '${appState.totalXp}'),
+                          _shareStat(
+                              '✅', 'Habits', '${appState.habits.length}'),
+                          _shareStat('👑', 'Prestige', '${appState.prestige}'),
+                        ]),
+                        const SizedBox(height: 22),
+                        const Text(
+                            'Build habits. Earn XP. Level up your life.',
+                            textAlign: TextAlign.center,
+                            style:
+                                TextStyle(color: kTextTertiary, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              GradientButton(
+                label: _busy ? 'Preparing…' : 'Share',
+                icon: Icons.ios_share_rounded,
+                onPressed: _busy ? null : _share,
+              ),
+              const SizedBox(height: 10),
+              const Text('Share your card to show off your streak and level.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: kTextTertiary, fontSize: 12)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+Widget _shareStat(String emoji, String label, String value) => Expanded(
+      child: Column(children: [
+        Text(emoji, style: const TextStyle(fontSize: 18)),
+        const SizedBox(height: 4),
+        Text(value,
+            style: GoogleFonts.spaceGrotesk(
+                color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+        Text(label, style: const TextStyle(color: kTextTertiary, fontSize: 10)),
+      ]),
+    );
 
 // ── AWARDS (achievements) ────────────────────────────────────────────────────
 class AwardsScreen extends StatelessWidget {

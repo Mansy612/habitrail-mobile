@@ -96,6 +96,33 @@ Friend _synthFriend(String username, {bool sample = false, String? name}) {
   );
 }
 
+// The app's "known users" — a stand-in for a server's user directory. You can
+// only befriend handles listed here; anything else resolves to no user, just
+// like a real backend would reject an unknown username.
+const List<({String username, String name})> _directory = [
+  (username: 'maya', name: 'Maya'),
+  (username: 'leo_fit', name: 'Leo'),
+  (username: 'priya99', name: 'Priya'),
+  (username: 'samski', name: 'Sam'),
+  (username: 'nova_x', name: 'Nova'),
+  (username: 'kai', name: 'Kai'),
+  (username: 'zoe_runs', name: 'Zoe'),
+  (username: 'ravi', name: 'Ravi'),
+  (username: 'mia_z', name: 'Mia'),
+  (username: 'deepwork_dan', name: 'Dan'),
+];
+
+({String username, String name})? _lookup(String username) {
+  final u = username.toLowerCase();
+  for (final d in _directory) {
+    if (d.username.toLowerCase() == u) return d;
+  }
+  return null;
+}
+
+Friend _friendFromDir(({String username, String name}) d) =>
+    _synthFriend(d.username, sample: true, name: d.name);
+
 /// On-device friends list (stub). Seeds a few sample friends on first run so the
 /// leaderboard feels alive, and persists adds/removes to SharedPreferences.
 class FriendsStore extends ChangeNotifier {
@@ -148,6 +175,8 @@ class FriendsStore extends ChangeNotifier {
   }
 
   /// Adds a friend by username. Returns an error string, or null on success.
+  /// Only handles that exist in the demo directory resolve — a random name
+  /// won't, which mirrors how a real backend would reject an unknown user.
   String? addByUsername(String username) {
     final u = username.trim();
     if (!isValidUsername(u)) {
@@ -156,10 +185,21 @@ class FriendsStore extends ChangeNotifier {
     if (_friends.any((f) => f.username.toLowerCase() == u.toLowerCase())) {
       return '@$u is already in your friends.';
     }
-    _friends.add(_synthFriend(u));
+    final d = _lookup(u);
+    if (d == null) return 'No user found with the username @$u.';
+    _friends.add(_friendFromDir(d));
     _save();
     notifyListeners();
     return null;
+  }
+
+  /// Directory users you haven't added yet (for the "Suggested" section).
+  List<Friend> suggestions() {
+    final have = _friends.map((f) => f.username.toLowerCase()).toSet();
+    return [
+      for (final d in _directory)
+        if (!have.contains(d.username.toLowerCase())) _friendFromDir(d),
+    ];
   }
 
   void remove(String id) {
@@ -168,12 +208,11 @@ class FriendsStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<Friend> _seed() => [
-        _synthFriend('maya', sample: true, name: 'Maya'),
-        _synthFriend('leo_fit', sample: true, name: 'Leo'),
-        _synthFriend('priya99', sample: true, name: 'Priya'),
-        _synthFriend('samski', sample: true, name: 'Sam'),
-      ];
+  // Start with a few directory users already added; the rest show up as
+  // suggestions you can tap to add.
+  List<Friend> _seed() => [_directory[0], _directory[1], _directory[2]]
+      .map(_friendFromDir)
+      .toList();
 }
 
 /// App-wide friends store.

@@ -13,29 +13,39 @@ void main() {
     expect(s.friends.every((f) => f.sample), isTrue);
   });
 
-  test('addByUsername adds a friend, rejecting duplicates and bad input',
-      () async {
+  test('addByUsername only resolves known directory users', () async {
     final s = FriendsStore();
     await s.load();
     final before = s.friends.length;
 
-    expect(s.addByUsername('newpal'), isNull); // ok
+    // A known handle that isn't already seeded.
+    expect(s.addByUsername('samski'), isNull);
     expect(s.friends.length, before + 1);
 
-    expect(s.addByUsername('NewPal'), isNotNull); // duplicate, case-insensitive
-    expect(s.addByUsername('no'), isNotNull); // too short
-    expect(s.friends.length, before + 1); // neither was added
+    expect(s.addByUsername('SamsKi'), isNotNull); // duplicate (case-insensitive)
+    expect(s.addByUsername('no'), isNotNull); // invalid format
+    // A random name is NOT a real user → rejected (the bug this guards against).
+    expect(s.addByUsername('totallyrandom'), isNotNull);
+    expect(s.friends.length, before + 1); // none of the above were added
+  });
+
+  test('suggestions exclude users already added', () async {
+    final s = FriendsStore();
+    await s.load();
+    expect(s.suggestions().any((f) => f.username == 'kai'), isTrue);
+    s.addByUsername('kai');
+    expect(s.suggestions().any((f) => f.username == 'kai'), isFalse);
   });
 
   test('a friend\'s synthetic stats are deterministic from the username',
       () async {
     final s = FriendsStore();
     await s.load();
-    s.addByUsername('deterministic');
-    final first = s.friends.firstWhere((f) => f.username == 'deterministic');
+    s.addByUsername('zoe_runs');
+    final first = s.friends.firstWhere((f) => f.username == 'zoe_runs');
     s.remove(first.id);
-    s.addByUsername('deterministic');
-    final second = s.friends.firstWhere((f) => f.username == 'deterministic');
+    s.addByUsername('zoe_runs');
+    final second = s.friends.firstWhere((f) => f.username == 'zoe_runs');
     expect(second.totalXp, first.totalXp);
     expect(second.streak, first.streak);
     expect(second.borderId, first.borderId);
@@ -44,8 +54,8 @@ void main() {
   test('remove deletes a friend', () async {
     final s = FriendsStore();
     await s.load();
-    s.addByUsername('tempmate');
-    final f = s.friends.firstWhere((x) => x.username == 'tempmate');
+    s.addByUsername('ravi');
+    final f = s.friends.firstWhere((x) => x.username == 'ravi');
     s.remove(f.id);
     expect(s.friends.any((x) => x.id == f.id), isFalse);
   });

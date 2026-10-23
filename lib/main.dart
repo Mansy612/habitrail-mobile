@@ -2815,6 +2815,7 @@ class FriendsScreen extends StatelessWidget {
               friendId: f.id)),
         ]..sort((a, b) => b.totalXp.compareTo(a.totalXp));
         final myRank = board.indexWhere((e) => e.isMe) + 1;
+        final suggestions = friends.suggestions();
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: _titleBar('Friends'),
@@ -2838,6 +2839,10 @@ class FriendsScreen extends StatelessWidget {
                 )
               else
                 ...friends.friends.map((f) => _friendCard(context, f)),
+              if (suggestions.isNotEmpty) ...[
+                _sectionLabel('SUGGESTED'),
+                ...suggestions.map((f) => _suggestionCard(context, f)),
+              ],
             ],
           ),
         );
@@ -3107,6 +3112,52 @@ Widget _friendCard(BuildContext context, Friend f) {
       ),
     ]),
     ),
+  );
+}
+
+Widget _suggestionCard(BuildContext context, Friend f) {
+  final ld = levelFromXp(f.totalXp);
+  return Container(
+    margin: const EdgeInsets.symmetric(vertical: 4),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      gradient: _kGlassSheen,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: kBorder),
+    ),
+    child: Row(children: [
+      _FriendAvatar(name: f.name, borderId: f.borderId, size: 42),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(f.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: kTextPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14)),
+            const SizedBox(height: 2),
+            Text('@${f.username} · Lv.${ld.level}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: kTextTertiary, fontSize: 11)),
+          ],
+        ),
+      ),
+      const SizedBox(width: 8),
+      GradientButton(
+        label: 'Add',
+        expand: false,
+        height: 40,
+        onPressed: () {
+          friends.addByUsername(f.username);
+          _toast(context, 'Added @${f.username}');
+        },
+      ),
+    ]),
   );
 }
 

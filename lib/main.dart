@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
@@ -198,13 +199,13 @@ class HabitrailApp extends StatelessWidget {
             .apply(bodyColor: kTextPrimary, displayColor: kTextPrimary),
         splashColor: kPlasma.withValues(alpha: 0.12),
         highlightColor: kPlasma.withValues(alpha: 0.06),
-        // Smooth, consistent screen transitions on every platform.
+        // Short, consistent transitions keep navigation feeling light.
         pageTransitionsTheme: const PageTransitionsTheme(builders: {
-          TargetPlatform.android: ZoomPageTransitionsBuilder(),
-          TargetPlatform.iOS: ZoomPageTransitionsBuilder(),
-          TargetPlatform.macOS: ZoomPageTransitionsBuilder(),
-          TargetPlatform.windows: ZoomPageTransitionsBuilder(),
-          TargetPlatform.linux: ZoomPageTransitionsBuilder(),
+          TargetPlatform.android: _FadeSlidePageTransitionsBuilder(),
+          TargetPlatform.iOS: _FadeSlidePageTransitionsBuilder(),
+          TargetPlatform.macOS: _FadeSlidePageTransitionsBuilder(),
+          TargetPlatform.windows: _FadeSlidePageTransitionsBuilder(),
+          TargetPlatform.linux: _FadeSlidePageTransitionsBuilder(),
         }),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
@@ -269,6 +270,33 @@ class HabitrailApp extends StatelessWidget {
         ],
       ),
       home: const AuthGate(),
+    );
+  }
+}
+
+class _FadeSlidePageTransitionsBuilder extends PageTransitionsBuilder {
+  const _FadeSlidePageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final eased = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    return FadeTransition(
+      opacity: eased,
+      child: SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0.035, 0), end: Offset.zero)
+            .animate(eased),
+        child: child,
+      ),
     );
   }
 }
@@ -1998,25 +2026,30 @@ class GlowBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = colors ?? _kAccentGradient;
     final v = value.clamp(0.0, 1.0);
-    return SizedBox(
-      height: height,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(height),
-        child: Stack(children: [
-          const Positioned.fill(child: ColoredBox(color: Color(0x22FFFFFF))),
-          FractionallySizedBox(
-            alignment: Alignment.centerLeft,
-            widthFactor: v,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: c),
-                boxShadow: [
-                  BoxShadow(color: c.last.withValues(alpha: 0.5), blurRadius: 6),
-                ],
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: v),
+      duration: const Duration(milliseconds: 460),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) => SizedBox(
+        height: height,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(height),
+          child: Stack(children: [
+            const Positioned.fill(child: ColoredBox(color: Color(0x22FFFFFF))),
+            FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: value,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: c),
+                  boxShadow: [
+                    BoxShadow(color: c.last.withValues(alpha: 0.5), blurRadius: 6),
+                  ],
+                ),
               ),
             ),
-          ),
-        ]),
+          ]),
+        ),
       ),
     );
   }
@@ -2035,14 +2068,21 @@ class GlowRing extends StatelessWidget {
   final double stroke;
   final List<Color>? colors;
   @override
-  Widget build(BuildContext context) => SizedBox(
+  Widget build(BuildContext context) {
+    final target = value.clamp(0.0, 1.0).toDouble();
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: target),
+      duration: const Duration(milliseconds: 520),
+      curve: Curves.easeOutCubic,
+      builder: (context, animatedValue, _) => SizedBox(
         width: size,
         height: size,
         child: CustomPaint(
-          painter: _RingPainter(
-              value.clamp(0.0, 1.0).toDouble(), stroke, colors ?? _kAccentGradient),
+          painter: _RingPainter(animatedValue, stroke, colors ?? _kAccentGradient),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _RingPainter extends CustomPainter {
@@ -2183,7 +2223,24 @@ class HomeScreen extends StatelessWidget {
       final oldStreak = h.streak;
       final doneBefore = appState.doneTodayCount;
       final total = appState.habits.length;
+      final wasDone = appState.doneToday(h);
       appState.toggle(h);
+      if (!wasDone) {
+        HapticFeedback.selectionClick();
+        final reward = h.todayAwardXp;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            duration: const Duration(milliseconds: 1100),
+            content: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.bolt_rounded, color: kGold, size: 18),
+              const SizedBox(width: 8),
+              Text('Habit complete  ·  +$reward XP',
+                  style: const TextStyle(color: kTextPrimary,
+                      fontWeight: FontWeight.w600)),
+            ]),
+          ));
+      }
       final who = appState.activeCompanion;
       bool shownMajor = false;
       if (appState.consumeBossDefeat()) {
@@ -2231,20 +2288,17 @@ class HomeScreen extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 96),
         children: [
           const _DashboardHero(),
-          const _CompanionCard(),
-          const _VictoryCard(),
-          const _NutritionCard(),
-          const _BossCard(),
-          const _QuestsPanel(),
-          const _PrestigeCard(),
           const Padding(
-            padding: EdgeInsets.fromLTRB(22, 14, 22, 6),
-            child: Text('HABITS',
-                style: TextStyle(
-                    color: kTextTertiary,
-                    fontSize: 12,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.bold)),
+            padding: EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: Row(children: [
+              Expanded(
+                child: Text('TODAY’S HABITS',
+                    style: TextStyle(color: kTextTertiary, fontSize: 12,
+                        letterSpacing: 1.5, fontWeight: FontWeight.bold)),
+              ),
+              Text('Tap to complete',
+                  style: TextStyle(color: kTextTertiary, fontSize: 11)),
+            ]),
           ),
           if (appState.habits.isEmpty)
             const Padding(
@@ -2277,6 +2331,13 @@ class HomeScreen extends StatelessWidget {
                 );
               },
             ),
+          const SizedBox(height: 12),
+          const _VictoryCard(),
+          const _CompanionCard(),
+          const _NutritionCard(),
+          const _BossCard(),
+          const _QuestsPanel(),
+          const _PrestigeCard(),
         ],
       ),
     );
@@ -2308,7 +2369,11 @@ class _DashboardHero extends StatelessWidget {
             : done == 0
                 ? "Let's get the first one done."
                 : '${total - done} to go — finish strong.';
-    return Container(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -2396,6 +2461,8 @@ class _DashboardHero extends StatelessWidget {
           ]),
         ),
       ]),
+        ),
+      ),
     );
   }
 }
@@ -2667,19 +2734,35 @@ class _HabitTile extends StatelessWidget {
         child: ListTile(
           onTap: onToggle,
           onLongPress: onEdit,
-          leading: AnimatedContainer(
+          leading: AnimatedScale(
+            scale: done ? 1 : 0.94,
             duration: const Duration(milliseconds: 180),
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: done ? kPlasma : Colors.transparent,
-              border: Border.all(
-                  color: done ? kPlasma : const Color(0x4DFFFFFF), width: 2),
+            curve: Curves.easeOutBack,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: done ? kPlasma : Colors.transparent,
+                border: Border.all(
+                    color: done ? kPlasma : const Color(0x4DFFFFFF), width: 2),
+                boxShadow: done
+                    ? [BoxShadow(color: kPlasma.withValues(alpha: 0.32), blurRadius: 10)]
+                    : null,
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 140),
+                transitionBuilder: (child, animation) => ScaleTransition(
+                  scale: animation,
+                  child: FadeTransition(opacity: animation, child: child),
+                ),
+                child: done
+                    ? const Icon(Icons.check, key: ValueKey('checked'), size: 18, color: Colors.white)
+                    : const SizedBox(key: ValueKey('unchecked')),
+              ),
             ),
-            child: done
-                ? const Icon(Icons.check, size: 18, color: Colors.white)
-                : null,
           ),
           title: Text(
               habit.icon.isEmpty ? habit.name : '${habit.icon}  ${habit.name}',
@@ -2742,6 +2825,7 @@ class _FocusScreenState extends State<FocusScreen> {
   int _minutes = 25;
   int _remaining = 25 * 60;
   bool _running = false;
+  bool _started = false;
   Timer? _timer;
 
   @override
@@ -2751,7 +2835,7 @@ class _FocusScreenState extends State<FocusScreen> {
   }
 
   void _setMinutes(int m) {
-    if (_running) return;
+    if (_started) return;
     setState(() {
       _minutes = m;
       _remaining = m * 60;
@@ -2759,13 +2843,17 @@ class _FocusScreenState extends State<FocusScreen> {
   }
 
   void _start() {
-    setState(() => _running = true);
+    setState(() {
+      _running = true;
+      _started = true;
+    });
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_remaining <= 1) {
         t.cancel();
         final gain = appState.completeFocus(_minutes);
         setState(() {
           _running = false;
+          _started = false;
           _remaining = _minutes * 60;
         });
         if (mounted) {
@@ -2781,10 +2869,16 @@ class _FocusScreenState extends State<FocusScreen> {
     });
   }
 
-  void _stop() {
+  void _pause() {
+    _timer?.cancel();
+    setState(() => _running = false);
+  }
+
+  void _reset() {
     _timer?.cancel();
     setState(() {
       _running = false;
+      _started = false;
       _remaining = _minutes * 60;
     });
   }
@@ -2807,7 +2901,7 @@ class _FocusScreenState extends State<FocusScreen> {
                 return ChoiceChip(
                   label: Text('$m min'),
                   selected: sel,
-                  onSelected: (_) => _setMinutes(m),
+                  onSelected: _started ? null : (_) => _setMinutes(m),
                   selectedColor: kPlasma,
                   backgroundColor: kCard,
                   labelStyle: TextStyle(
@@ -2817,7 +2911,16 @@ class _FocusScreenState extends State<FocusScreen> {
               }).toList(),
             ),
             const SizedBox(height: 32),
-            Container(
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                GlowRing(
+                  value: 1 - _remaining / (_minutes * 60),
+                  size: 250,
+                  stroke: 4,
+                  colors: _running ? [kCyan, kPlasmaBright] : null,
+                ),
+                Container(
               width: 230,
               height: 230,
               alignment: Alignment.center,
@@ -2832,20 +2935,31 @@ class _FocusScreenState extends State<FocusScreen> {
                       color: Colors.white,
                       fontSize: 52,
                       fontWeight: FontWeight.w800)),
+                ),
+              ],
             ),
             const SizedBox(height: 32),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                  backgroundColor: _running ? const Color(0xFF3A1020) : kPlasma,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 14)),
-              onPressed: _running ? _stop : _start,
-              icon: Icon(_running ? Icons.stop : Icons.play_arrow),
-              label: Text(_running ? 'Stop' : 'Start focus'),
-            ),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                    backgroundColor: kPlasma,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
+                onPressed: _running ? _pause : _start,
+                icon: Icon(_running ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                label: Text(_started ? (_running ? 'Pause' : 'Resume') : 'Start focus'),
+              ),
+              if (_started) ...[
+                const SizedBox(width: 10),
+                IconButton.filledTonal(
+                  tooltip: 'Reset session',
+                  onPressed: _reset,
+                  icon: const Icon(Icons.stop_rounded),
+                ),
+              ],
+            ]),
             const SizedBox(height: 10),
-            const Text('Finish a session to earn XP',
-                style: TextStyle(color: kTextTertiary, fontSize: 12)),
+            Text(_started ? (_running ? 'Session in progress' : 'Session paused') : 'Finish a session to earn XP',
+                style: const TextStyle(color: kTextTertiary, fontSize: 12)),
           ],
         ),
       ),

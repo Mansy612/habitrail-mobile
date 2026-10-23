@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print  — this is a diagnostic test; prints are intentional.
 // Live smoke test for the Supabase backend. Skipped unless Supabase credentials
 // are supplied, so the normal `flutter test` stays offline and green. Run it
 // against a real project with:

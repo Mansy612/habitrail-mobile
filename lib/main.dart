@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 import 'core.dart';
 import 'ai.dart';
 import 'auth.dart';
+import 'backend.dart';
 import 'friends.dart';
 
 /// Single shared state object for the whole app (loads immediately).
@@ -147,9 +148,36 @@ void main() async {
   }
   // Load persisted state before the first frame so it can't finish mid-session
   // and overwrite a fresh-account reset.
+  await initBackend();
+  if (backendEnabled) auth.useService(SupabaseAuthService());
   await appState.load();
   await friends.load();
+  if (backendEnabled) _startBackendSync();
   runApp(const HabitrailApp());
+}
+
+// When the backend is on, keep the user's public profile stats fresh (debounced)
+// and reload friends after a sign-in so the leaderboard reflects real data.
+void _startBackendSync() {
+  void push() => pushProfileStats(
+        totalXp: appState.totalXp,
+        streak: appState.bestStreak,
+        prestige: appState.prestige,
+        borderId: appState.selectedBorder,
+        name: appState.displayName,
+      );
+  push();
+  Timer? debounce;
+  appState.addListener(() {
+    debounce?.cancel();
+    debounce = Timer(const Duration(seconds: 2), push);
+  });
+  auth.addListener(() {
+    if (auth.isAuthed) {
+      push();
+      friends.refresh();
+    }
+  });
 }
 
 class HabitrailApp extends StatelessWidget {
@@ -3152,9 +3180,10 @@ Widget _suggestionCard(BuildContext context, Friend f) {
         label: 'Add',
         expand: false,
         height: 40,
-        onPressed: () {
-          friends.addByUsername(f.username);
-          _toast(context, 'Added @${f.username}');
+        onPressed: () async {
+          final err = await friends.addByUsername(f.username);
+          if (!context.mounted) return;
+          _toast(context, err ?? 'Added @${f.username}');
         },
       ),
     ]),
@@ -3201,9 +3230,10 @@ class _AddFriendFieldState extends State<_AddFriendField> {
     super.dispose();
   }
 
-  void _add() {
+  Future<void> _add() async {
     final u = _c.text.trim();
-    final err = friends.addByUsername(u);
+    final err = await friends.addByUsername(u);
+    if (!mounted) return;
     if (err != null) {
       _toast(context, err);
       return;

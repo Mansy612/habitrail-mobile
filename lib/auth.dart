@@ -217,8 +217,11 @@ class StubAuthService implements AuthService {
 /// [AuthService] so the backend can change without touching screens.
 class Auth extends ChangeNotifier {
   Auth(this._service);
-  final AuthService _service;
+  AuthService _service;
   static const _guestKey = 'auth.guest.v1';
+
+  /// Swap the backing service at startup (e.g. the stub → Supabase).
+  void useService(AuthService s) => _service = s;
 
   AuthStatus status = AuthStatus.unknown;
   AuthUser? user;

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth.dart' show isValidUsername;
+import 'backend.dart' as backend;
 
 /// A friend in the social graph. Until a real backend is wired, a friend's
 /// progress is synthetic but *deterministic* — derived from their username so
@@ -134,6 +135,7 @@ class FriendsStore extends ChangeNotifier {
   static const _key = 'friends_v1';
 
   final List<Friend> _friends = [];
+  List<Friend> _remoteSuggestions = [];
   bool loaded = false;
 
   List<Friend> get friends => List.unmodifiable(_friends);
@@ -142,6 +144,29 @@ class FriendsStore extends ChangeNotifier {
       serviceForTest ?? await SharedPreferences.getInstance();
 
   Future<void> load() async {
+    if (backend.backendEnabled) {
+      await _loadRemote();
+    } else {
+      await _loadLocal();
+    }
+    loaded = true;
+    notifyListeners();
+  }
+
+  /// Re-fetch from the backend (after stats change, a new sign-in, etc.).
+  Future<void> refresh() => load();
+
+  Future<void> _loadRemote() async {
+    final profs = await backend.fetchFriendProfiles();
+    _friends
+      ..clear()
+      ..addAll(profs.map(_friendFromProfile));
+    final exclude = _friends.map((f) => f.id).toSet();
+    final sugg = await backend.fetchSuggestionProfiles(exclude);
+    _remoteSuggestions = sugg.map(_friendFromProfile).toList();
+  }
+
+  Future<void> _loadLocal() async {
     final prefs = await _prefs;
     final raw = prefs.getString(_key);
     if (raw == null) {
@@ -164,8 +189,6 @@ class FriendsStore extends ChangeNotifier {
           ..addAll(_seed());
       }
     }
-    loaded = true;
-    notifyListeners();
   }
 
   Future<void> _save() async {
@@ -175,9 +198,10 @@ class FriendsStore extends ChangeNotifier {
   }
 
   /// Adds a friend by username. Returns an error string, or null on success.
-  /// Only handles that exist in the demo directory resolve — a random name
-  /// won't, which mirrors how a real backend would reject an unknown user.
-  String? addByUsername(String username) {
+  /// With the backend on, the username is looked up in the real user directory;
+  /// with it off, only the local demo directory resolves — a random name won't,
+  /// which is the behaviour a real backend gives too.
+  Future<String?> addByUsername(String username) async {
     final u = username.trim();
     if (!isValidUsername(u)) {
       return 'Enter a valid username (3–20 letters, numbers, _).';
@@ -185,16 +209,30 @@ class FriendsStore extends ChangeNotifier {
     if (_friends.any((f) => f.username.toLowerCase() == u.toLowerCase())) {
       return '@$u is already in your friends.';
     }
+    if (backend.backendEnabled) {
+      final prof = await backend.findProfileByUsername(u);
+      if (prof == null) return 'No user found with the username @$u.';
+      final friend = _friendFromProfile(prof);
+      if (friend.id == backend.currentUserId) {
+        return "That's you — add a friend instead.";
+      }
+      await backend.addFriendship(friend.id);
+      _friends.add(friend);
+      _remoteSuggestions.removeWhere((s) => s.id == friend.id);
+      notifyListeners();
+      return null;
+    }
     final d = _lookup(u);
     if (d == null) return 'No user found with the username @$u.';
     _friends.add(_friendFromDir(d));
-    _save();
+    await _save();
     notifyListeners();
     return null;
   }
 
-  /// Directory users you haven't added yet (for the "Suggested" section).
+  /// Users you haven't added yet (for the "Suggested" section).
   List<Friend> suggestions() {
+    if (backend.backendEnabled) return List.unmodifiable(_remoteSuggestions);
     final have = _friends.map((f) => f.username.toLowerCase()).toSet();
     return [
       for (final d in _directory)
@@ -204,7 +242,11 @@ class FriendsStore extends ChangeNotifier {
 
   void remove(String id) {
     _friends.removeWhere((f) => f.id == id);
-    _save();
+    if (backend.backendEnabled) {
+      backend.removeFriendship(id); // optimistic; deletes remotely in the bg
+    } else {
+      _save();
+    }
     notifyListeners();
   }
 
@@ -214,6 +256,18 @@ class FriendsStore extends ChangeNotifier {
       .map(_friendFromDir)
       .toList();
 }
+
+// Maps a Supabase `profiles` row to a Friend.
+Friend _friendFromProfile(Map<String, dynamic> p) => Friend(
+      id: (p['id'] ?? '').toString(),
+      username: (p['username'] ?? '').toString(),
+      name: (p['name'] ?? '').toString(),
+      totalXp: (p['total_xp'] as num?)?.toInt() ?? 0,
+      streak: (p['streak'] as num?)?.toInt() ?? 0,
+      prestige: (p['prestige'] as num?)?.toInt() ?? 0,
+      borderId: (p['border_id'] ?? 'none').toString(),
+      sample: false,
+    );
 
 /// App-wide friends store.
 final friends = FriendsStore();

@@ -18,6 +18,8 @@ import 'ai.dart';
 import 'auth.dart';
 import 'backend.dart';
 import 'friends.dart';
+import 'ui/hr_tokens.dart';
+import 'ui/hr_theme.dart';
 
 /// Single shared state object for the whole app (loads immediately).
 // Loaded eagerly in main() before the app renders — see main(). (Must NOT
@@ -26,106 +28,8 @@ import 'friends.dart';
 // and clobber it with the old saved state.)
 final appState = AppState();
 
-// ── Living background — drifting particles + ambient glow (the web's
-//    ParticleUniverse / "every screen is a place" atmosphere). ───────────────
-class _Particle {
-  _Particle(this.x, this.y, this.r, this.speed, this.phase);
-  double x, y, r, speed, phase;
-}
-
-class _ParticleBackground extends StatefulWidget {
-  const _ParticleBackground();
-  @override
-  State<_ParticleBackground> createState() => _ParticleBackgroundState();
-}
-
-class _ParticleBackgroundState extends State<_ParticleBackground>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  final List<_Particle> _particles = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(seconds: 24))
-      ..repeat();
-    final r = Random(7);
-    for (int i = 0; i < 46; i++) {
-      _particles.add(_Particle(r.nextDouble(), r.nextDouble(),
-          1 + r.nextDouble() * 2.2, 0.3 + r.nextDouble() * 0.9, r.nextDouble()));
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, _) => CustomPaint(
-        painter: _ParticlePainter(_particles, _c.value),
-        size: Size.infinite,
-      ),
-    );
-  }
-}
-
-class _ParticlePainter extends CustomPainter {
-  _ParticlePainter(this.particles, this.t);
-  final List<_Particle> particles;
-  final double t;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    // Base radial gradient (violet haze over the deep base).
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(0.6, -0.9),
-          radius: 1.3,
-          colors: [Color(0xFF1C0B38), kBase],
-        ).createShader(rect),
-    );
-    // Soft ambient orbs.
-    void orb(Offset c, double rad, Color col) {
-      canvas.drawCircle(
-        c,
-        rad,
-        Paint()
-          ..shader = RadialGradient(
-            colors: [col, col.withValues(alpha: 0)],
-          ).createShader(Rect.fromCircle(center: c, radius: rad)),
-      );
-    }
-
-    orb(Offset(size.width * 0.82, size.height * 0.08), 200,
-        kPlasma.withValues(alpha: 0.12));
-    orb(Offset(size.width * 0.08, size.height * 0.5), 180,
-        kBlue.withValues(alpha: 0.10));
-    orb(Offset(size.width * 0.6, size.height * 1.02), 220,
-        kCyan.withValues(alpha: 0.07));
-    // Drifting particles.
-    final p = Paint();
-    for (final part in particles) {
-      double yy = (part.y - t * part.speed) % 1.0;
-      if (yy < 0) yy += 1;
-      final y = yy * size.height;
-      final x = part.x * size.width + sin((t + part.phase) * 2 * pi) * 7;
-      final tw = 0.5 + 0.5 * sin((part.phase + t) * 2 * pi);
-      p.color = kPlasmaGlow.withValues(alpha: (0.15 + 0.45 * tw).clamp(0.0, 1.0));
-      canvas.drawCircle(Offset(x, y), part.r, p);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ParticlePainter old) => old.t != t;
-}
+// The animated particle background was removed in the redesign — the ground is
+// a static black (HrColors.bg). See docs/design/.
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -186,20 +90,11 @@ class HabitrailApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = ThemeData(brightness: Brightness.dark);
     return MaterialApp(
       title: 'Habitrail',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme:
-            ColorScheme.fromSeed(seedColor: kPlasma, brightness: Brightness.dark),
-        scaffoldBackgroundColor: Colors.transparent,
-        textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
-            .apply(bodyColor: kTextPrimary, displayColor: kTextPrimary),
-        splashColor: kPlasma.withValues(alpha: 0.12),
-        highlightColor: kPlasma.withValues(alpha: 0.06),
-        // Short, consistent transitions keep navigation feeling light.
+      theme: hrTheme().copyWith(
+        // Keep the fade + 3.5% slide page transition from the old theme.
         pageTransitionsTheme: const PageTransitionsTheme(builders: {
           TargetPlatform.android: _FadeSlidePageTransitionsBuilder(),
           TargetPlatform.iOS: _FadeSlidePageTransitionsBuilder(),
@@ -207,68 +102,10 @@ class HabitrailApp extends StatelessWidget {
           TargetPlatform.windows: _FadeSlidePageTransitionsBuilder(),
           TargetPlatform.linux: _FadeSlidePageTransitionsBuilder(),
         }),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: false,
-        ),
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: kElevated,
-          contentTextStyle: const TextStyle(color: kTextPrimary),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          insetPadding: const EdgeInsets.all(16),
-        ),
-        dialogTheme: DialogThemeData(
-          backgroundColor: kCard,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        ),
-        bottomSheetTheme: const BottomSheetThemeData(
-          backgroundColor: kCard,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: kElevated,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          hintStyle: const TextStyle(color: kTextTertiary),
-          labelStyle: const TextStyle(color: kTextTertiary),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kBorder)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kPlasma, width: 1.5)),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kBorder)),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: kPlasma,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
-            textStyle:
-                GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(foregroundColor: kPlasmaBright),
-        ),
       ),
-      // One cosmic background behind every screen so glass surfaces read.
-      builder: (context, child) => Stack(
-        children: [
-          const Positioned.fill(child: _ParticleBackground()),
-          if (child != null) Positioned.fill(child: child),
-        ],
-      ),
+      // Static black ground (the animated particle background was removed).
+      builder: (context, child) =>
+          ColoredBox(color: HrColors.bg, child: child),
       home: const AuthGate(),
     );
   }

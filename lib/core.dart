@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'ui/hr_tokens.dart';
 
 // ── Exact palette from the web app (tailwind.config.ts) ─────────────────────
 const kBase = Color(0xFF07040F);
@@ -56,6 +57,7 @@ void applyThemeColors(String id) {
   kPlasma = t.accent;
   kPlasmaBright = t.bright;
   kPlasmaGlow = t.glow;
+  hrApplyAccent(id); // keep the new HrColors.accent in sync during migration
 }
 
 // ── Cosmetics: profile-picture borders (bought in the Shop) ─────────────────

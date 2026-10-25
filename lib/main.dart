@@ -20,6 +20,7 @@ import 'backend.dart';
 import 'friends.dart';
 import 'ui/hr_tokens.dart';
 import 'ui/hr_theme.dart';
+import 'ui/hr_widgets.dart';
 
 /// Single shared state object for the whole app (loads immediately).
 // Loaded eagerly in main() before the app renders — see main(). (Must NOT
@@ -1445,13 +1446,6 @@ class _HomeShellState extends State<HomeShell> {
           expand: false,
           onPressed: () => showHabitEditor(context));
     }
-    if (_index == 4) {
-      return GradientButton(
-          label: 'Reflect',
-          icon: Icons.edit,
-          expand: false,
-          onPressed: () => showAddReflection(context));
-    }
     return null;
   }
 
@@ -1479,11 +1473,11 @@ class _HomeShellState extends State<HomeShell> {
         // (A const list would canonicalize them and Flutter would skip rebuilds,
         // which is why completed habits weren't showing their checked state.)
         // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
-        final screens = <Widget>[HomeScreen(), FocusScreen(), StatsScreen(), AwardsScreen(), JournalScreen(), FriendsScreen()];
+        final screens = <Widget>[HomeScreen(), FocusScreen(), ProgressScreen(), FriendsScreen(), SettingsScreen()];
         return Scaffold(
           body: IndexedStack(index: _index, children: screens),
           floatingActionButton: _fab(),
-          bottomNavigationBar: _BottomNav(
+          bottomNavigationBar: HrTabBar(
             index: _index,
             onTap: (i) => setState(() => _index = i),
           ),
@@ -1493,112 +1487,7 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({required this.index, required this.onTap});
-  final int index;
-  final ValueChanged<int> onTap;
-
-  static const _items = [
-    (Icons.dashboard_rounded, 'Home'),
-    (Icons.timer_rounded, 'Focus'),
-    (Icons.bar_chart_rounded, 'Stats'),
-    (Icons.emoji_events_rounded, 'Awards'),
-    (Icons.menu_book_rounded, 'Journal'),
-    (Icons.people_alt_rounded, 'Friends'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(26),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xCC140A2A),
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: const Color(0x26FFFFFF)),
-                boxShadow: const [
-                  BoxShadow(
-                      color: Color(0x55000000),
-                      blurRadius: 24,
-                      offset: Offset(0, 8)),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  for (int i = 0; i < _items.length; i++)
-                    _NavItem(
-                      icon: _items[i].$1,
-                      label: _items[i].$2,
-                      active: i == index,
-                      onTap: () => onTap(i),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: active
-              ? const LinearGradient(
-                  colors: [Color(0xFF26124F), Color(0xFF141A3A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          border: Border.all(
-              color: active ? kPlasma : Colors.transparent, width: 1),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                size: 20, color: active ? kPlasmaBright : kTextTertiary),
-            const SizedBox(height: 3),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: active ? Colors.white : kTextTertiary)),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// _BottomNav and _NavItem were replaced by HrTabBar (the 5-tab redesign).
 
 // ── Reusable app bar with the coins pill ────────────────────────────────────
 // A circular profile picture (or the user's initial) wrapped in the selected
@@ -2805,8 +2694,53 @@ class _FocusScreenState extends State<FocusScreen> {
 }
 
 // ── STATS ───────────────────────────────────────────────────────────────────
+// ── PROGRESS (Stats · Awards · Journal) ─────────────────────────────────────
+// Folds the old Stats, Awards and Journal tabs behind one segmented control.
+class ProgressScreen extends StatefulWidget {
+  const ProgressScreen({super.key});
+  @override
+  State<ProgressScreen> createState() => _ProgressScreenState();
+}
+
+class _ProgressScreenState extends State<ProgressScreen> {
+  int _seg = 0;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: _titleBar('Progress'),
+      floatingActionButton: _seg == 2
+          ? GradientButton(
+              label: 'Reflect',
+              icon: Icons.edit,
+              expand: false,
+              onPressed: () => showAddReflection(context))
+          : null,
+      body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+          child: HrSegmented(
+            items: const ['Stats', 'Awards', 'Journal'],
+            index: _seg,
+            onChanged: (i) => setState(() => _seg = i),
+          ),
+        ),
+        Expanded(
+          // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
+          child: IndexedStack(index: _seg, children: <Widget>[
+            StatsScreen(embedded: true),
+            AwardsScreen(embedded: true),
+            JournalScreen(embedded: true),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
 class StatsScreen extends StatelessWidget {
-  const StatsScreen({super.key});
+  const StatsScreen({this.embedded = false, super.key});
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
@@ -2830,7 +2764,7 @@ class StatsScreen extends StatelessWidget {
     ];
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _titleBar('Stats'),
+      appBar: embedded ? null : _titleBar('Stats'),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 96),
         children: [
@@ -3750,7 +3684,8 @@ class FriendProfileScreen extends StatelessWidget {
 
 // ── AWARDS (achievements) ────────────────────────────────────────────────────
 class AwardsScreen extends StatelessWidget {
-  const AwardsScreen({super.key});
+  const AwardsScreen({this.embedded = false, super.key});
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
@@ -3758,7 +3693,7 @@ class AwardsScreen extends StatelessWidget {
         kAchievements.where((a) => appState.isAchievementEarned(a)).length;
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _titleBar('Awards'),
+      appBar: embedded ? null : _titleBar('Awards'),
       body: Column(
         children: [
           _awardsHero(unlocked, kAchievements.length),
@@ -3943,14 +3878,15 @@ class _AchievementCard extends StatelessWidget {
 
 // ── JOURNAL ─────────────────────────────────────────────────────────────────
 class JournalScreen extends StatelessWidget {
-  const JournalScreen({super.key});
+  const JournalScreen({this.embedded = false, super.key});
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final items = appState.reflections;
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _titleBar('Journal'),
+      appBar: embedded ? null : _titleBar('Journal'),
       body: items.isEmpty
           ? const _EmptyState(
               emoji: '📓',

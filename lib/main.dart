@@ -1386,6 +1386,9 @@ Future<void> _confirmDeleteAccount(BuildContext context) async {
 }
 
 // ── Shell: bottom nav + the 5 screens ───────────────────────────────────────
+// Lets any screen jump the bottom-nav to a tab (e.g. Focus → "Back to Today").
+final ValueNotifier<int> shellTab = ValueNotifier<int>(0);
+
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
   @override
@@ -1401,13 +1404,21 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
+    shellTab.addListener(_onShellTab);
     _reminderTimer =
         Timer.periodic(const Duration(seconds: 30), (_) => _checkReminders());
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkReminders());
   }
 
+  void _onShellTab() {
+    if (mounted && shellTab.value != _index) {
+      setState(() => _index = shellTab.value);
+    }
+  }
+
   @override
   void dispose() {
+    shellTab.removeListener(_onShellTab);
     _reminderTimer?.cancel();
     super.dispose();
   }
@@ -1471,7 +1482,7 @@ class _HomeShellState extends State<HomeShell> {
           floatingActionButton: _fab(),
           bottomNavigationBar: HrTabBar(
             index: _index,
-            onTap: (i) => setState(() => _index = i),
+            onTap: (i) => shellTab.value = i,
           ),
         );
       },
@@ -2494,10 +2505,13 @@ class FocusScreen extends StatefulWidget {
 }
 
 class _FocusScreenState extends State<FocusScreen> {
+  static const _durations = [15, 25, 45, 60];
   int _minutes = 25;
   int _remaining = 25 * 60;
   bool _running = false;
   bool _started = false;
+  bool _complete = false;
+  int _lastGain = 0;
   Timer? _timer;
 
   @override
@@ -2518,23 +2532,21 @@ class _FocusScreenState extends State<FocusScreen> {
     setState(() {
       _running = true;
       _started = true;
+      _complete = false;
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_remaining <= 1) {
         t.cancel();
         final gain = appState.completeFocus(_minutes);
+        if (!mounted) return;
+        HapticFeedback.mediumImpact();
         setState(() {
           _running = false;
           _started = false;
           _remaining = _minutes * 60;
+          _complete = true;
+          _lastGain = gain;
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: kElevated,
-            content: Text('Focus complete! +$gain XP',
-                style: TextStyle(color: kPlasmaGlow)),
-          ));
-        }
       } else {
         setState(() => _remaining--);
       }
@@ -2555,88 +2567,171 @@ class _FocusScreenState extends State<FocusScreen> {
     });
   }
 
+  void _backToToday() {
+    setState(() {
+      _complete = false;
+      _remaining = _minutes * 60;
+    });
+    shellTab.value = 0; // jump the bottom-nav back to Today
+  }
+
   @override
   Widget build(BuildContext context) {
-    final mm = (_remaining ~/ 60).toString().padLeft(2, '0');
-    final ss = (_remaining % 60).toString().padLeft(2, '0');
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _titleBar('Focus'),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Wrap(
-              spacing: 10,
-              children: [15, 25, 50].map((m) {
-                final sel = m == _minutes;
-                return ChoiceChip(
-                  label: Text('$m min'),
-                  selected: sel,
-                  onSelected: _started ? null : (_) => _setMinutes(m),
-                  selectedColor: kPlasma,
-                  backgroundColor: kCard,
-                  labelStyle: TextStyle(
-                      color: sel ? Colors.white : kTextSecondary),
-                  side: const BorderSide(color: kBorder),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 32),
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                GlowRing(
-                  value: 1 - _remaining / (_minutes * 60),
-                  size: 250,
-                  stroke: 4,
-                  colors: _running ? [kCyan, kPlasmaBright] : null,
-                ),
-                Container(
-              width: 230,
-              height: 230,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const RadialGradient(
-                    colors: [Color(0xFF2A1458), Color(0xFF0B0420)]),
-                border: Border.all(color: kPlasma, width: 2),
-              ),
-              child: Text('$mm:$ss',
-                  style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 52,
-                      fontWeight: FontWeight.w800)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                    backgroundColor: kPlasma,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
-                onPressed: _running ? _pause : _start,
-                icon: Icon(_running ? Icons.pause_rounded : Icons.play_arrow_rounded),
-                label: Text(_started ? (_running ? 'Pause' : 'Resume') : 'Start focus'),
-              ),
-              if (_started) ...[
-                const SizedBox(width: 10),
-                IconButton.filledTonal(
-                  tooltip: 'Reset session',
-                  onPressed: _reset,
-                  icon: const Icon(Icons.stop_rounded),
-                ),
-              ],
+      body: SafeArea(
+        bottom: false,
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+            child: Row(children: [
+              Text('Focus', style: HrText.display),
+              const Spacer(),
+              _coinChip(context),
             ]),
-            const SizedBox(height: 10),
-            Text(_started ? (_running ? 'Session in progress' : 'Session paused') : 'Finish a session to earn XP',
-                style: const TextStyle(color: kTextTertiary, fontSize: 12)),
-          ],
-        ),
+          ),
+          Expanded(child: _complete ? _completeView(context) : _timerView(context)),
+        ]),
       ),
     );
   }
+
+  Widget _timerView(BuildContext context) {
+    final mm = (_remaining ~/ 60).toString().padLeft(2, '0');
+    final ss = (_remaining % 60).toString().padLeft(2, '0');
+    // Ring drains as time passes; empty (grey) when idle.
+    final frac = _started ? _remaining / (_minutes * 60) : 0.0;
+    final sub = !_started
+        ? '$_minutes min session'
+        : _running
+            ? 'Deep work'
+            : 'Paused';
+    return Column(children: [
+      const Spacer(),
+      SegmentedRing(
+        size: 260,
+        segments: 1,
+        value: frac,
+        stroke: 10,
+        color: HrColors.accent,
+        center: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('$mm:$ss', style: HrText.numeralXl),
+          const SizedBox(height: 4),
+          Text(sub, style: HrText.caption),
+        ]),
+      ),
+      const Spacer(),
+      if (!_started)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+          child: HrSegmented(
+            items: _durations.map((m) => '$m').toList(),
+            index: _durations.indexOf(_minutes).clamp(0, _durations.length - 1),
+            onChanged: (i) => _setMinutes(_durations[i]),
+          ),
+        ),
+      const SizedBox(height: 16),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+        child: !_started
+            ? HrButton(
+                label: 'Start focus',
+                icon: Icons.play_arrow_rounded,
+                kind: HrButtonKind.accent,
+                onPressed: _start,
+              )
+            : Row(children: [
+                Expanded(
+                  child: HrButton(
+                    label: 'Reset',
+                    icon: Icons.refresh_rounded,
+                    kind: HrButtonKind.secondary,
+                    onPressed: _reset,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _running
+                      ? HrButton(
+                          label: 'Pause',
+                          icon: Icons.pause_rounded,
+                          kind: HrButtonKind.primary,
+                          onPressed: _pause,
+                        )
+                      : HrButton(
+                          label: 'Resume',
+                          icon: Icons.play_arrow_rounded,
+                          kind: HrButtonKind.accent,
+                          onPressed: _start,
+                        ),
+                ),
+              ]),
+      ),
+      const SizedBox(height: 10),
+      Text(
+        !_started
+            ? 'Finish a session to earn XP · today ${appState.focusMinutesToday} min'
+            : _running
+                ? 'Session in progress · +${_minutes * 2} XP at the end'
+                : 'Session paused',
+        style: HrText.caption,
+        textAlign: TextAlign.center,
+      ),
+      const SizedBox(height: 24),
+    ]);
+  }
+
+  Widget _completeView(BuildContext context) {
+    final comp = companionByType(appState.activeCompanion);
+    final questDone = kQuests.firstWhere((q) => q.id == 'q2').done(appState);
+    return Column(children: [
+      const Spacer(),
+      SegmentedRing(
+        size: 260,
+        segments: 1,
+        value: 1,
+        stroke: 10,
+        color: HrColors.accent,
+        center: CompanionSticker(
+            icon: comp.icon, color: comp.color, size: 96, semanticLabel: comp.name),
+      ),
+      const SizedBox(height: 16),
+      const SpeechBubble('Session complete. Output logged.', maxWidth: 260),
+      const Spacer(),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+        child: Row(children: [
+          Expanded(child: _rewardTile('+$_lastGain', 'XP', HrColors.streak)),
+          const SizedBox(width: 10),
+          Expanded(child: _rewardTile('${appState.focusMinutesToday}', 'Min today', HrColors.text)),
+          const SizedBox(width: 10),
+          Expanded(child: _rewardTile(questDone ? '1/1' : '0/1', 'Quest',
+              questDone ? HrColors.accent : HrColors.text3)),
+        ]),
+      ),
+      const SizedBox(height: 16),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+        child: HrButton(label: 'Back to Today', onPressed: _backToToday),
+      ),
+      const SizedBox(height: 24),
+    ]);
+  }
+
+  Widget _rewardTile(String value, String label, Color color) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: HrColors.surface,
+          borderRadius: BorderRadius.circular(HrRadius.md),
+          border: const Border(top: BorderSide(color: HrColors.hairline)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: HrText.title2.copyWith(color: color)),
+          const SizedBox(height: 2),
+          Text(label, style: HrText.caption),
+        ]),
+      );
 }
 
 // ── STATS ───────────────────────────────────────────────────────────────────

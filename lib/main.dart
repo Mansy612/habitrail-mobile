@@ -2244,6 +2244,7 @@ class HomeScreen extends StatelessWidget {
             else
               _FiveCard(onToggle: onToggle),
             const SizedBox(height: 14),
+            const _CoachCard(),
             const _VictoryCard(),
             const _CompanionCard(),
             const _NutritionCard(),
@@ -2931,6 +2932,194 @@ class _QuestsPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── AI COACH (freemium) ─────────────────────────────────────────────────────
+// On-demand coaching the user requests, metered against a weekly allowance
+// (free vs Premium). A real AI reply spends one prompt; if AI is unavailable
+// (off / unreachable) a templated nudge shows and nothing is spent.
+class _CoachCard extends StatefulWidget {
+  const _CoachCard();
+  @override
+  State<_CoachCard> createState() => _CoachCardState();
+}
+
+class _CoachCardState extends State<_CoachCard> {
+  String? _message;
+  bool _loading = false;
+
+  String _resetLabel() {
+    final d = appState.coachResetDate;
+    return 'Resets ${_kWeekdays[d.weekday - 1].substring(0, 3)} ${_kMonths[d.month - 1]} ${d.day}';
+  }
+
+  String _fallback() {
+    final done = appState.doneTodayCount;
+    final total = appState.habits.length;
+    if (total == 0) return 'Add your first habit and start a streak today.';
+    final left = total - done;
+    if (left <= 0) return 'Perfect day — every habit done. Protect your streak tomorrow!';
+    return "You've done $done of $total today. $left more for a perfect day.";
+  }
+
+  Future<void> _coachMe() async {
+    if (!appState.canUseCoach) {
+      _showCoachPaywall(context);
+      return;
+    }
+    setState(() => _loading = true);
+    final ld = levelFromXp(appState.totalXp);
+    final v = appState.victory();
+    final summary =
+        'Name: ${appState.displayName}. Level ${ld.level} (${levelTitle(ld.level)}). '
+        'Victory score today: ${v.score}/100 (${victoryLabel(v.score)}). '
+        'Habits done today: ${appState.doneTodayCount}/${appState.habits.length}. '
+        'Best streak: ${appState.bestStreak} days. Coins: ${appState.coins}.';
+    final msg = await aiCoachMessage(
+      summary,
+      enabled: appState.aiEnabled,
+      baseUrl: appState.aiBaseUrl,
+      model: appState.aiModel,
+    );
+    if (!mounted) return;
+    if (msg != null) {
+      appState.consumeCoachUse(); // only a real AI reply spends an allowance
+      setState(() {
+        _message = msg;
+        _loading = false;
+      });
+    } else {
+      setState(() {
+        _message = _fallback();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final left = appState.coachUsesLeft;
+    final atLimit = !appState.canUseCoach;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
+      child: HrCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text('YOUR COACH', style: HrText.labelCaps)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                  color: atLimit ? HrColors.surface2 : HrColors.accentSurface,
+                  borderRadius: BorderRadius.circular(HrRadius.xs)),
+              child: Text(
+                  appState.isPremium ? 'PREMIUM' : '$left of ${appState.coachLimit} left',
+                  style: HrText.micro.copyWith(
+                      color: atLimit ? HrColors.text3 : HrColors.accent,
+                      fontWeight: FontWeight.w800)),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          if (_loading)
+            Row(children: [
+              const SizedBox(
+                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: 10),
+              Text('Reading your day…', style: HrText.bodyS),
+            ])
+          else
+            Text(
+              _message == null
+                  ? (atLimit
+                      ? "You've used your ${appState.coachLimit} free coaching prompts this week."
+                      : 'Tap for a quick, personalized nudge for today.')
+                  : '"$_message"',
+              style: HrText.bodyS.copyWith(
+                color: HrColors.text2,
+                fontStyle: _message == null ? FontStyle.normal : FontStyle.italic,
+              ),
+            ),
+          if (!appState.isPremium) ...[
+            const SizedBox(height: 4),
+            Text(_resetLabel(), style: HrText.micro),
+          ],
+          const SizedBox(height: 12),
+          if (atLimit && !appState.isPremium)
+            HrButton(
+              label: 'Unlock more with Premium',
+              icon: Icons.workspace_premium_rounded,
+              onPressed: () => _showCoachPaywall(context),
+            )
+          else
+            HrButton(
+              label: 'Coach me',
+              icon: Icons.auto_awesome_rounded,
+              kind: HrButtonKind.secondary,
+              loading: _loading,
+              onPressed: _loading ? null : _coachMe,
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+// Friendly, non-blocking upgrade prompt shown when the free allowance is spent.
+void _showCoachPaywall(BuildContext context) {
+  final d = appState.coachResetDate;
+  final resets = '${_kWeekdays[d.weekday - 1].substring(0, 3)} ${_kMonths[d.month - 1]} ${d.day}';
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: HrColors.surface,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
+    builder: (ctx) => Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 18),
+              decoration: BoxDecoration(
+                  color: HrColors.surface3, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          Row(children: [
+            const Icon(Icons.workspace_premium_rounded, color: HrColors.gold, size: 24),
+            const SizedBox(width: 10),
+            Text('Unlock more coaching', style: HrText.title2),
+          ]),
+          const SizedBox(height: 12),
+          Text(
+            'Free includes $kFreeCoachLimit AI coaching prompts a week. Premium gives '
+            'you $kPremiumCoachLimit a week — personalized nudges whenever you want them.',
+            style: HrText.bodyS,
+          ),
+          const SizedBox(height: 8),
+          Text('Your free prompts reset $resets.', style: HrText.caption),
+          const SizedBox(height: 20),
+          HrButton(
+            label: 'Upgrade to Premium',
+            icon: Icons.workspace_premium_rounded,
+            onPressed: () {
+              Navigator.pop(ctx);
+              hrToast(context, 'Premium is coming soon — thanks for the interest!',
+                  icon: Icons.workspace_premium_rounded);
+            },
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Maybe later', style: HrText.caption)),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 // ── MOMENTS: shared celebration dialog ──────────────────────────────────────

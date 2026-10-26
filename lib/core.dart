@@ -464,6 +464,19 @@ const kBossCoins = 200;
 const kBossImageAsset = 'assets/bosses/veil_regent.png';
 const kPrestigeMinLevel = 10; // mobile threshold (web gates prestige higher)
 
+// Freemium AI-coach allowance — a weekly number of coaching prompts that resets
+// Monday. Free users get a taste; Premium raises the cap. (Tune against cost +
+// engagement + upgrades.)
+const int kFreeCoachLimit = 3;
+const int kPremiumCoachLimit = 30;
+
+/// Monday (as a dateKey) of the week containing [d] — the coach-allowance week.
+String _mondayKey(DateTime d) {
+  final monday =
+      DateTime(d.year, d.month, d.day).subtract(Duration(days: d.weekday - 1));
+  return dateKey(monday);
+}
+
 // ── Shared app state ─────────────────────────────────────────────────────────
 class AppState extends ChangeNotifier {
   static const _habitsKey = 'habitrail.habits.v1';
@@ -516,6 +529,11 @@ class AppState extends ChangeNotifier {
   bool aiEnabled = true;
   String aiBaseUrl = kDefaultAiBaseUrl;
   String aiModel = kDefaultAiModel;
+  // Premium + AI-coach quota (freemium). isPremium is a stub flag until the
+  // Premium Pass ships; coach usage counts against a weekly allowance.
+  bool isPremium = false;
+  int coachUsesThisWeek = 0;
+  String coachWeekKey = ''; // Monday dateKey the current count belongs to
   // Profile / cosmetics
   String pfpBase64 = ''; // downscaled JPEG as base64; '' = show the initial
   Uint8List? pfpBytes; // decoded cache for display
@@ -727,6 +745,45 @@ class AppState extends ChangeNotifier {
     return true;
   }
 
+  // ── AI coach quota (freemium) ─────────────────────────────────────────────
+  int get coachLimit => isPremium ? kPremiumCoachLimit : kFreeCoachLimit;
+  int get _coachUsedThisWeek =>
+      coachWeekKey == _mondayKey(DateTime.now()) ? coachUsesThisWeek : 0;
+  int get coachUsesLeft => (coachLimit - _coachUsedThisWeek).clamp(0, coachLimit);
+  bool get canUseCoach => coachUsesLeft > 0;
+
+  /// Next Monday 00:00 — when the weekly allowance refills.
+  DateTime get coachResetDate {
+    final now = DateTime.now();
+    var d = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    while (d.weekday != DateTime.monday) {
+      d = d.add(const Duration(days: 1));
+    }
+    return d;
+  }
+
+  /// Spend one coaching prompt. Returns false (nothing spent) when the weekly
+  /// allowance is used up, so the caller can show the upgrade prompt instead.
+  bool consumeCoachUse() {
+    final k = _mondayKey(DateTime.now());
+    if (coachWeekKey != k) {
+      coachWeekKey = k;
+      coachUsesThisWeek = 0;
+    }
+    if (coachUsesThisWeek >= coachLimit) return false;
+    coachUsesThisWeek++;
+    notifyListeners();
+    _save();
+    return true;
+  }
+
+  /// Stub for the Premium Pass — flip to grant the higher coach allowance.
+  void setPremium(bool v) {
+    isPremium = v;
+    notifyListeners();
+    _save();
+  }
+
   void resetAll() {
     habits
       ..clear()
@@ -757,6 +814,8 @@ class AppState extends ChangeNotifier {
     lastCompanionLine = '';
     pfpBase64 = '';
     pfpBytes = null;
+    coachUsesThisWeek = 0;
+    coachWeekKey = '';
     selectedBorder = 'none';
     ownedBorders
       ..clear()
@@ -937,6 +996,9 @@ class AppState extends ChangeNotifier {
       aiEnabled = (m['aiEnabled'] as bool?) ?? true;
       aiBaseUrl = (m['aiBaseUrl'] as String?) ?? kDefaultAiBaseUrl;
       aiModel = (m['aiModel'] as String?) ?? kDefaultAiModel;
+      isPremium = (m['isPremium'] as bool?) ?? false;
+      coachUsesThisWeek = (m['coachUsesThisWeek'] as int?) ?? 0;
+      coachWeekKey = (m['coachWeekKey'] as String?) ?? '';
       earnedAchievements.addAll(
           ((m['earnedAchievements'] as List?) ?? const []).map((e) => e as String));
       pfpBase64 = (m['pfpBase64'] as String?) ?? '';
@@ -1029,6 +1091,9 @@ class AppState extends ChangeNotifier {
           'aiEnabled': aiEnabled,
           'aiBaseUrl': aiBaseUrl,
           'aiModel': aiModel,
+          'isPremium': isPremium,
+          'coachUsesThisWeek': coachUsesThisWeek,
+          'coachWeekKey': coachWeekKey,
           'earnedAchievements': earnedAchievements.toList(),
           'pfpBase64': pfpBase64,
           'selectedBorder': selectedBorder,

@@ -176,10 +176,12 @@ class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
   @override
   Widget build(BuildContext context) {
+    final comp = companionByType(appState.activeCompanion);
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 12, 28, 24),
+          padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 12, HrSpace.gutter, 24),
           child: Column(
             children: [
               Expanded(
@@ -187,81 +189,42 @@ class WelcomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 36),
                       Center(
-                        child: Container(
-                          width: 104,
-                          height: 104,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: _kAccentGradient),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: kPlasma.withValues(alpha: 0.5),
-                                  blurRadius: 40,
-                                  spreadRadius: 2),
-                            ],
-                          ),
-                          child:
-                              const Text('🔥', style: TextStyle(fontSize: 50)),
-                        ),
+                        child: CompanionSticker(
+                            icon: comp.icon, color: comp.color, size: 104, semanticLabel: comp.name),
                       ),
-                      const SizedBox(height: 20),
-                      Text('Habitrail',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.spaceGrotesk(
-                              color: kTextPrimary,
-                              fontSize: 42,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 10),
-                      const Text('Build habits. Earn XP. Level up your life.',
-                          textAlign: TextAlign.center,
-                          style:
-                              TextStyle(color: kTextSecondary, fontSize: 15)),
+                      const SizedBox(height: 16),
+                      const Center(
+                        child: SpeechBubble("Five habits. Every day. I'm watching.", maxWidth: 260),
+                      ),
+                      const SizedBox(height: 36),
+                      Text('Build habits.\nEarn XP.\nLevel up your life.', style: HrText.displayXl),
+                      const SizedBox(height: 12),
+                      Text(
+                          'Check off up to five habits a day, keep the streak alive, and let your companion keep you honest.',
+                          style: HrText.bodyS),
                       const SizedBox(height: 28),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: glassDecoration(radius: 18),
-                        child: Column(children: [
-                          _welcomeFeature('⚡', 'Earn XP & level up',
-                              'Check off habits, build streaks and combos.'),
-                          _welcomeFeature(
-                              '🏆',
-                              'Quests, bosses & Victory Score',
-                              'Daily quests, a weekly boss, and a score to beat.'),
-                          _welcomeFeature('🐾', 'Companions & rewards',
-                              'Adopt companions and spend coins in the shop.'),
-                        ]),
-                      ),
-                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
               ),
-              GradientButton(
+              HrButton(
                 label: 'Create account',
                 onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const SignUpScreen())),
               ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    foregroundColor: kPlasmaBright,
-                    side: BorderSide(color: kPlasma.withValues(alpha: 0.5))),
+              const SizedBox(height: 10),
+              HrButton(
+                label: 'Log in',
+                kind: HrButtonKind.secondary,
                 onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const LoginScreen())),
-                child: const Text('Log in'),
               ),
               const SizedBox(height: 6),
               TextButton(
                 onPressed: () => auth.continueAsGuest(),
-                child: const Text('Continue without an account',
-                    style: TextStyle(color: kTextTertiary)),
+                child: Text('Continue without an account', style: HrText.caption),
               ),
             ],
           ),
@@ -270,47 +233,6 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 }
-
-// A feature highlight row on the welcome screen (emoji badge + title + blurb).
-Widget _welcomeFeature(String emoji, String title, String subtitle) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      child: Row(children: [
-        Container(
-          width: 44,
-          height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  kPlasma.withValues(alpha: 0.30),
-                  kCyan.withValues(alpha: 0.18)
-                ]),
-            border: Border.all(color: kBorder),
-          ),
-          child: Text(emoji, style: const TextStyle(fontSize: 20)),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: const TextStyle(
-                      color: kTextPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 2),
-              Text(subtitle,
-                  style: const TextStyle(
-                      color: kTextTertiary, fontSize: 12, height: 1.3)),
-            ],
-          ),
-        ),
-      ]),
-    );
 
 // ── Sign up ──────────────────────────────────────────────────────────────────
 class SignUpScreen extends StatefulWidget {
@@ -368,27 +290,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final u = _username.text.trim();
     if (u.isEmpty) return const SizedBox.shrink();
     if (!isValidUsername(u)) {
-      return _unameStatusLine(kTextTertiary, Icons.info_outline_rounded,
+      return _unameStatusLine(HrColors.text3, Icons.info_outline_rounded,
           '3–20 letters, numbers, or underscores');
     }
     if (_unameChecking) {
-      return const Padding(
-        padding: EdgeInsets.only(left: 4, bottom: 10),
+      return Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 10),
         child: Row(children: [
-          SizedBox(
+          const SizedBox(
               width: 12,
               height: 12,
               child: CircularProgressIndicator(strokeWidth: 2)),
-          SizedBox(width: 8),
-          Text('Checking…', style: TextStyle(color: kTextTertiary, fontSize: 12)),
+          const SizedBox(width: 8),
+          Text('Checking…', style: HrText.caption),
         ]),
       );
     }
     if (_unameAvailable == true) {
-      return _unameStatusLine(kGreen, Icons.check_circle_rounded, 'Available');
+      return _unameStatusLine(HrColors.accent, Icons.check_circle_rounded, 'Available');
     }
     if (_unameAvailable == false) {
-      return _unameStatusLine(kRed, Icons.cancel_rounded, 'Unavailable');
+      return _unameStatusLine(HrColors.dangerText, Icons.cancel_rounded, 'Unavailable');
     }
     return const SizedBox.shrink();
   }
@@ -398,7 +320,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         child: Row(children: [
           Icon(icon, size: 14, color: c),
           const SizedBox(width: 6),
-          Text(text, style: TextStyle(color: c, fontSize: 12)),
+          Text(text, style: HrText.caption.copyWith(color: c)),
         ]),
       );
 
@@ -448,7 +370,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             onPressed: () => Navigator.pushReplacement(context,
                 MaterialPageRoute(builder: (_) => const LoginScreen())),
             child: Text('Already have an account? Log in',
-                style: TextStyle(color: kPlasmaBright)),
+                style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600)),
           ),
         ),
         _authNote(),
@@ -516,8 +438,8 @@ class _LoginScreenState extends State<LoginScreen> {
           child: TextButton(
             onPressed: () => Navigator.pushReplacement(context,
                 MaterialPageRoute(builder: (_) => const SignUpScreen())),
-            child: Text("New here? Create an account",
-                style: TextStyle(color: kPlasmaBright)),
+            child: Text('New here? Create an account',
+                style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600)),
           ),
         ),
         _authNote(),
@@ -700,96 +622,72 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final last = _page == _onbSlides.length - 1;
     return Scaffold(
-      body: Stack(children: [
-        SafeArea(
-          child: Column(children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _finish,
-                child:
-                    const Text('Skip', style: TextStyle(color: kTextTertiary)),
-              ),
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Column(children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _finish,
+              child: Text('Skip', style: HrText.caption),
             ),
-            Expanded(
-              child: PageView.builder(
-                controller: _pc,
-                itemCount: _onbSlides.length,
-                onPageChanged: (i) => setState(() => _page = i),
-                itemBuilder: (_, i) {
-                  final s = _onbSlides[i];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 128,
-                          height: 128,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(colors: [
-                              s.accent.withValues(alpha: 0.35),
-                              s.accent.withValues(alpha: 0.04)
-                            ]),
-                            border: Border.all(
-                                color: s.accent.withValues(alpha: 0.45)),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: s.accent.withValues(alpha: 0.3),
-                                  blurRadius: 44,
-                                  spreadRadius: 4)
-                            ],
-                          ),
-                          child: Text(s.emoji,
-                              style: const TextStyle(fontSize: 60)),
+          ),
+          Expanded(
+            child: PageView.builder(
+              controller: _pc,
+              itemCount: _onbSlides.length,
+              onPageChanged: (i) => setState(() => _page = i),
+              itemBuilder: (_, i) {
+                final s = _onbSlides[i];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 128,
+                        height: 128,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: HrColors.surface,
+                          border: Border.all(color: HrColors.accent, width: 2),
                         ),
-                        const SizedBox(height: 32),
-                        Text(s.title,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.spaceGrotesk(
-                                color: kTextPrimary,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 14),
-                        Text(s.body,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: kTextSecondary,
-                                fontSize: 15,
-                                height: 1.5)),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_onbSlides.length, (i) {
-                final on = i == _page;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: on ? 22 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                      color: on ? _onbSlides[_page].accent : kBorder,
-                      borderRadius: BorderRadius.circular(4)),
+                        child: Text(s.emoji, style: const TextStyle(fontSize: 60)),
+                      ),
+                      const SizedBox(height: 32),
+                      Text(s.title, textAlign: TextAlign.center, style: HrText.display),
+                      const SizedBox(height: 14),
+                      Text(s.body,
+                          textAlign: TextAlign.center,
+                          style: HrText.bodyS.copyWith(height: 1.5)),
+                    ],
+                  ),
                 );
-              }),
+              },
             ),
-            Padding(
-              padding: const EdgeInsets.all(28),
-              child: GradientButton(
-                label: last ? 'Get started' : 'Next',
-                onPressed: _next,
-              ),
-            ),
-          ]),
-        ),
-      ]),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_onbSlides.length, (i) {
+              final on = i == _page;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: on ? 22 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                    color: on ? HrColors.accent : HrColors.surface3,
+                    borderRadius: BorderRadius.circular(4)),
+              );
+            }),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(28),
+            child: HrButton(label: last ? 'Get started' : 'Next', onPressed: _next),
+          ),
+        ]),
+      ),
     );
   }
 }
@@ -890,8 +788,7 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
                 width: 44,
                 child: _page > 0
                     ? IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded,
-                            color: kTextTertiary),
+                        icon: const Icon(Icons.arrow_back_rounded, color: HrColors.text2),
                         onPressed: () => _pc.previousPage(
                             duration: const Duration(milliseconds: 240),
                             curve: Curves.easeOut))
@@ -899,12 +796,12 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
               ),
               Expanded(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(HrRadius.full),
                   child: LinearProgressIndicator(
                     value: (_page + 1) / (_last + 1),
                     minHeight: 6,
-                    backgroundColor: kBorder,
-                    valueColor: AlwaysStoppedAnimation(kPlasma),
+                    backgroundColor: HrColors.surface3,
+                    valueColor: const AlwaysStoppedAnimation(HrColors.text),
                   ),
                 ),
               ),
@@ -912,10 +809,7 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
                 width: 54,
                 child: last
                     ? null
-                    : TextButton(
-                        onPressed: _skip,
-                        child: const Text('Skip',
-                            style: TextStyle(color: kTextTertiary))),
+                    : TextButton(onPressed: _skip, child: Text('Skip', style: HrText.caption)),
               ),
             ]),
           ),
@@ -937,8 +831,8 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(20),
-            child: GradientButton(
-              label: last ? "Let's go!" : 'Continue',
+            child: HrButton(
+              label: last ? "Let's go" : 'Continue',
               onPressed: _canAdvance ? _next : null,
             ),
           ),
@@ -948,19 +842,12 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
   }
 
   Widget _quizPage(String title, String? subtitle, Widget content) => ListView(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+        padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 12, HrSpace.gutter, 16),
         children: [
-          Text(title,
-              style: GoogleFonts.spaceGrotesk(
-                  color: kTextPrimary,
-                  fontSize: 26,
-                  height: 1.15,
-                  fontWeight: FontWeight.w800)),
+          Text(title, style: HrText.display.copyWith(height: 1.1)),
           if (subtitle != null) ...[
             const SizedBox(height: 8),
-            Text(subtitle,
-                style: const TextStyle(
-                    color: kTextSecondary, fontSize: 14, height: 1.4)),
+            Text(subtitle, style: HrText.bodyS),
           ],
           const SizedBox(height: 24),
           content,
@@ -984,19 +871,15 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: on
-              ? const LinearGradient(colors: _kAccentGradient)
-              : _kGlassSheen,
-          border: Border.all(color: on ? Colors.transparent : kBorder),
+          borderRadius: BorderRadius.circular(HrRadius.full),
+          color: on ? HrColors.text : HrColors.surface,
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Text(emoji, style: const TextStyle(fontSize: 18)),
           const SizedBox(width: 8),
           Text(label,
-              style: TextStyle(
-                  color: on ? Colors.white : kTextPrimary,
-                  fontWeight: FontWeight.w600)),
+              style: HrText.body.copyWith(
+                  color: on ? HrColors.bg : HrColors.text, fontWeight: FontWeight.w700)),
         ]),
       ),
     );
@@ -1074,19 +957,30 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
             .calories
             .round()
         : null;
+    final comp = companionByType(appState.activeCompanion);
     return _quizPage(
-      "You're all set!",
-      'Your plan is personalized — tap below to start.',
+      "You're all set.",
+      'Your plan is personalized.',
       Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _summaryTile(Icons.local_fire_department_rounded, 'Daily calorie target',
             hasBody ? '$cals kcal' : 'Add body stats later'),
         const SizedBox(height: 12),
         _summaryTile(
             Icons.checklist_rounded,
-            'Focus areas',
+            'Starter habits',
             _areas.isEmpty
                 ? 'Default starter habits'
                 : _areas.map(_areaLabel).join(' · ')),
+        const SizedBox(height: 28),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            CompanionSticker(icon: comp.icon, color: comp.color, size: 64, semanticLabel: comp.name),
+            const SizedBox(width: 10),
+            const Flexible(child: SpeechBubble("Let's see if you last a week.", maxWidth: 200)),
+          ],
+        ),
       ]),
     );
   }
@@ -1094,24 +988,26 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
   Widget _summaryTile(IconData icon, String title, String value) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-            gradient: _kGlassSheen,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kBorder)),
+          color: HrColors.surface,
+          borderRadius: BorderRadius.circular(HrRadius.md),
+          border: const Border(top: BorderSide(color: HrColors.hairline)),
+        ),
         child: Row(children: [
-          Icon(icon, color: kPlasmaBright, size: 22),
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: HrColors.accent),
+            child: Icon(icon, color: HrColors.bg, size: 18),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(color: kTextTertiary, fontSize: 12)),
+                Text(title, style: HrText.caption),
                 const SizedBox(height: 2),
-                Text(value,
-                    style: const TextStyle(
-                        color: kTextPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600)),
+                Text(value, style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
               ],
             ),
           ),
@@ -1123,9 +1019,23 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
         controller: c,
         keyboardType: TextInputType.number,
         onChanged: (_) => setState(() {}),
-        style: GoogleFonts.spaceGrotesk(
-            color: kTextPrimary, fontSize: 20, fontWeight: FontWeight.w700),
-        decoration: InputDecoration(hintText: hint, suffixText: suffix),
+        style: HrText.title2,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: HrText.title2.copyWith(color: HrColors.text3),
+          suffixText: suffix,
+          suffixStyle: HrText.caption,
+          filled: true,
+          fillColor: HrColors.surface,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(HrRadius.md),
+              borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
+        ),
       );
 
   Widget _choiceRow(String id, String label, String emoji, String group,
@@ -1137,23 +1047,18 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: _kGlassSheen,
-          border:
-              Border.all(color: on ? kPlasma : kBorder, width: on ? 1.5 : 1),
+          borderRadius: BorderRadius.circular(HrRadius.md),
+          color: HrColors.surface,
+          border: Border(
+              top: BorderSide(color: on ? HrColors.accent : HrColors.hairline, width: on ? 2 : 1)),
         ),
         child: Row(children: [
           Text(emoji, style: const TextStyle(fontSize: 20)),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(label,
-                style: const TextStyle(
-                    color: kTextPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600)),
+            child: Text(label, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
           ),
-          if (on)
-            Icon(Icons.check_circle_rounded, color: kPlasmaGlow, size: 22),
+          if (on) Icon(Icons.check_circle_rounded, color: HrColors.accent, size: 22),
         ]),
       ),
     );
@@ -1166,27 +1071,21 @@ Widget _authScaffold(BuildContext context,
     required String subtitle,
     required List<Widget> children}) {
   return Scaffold(
-    appBar:
-        AppBar(backgroundColor: Colors.transparent, foregroundColor: kTextPrimary),
-    body: Stack(children: [
-      SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-          children: [
-            Text(title,
-                style: GoogleFonts.spaceGrotesk(
-                    color: kTextPrimary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            Text(subtitle,
-                style: const TextStyle(color: kTextSecondary, fontSize: 14)),
-            const SizedBox(height: 24),
-            ...children,
-          ],
-        ),
+    backgroundColor: Colors.transparent,
+    appBar: AppBar(
+        backgroundColor: Colors.transparent, foregroundColor: HrColors.text, elevation: 0),
+    body: SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
+        children: [
+          Text(title, style: HrText.display),
+          const SizedBox(height: 6),
+          Text(subtitle, style: HrText.bodyS),
+          const SizedBox(height: 24),
+          ...children,
+        ],
       ),
-    ]),
+    ),
   );
 }
 
@@ -1202,27 +1101,27 @@ Widget _authField(TextEditingController c, String label,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(label,
-              style: const TextStyle(color: kTextTertiary, fontSize: 12)),
+          child: Text(label, style: HrText.caption),
         ),
         TextField(
           controller: c,
           obscureText: obscure,
           keyboardType: keyboard,
           onChanged: onChanged,
-          style: const TextStyle(color: kTextPrimary),
+          style: HrText.body,
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: HrText.body.copyWith(color: HrColors.text3),
             filled: true,
-            fillColor: kElevated,
+            fillColor: HrColors.surface,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
             enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kPlasma)),
+                borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
             border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HrRadius.md),
+                borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
           ),
         ),
       ],
@@ -1230,68 +1129,49 @@ Widget _authField(TextEditingController c, String label,
   );
 }
 
-Widget _authSubmit(String label, bool busy, VoidCallback onTap) => busy
-    ? Container(
-        height: 52,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: const LinearGradient(colors: _kAccentGradient)),
-        child: const SizedBox(
-            width: 20,
-            height: 20,
-            child:
-                CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-      )
-    : GradientButton(label: label, onPressed: onTap);
+Widget _authSubmit(String label, bool busy, VoidCallback onTap) =>
+    HrButton(label: label, loading: busy, onPressed: busy ? null : onTap);
 
 Widget _authError(String msg) => Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-          color: kRed.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: kRed.withValues(alpha: 0.4))),
+          color: HrColors.dangerSurface,
+          borderRadius: BorderRadius.circular(HrRadius.sm)),
       child: Row(children: [
-        const Icon(Icons.error_outline_rounded, color: kRed, size: 17),
+        const Icon(Icons.error_outline_rounded, color: HrColors.dangerText, size: 17),
         const SizedBox(width: 8),
         Expanded(
-            child: Text(msg,
-                style: const TextStyle(color: kRed, fontSize: 12.5))),
+            child: Text(msg, style: HrText.caption.copyWith(color: HrColors.dangerText))),
       ]),
     );
 
 Widget _authDivider() => Row(children: [
-      Expanded(child: Container(height: 1, color: kBorder)),
-      const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10),
-          child: Text('or', style: TextStyle(color: kTextTertiary, fontSize: 12))),
-      Expanded(child: Container(height: 1, color: kBorder)),
+      const Expanded(child: Divider(color: HrColors.hairline, thickness: 1)),
+      Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Text('or', style: HrText.caption)),
+      const Expanded(child: Divider(color: HrColors.hairline, thickness: 1)),
     ]);
 
 Widget _appleButton() => Column(children: [
-      OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
-            foregroundColor: kTextSecondary,
-            side: BorderSide(color: kBorder)),
-        onPressed: null, // Sign in with Apple is wired on iOS later.
-        icon: const Icon(Icons.apple, size: 20),
-        label: const Text('Continue with Apple'),
-      ),
+      const HrButton(
+          label: 'Continue with Apple',
+          icon: Icons.apple,
+          kind: HrButtonKind.secondary,
+          onPressed: null),
       const SizedBox(height: 6),
-      const Text('Available on iOS',
-          style: TextStyle(color: kTextTertiary, fontSize: 11)),
+      Text('Available on iOS', style: HrText.micro),
     ]);
 
 Widget _authNote() {
   if (auth.isRemote) return const SizedBox.shrink();
-  return const Padding(
-    padding: EdgeInsets.only(top: 18),
+  return Padding(
+    padding: const EdgeInsets.only(top: 18),
     child: Text(
       'Accounts are stored on this device for now — cloud sync turns on when Supabase is connected.',
       textAlign: TextAlign.center,
-      style: TextStyle(color: kTextTertiary, fontSize: 11, height: 1.4),
+      style: HrText.micro.copyWith(height: 1.4),
     ),
   );
 }

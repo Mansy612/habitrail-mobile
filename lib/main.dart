@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:ui' show ImageFilter, MaskFilter, BlurStyle, ImageByteFormat;
+import 'dart:ui' show MaskFilter, BlurStyle, ImageByteFormat;
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -1438,16 +1438,8 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
-  Widget? _fab() {
-    if (_index == 0) {
-      return GradientButton(
-          label: 'Add habit',
-          icon: Icons.add,
-          expand: false,
-          onPressed: () => showHabitEditor(context));
-    }
-    return null;
-  }
+  // Today has its own '+' in the header now, so no global FAB.
+  Widget? _fab() => null;
 
   @override
   Widget build(BuildContext context) {
@@ -1859,54 +1851,7 @@ class _RingPainter extends CustomPainter {
 }
 
 // Dashboard app bar: profile picture + level on the LEFT, coins + shop RIGHT.
-PreferredSizeWidget _dashboardBar() {
-  return AppBar(
-    backgroundColor: Colors.transparent,
-    automaticallyImplyLeading: false,
-    titleSpacing: 14,
-    title: Builder(
-      builder: (context) => GestureDetector(
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
-        child: ListenableBuilder(
-          listenable: appState,
-          builder: (_, _) {
-            final ld = levelFromXp(appState.totalXp);
-            return Row(mainAxisSize: MainAxisSize.min, children: [
-              _Avatar(size: 38),
-              const SizedBox(width: 10),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Lv.${ld.level}',
-                      style: GoogleFonts.spaceGrotesk(
-                          color: kTextPrimary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                          height: 1.1)),
-                  const SizedBox(height: 3),
-                  SizedBox(
-                    width: 96,
-                    child: GlowBar(
-                        value: ld.progress.clamp(0.0, 1.0).toDouble(),
-                        height: 6),
-                  ),
-                ],
-              ),
-            ]);
-          },
-        ),
-      ),
-    ),
-    actions: [
-      Builder(builder: (context) => _coinsPill(context)),
-      Builder(builder: (context) => _shopButton(context)),
-      const SizedBox(width: 8),
-    ],
-  );
-}
+// _dashboardBar was replaced by the Today header (see _todayHeader).
 
 // Standard app bar for the other tabs: title left; coins + shop + avatar right.
 PreferredSizeWidget _titleBar(String title) {
@@ -2009,189 +1954,311 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _dashboardBar(),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 96),
-        children: [
-          const _DashboardHero(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 12, 20, 8),
-            child: Row(children: [
-              Expanded(
-                child: Text('TODAY’S HABITS',
-                    style: TextStyle(color: kTextTertiary, fontSize: 12,
-                        letterSpacing: 1.5, fontWeight: FontWeight.bold)),
-              ),
-              Text('Tap to complete',
-                  style: TextStyle(color: kTextTertiary, fontSize: 11)),
-            ]),
-          ),
-          if (appState.habits.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: _EmptyState(
-                  emoji: '🌱',
-                  title: 'No habits yet',
-                  subtitle: 'Tap “Add habit” to start.'),
-            )
-          else
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              itemCount: appState.habits.length,
-              onReorderItem: appState.reorderHabits,
-              itemBuilder: (ctx, i) {
-                final h = appState.habits[i];
-                return Padding(
-                  key: ValueKey('habit-${h.id}'),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: _HabitTile(
-                    habit: h,
-                    done: appState.doneToday(h),
-                    onToggle: () => onToggle(h),
-                    onDelete: () => appState.deleteHabit(h),
-                    onEdit: () => showHabitEditor(context, h),
-                    reorderIndex: i,
-                  ),
-                );
-              },
-            ),
-          const SizedBox(height: 12),
-          const _VictoryCard(),
-          const _CompanionCard(),
-          const _NutritionCard(),
-          const _BossCard(),
-          const _QuestsPanel(),
-          const _PrestigeCard(),
-        ],
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(0, 6, 0, 100),
+          children: [
+            _todayHeader(context),
+            const SizedBox(height: 16),
+            const _TodayHero(),
+            const SizedBox(height: 18),
+            if (appState.habits.isEmpty)
+              _todayEmpty(context)
+            else
+              _FiveCard(onToggle: onToggle),
+            const SizedBox(height: 14),
+            const _VictoryCard(),
+            const _CompanionCard(),
+            const _NutritionCard(),
+            const _BossCard(),
+            const _QuestsPanel(),
+            const _PrestigeCard(),
+          ],
+        ),
       ),
     );
   }
 }
 
-// Greeting hero at the top of the dashboard: time-aware greeting, name,
-// today's completion ring, streak chip, and a motivating nudge.
-class _DashboardHero extends StatelessWidget {
-  const _DashboardHero();
-  @override
-  Widget build(BuildContext context) {
-    final hour = DateTime.now().hour;
-    final greeting = hour < 12
-        ? 'Good morning'
-        : hour < 18
-            ? 'Good afternoon'
-            : 'Good evening';
-    final name = appState.displayName;
-    final total = appState.habits.length;
-    final done = appState.doneTodayCount;
-    final pct = total == 0 ? 0.0 : done / total;
-    final allDone = total > 0 && done == total;
-    final streak = appState.bestStreak;
-    final sub = total == 0
-        ? 'Add your first habit to begin.'
-        : allDone
-            ? 'Perfect day — every habit done!'
-            : done == 0
-                ? "Let's get the first one done."
-                : '${total - done} to go — finish strong.';
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF301C62), Color(0xFF1A0F38)]),
-        border: Border.all(color: kBorder),
-        boxShadow: [
-          BoxShadow(
-              color: kPlasma.withValues(alpha: 0.18),
-              blurRadius: 26,
-              offset: const Offset(0, 10)),
-        ],
-      ),
-      child: Row(children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(greeting,
-                  style: const TextStyle(color: kTextTertiary, fontSize: 13)),
-              const SizedBox(height: 2),
-              Text(name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.spaceGrotesk(
-                      color: kTextPrimary,
-                      fontSize: 24,
-                      height: 1.05,
-                      fontWeight: FontWeight.w800)),
-              const SizedBox(height: 10),
-              if (streak > 0) ...[
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: kGold.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: kGold.withValues(alpha: 0.35)),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Text('🔥', style: TextStyle(fontSize: 12)),
-                    const SizedBox(width: 5),
-                    Text('$streak day streak',
-                        style: const TextStyle(
-                            color: kGold,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                  ]),
-                ),
-                const SizedBox(height: 10),
-              ],
-              Text(sub,
-                  style: const TextStyle(
-                      color: kTextSecondary, fontSize: 13, height: 1.3)),
-            ],
-          ),
+// ── TODAY primitives (redesign) ──────────────────────────────────────────────
+const _kWeekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const _kMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+String _prettyToday() {
+  final d = DateTime.now();
+  return '${_kWeekdays[d.weekday - 1]}, ${_kMonths[d.month - 1]} ${d.day}';
+}
+
+// Small tappable coins chip (opens the Shop) — replaces the old violet pill.
+Widget _coinChip(BuildContext context) => GestureDetector(
+      onTap: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: HrColors.surface2,
+          borderRadius: BorderRadius.circular(HrRadius.full),
         ),
-        const SizedBox(width: 14),
-        SizedBox(
-          width: 78,
-          height: 78,
-          child: Stack(alignment: Alignment.center, children: [
-            GlowRing(
-              value: pct,
-              size: 78,
-              stroke: 7,
-              colors: allDone
-                  ? [kGreen, const Color(0xFF8BF0C0)]
-                  : [kPlasma, kCyan],
-            ),
-            Column(mainAxisSize: MainAxisSize.min, children: [
-              Text('$done/$total',
-                  style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 18,
-                      height: 1,
-                      fontWeight: FontWeight.w800)),
-              const Text('today',
-                  style: TextStyle(
-                      color: kTextTertiary, fontSize: 9, letterSpacing: 0.5)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (appState.xpBoostActive) ...[
+            Text('2×',
+                style: HrText.caption
+                    .copyWith(color: HrColors.gold, fontWeight: FontWeight.w800)),
+            const SizedBox(width: 6),
+          ],
+          const Icon(Icons.monetization_on_rounded, size: 15, color: HrColors.gold),
+          const SizedBox(width: 5),
+          Text('${appState.coins}',
+              style: HrText.caption
+                  .copyWith(color: HrColors.text, fontWeight: FontWeight.w700)),
+        ]),
+      ),
+    );
+
+// Header: date, "Today", a completion sticker, coins + add, and the level rail.
+Widget _todayHeader(BuildContext context) {
+  final ld = levelFromXp(appState.totalXp);
+  final done = appState.doneTodayCount;
+  final total = appState.habits.length;
+  final allDone = total > 0 && done == total;
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(_prettyToday().toUpperCase(), style: HrText.labelCaps),
+            const SizedBox(height: 4),
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              Text('Today', style: HrText.display),
+              if (total > 0) ...[
+                const SizedBox(width: 12),
+                CountSticker('$done/$total',
+                    size: 24,
+                    fill: allDone ? HrColors.accent : null,
+                    semanticLabel: '$done of $total habits done'),
+              ],
             ]),
           ]),
         ),
+        const SizedBox(width: 10),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          _coinChip(context),
+          const SizedBox(height: 8),
+          Tooltip(
+            message: 'Add habit',
+            child: Material(
+              color: HrColors.surface2,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => showHabitEditor(context),
+                child: const SizedBox(
+                  width: 38,
+                  height: 38,
+                  child: Icon(Icons.add_rounded, color: HrColors.text, size: 22),
+                ),
+              ),
+            ),
+          ),
+        ]),
       ]),
+      const SizedBox(height: 16),
+      Row(children: [
+        Text('Lv ${ld.level}',
+            style: HrText.caption
+                .copyWith(color: HrColors.text2, fontWeight: FontWeight.w700)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(HrRadius.full),
+            child: LinearProgressIndicator(
+              value: ld.progress.clamp(0.0, 1.0).toDouble(),
+              minHeight: 6,
+              backgroundColor: HrColors.surface3,
+              valueColor: const AlwaysStoppedAnimation(HrColors.text),
+            ),
+          ),
         ),
+        const SizedBox(width: 10),
+        Text(levelTitle(ld.level), style: HrText.caption),
+      ]),
+    ]),
+  );
+}
+
+// Companion ring showing today's completion, with a speech line and streak.
+class _TodayHero extends StatelessWidget {
+  const _TodayHero();
+  @override
+  Widget build(BuildContext context) {
+    final total = appState.habits.length;
+    final done = appState.doneTodayCount;
+    final allDone = total > 0 && done == total;
+    final comp = companionByType(appState.activeCompanion);
+    final streak = appState.bestStreak;
+    final segs = total == 0 ? 1 : (total <= 12 ? total : 1);
+    final val = total == 0 ? 0.0 : (total <= 12 ? done.toDouble() : done / total);
+    final line = appState.lastCompanionLine.isNotEmpty
+        ? appState.lastCompanionLine
+        : total == 0
+            ? comp.tagline
+            : allDone
+                ? 'Perfect day. Every rail cleared.'
+                : done == 0
+                    ? "Let's clear the first one."
+                    : '${total - done} to go — keep the streak alive.';
+    return Column(children: [
+      SizedBox(
+        height: 156,
+        child: Center(
+          child: SizedBox(
+            width: 150,
+            height: 150,
+            child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
+              SegmentedRing(
+                size: 140,
+                segments: segs,
+                value: val,
+                stroke: 9,
+                color: HrColors.accent,
+                center: CompanionSticker(
+                    icon: comp.icon, color: comp.color, size: 92, semanticLabel: comp.name),
+              ),
+              if (streak > 0)
+                Positioned(top: 0, right: -4, child: StreakPill(count: streak, big: true)),
+            ]),
+          ),
+        ),
+      ),
+      const SizedBox(height: 8),
+      SpeechBubble(line, speaker: comp.name, maxWidth: 290),
+    ]);
+  }
+}
+
+// "The five" — today's habits as HabitRows, with swipe-to-delete and a
+// reorder mode. Replaces the old _HabitTile list + TODAY'S HABITS label.
+class _FiveCard extends StatefulWidget {
+  const _FiveCard({required this.onToggle});
+  final void Function(Habit) onToggle;
+  @override
+  State<_FiveCard> createState() => _FiveCardState();
+}
+
+class _FiveCardState extends State<_FiveCard> {
+  bool _reorder = false;
+  @override
+  Widget build(BuildContext context) {
+    final habits = appState.habits;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+      child: HrCard(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          HrLabel(
+            habits.length == 5 ? 'The five' : "Today's habits",
+            trailing: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _reorder = !_reorder),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(_reorder ? Icons.check_rounded : Icons.swap_vert_rounded,
+                    size: 16, color: _reorder ? HrColors.accent : HrColors.text3),
+                const SizedBox(width: 4),
+                Text(_reorder ? 'DONE' : 'REORDER',
+                    style: HrText.labelCaps
+                        .copyWith(color: _reorder ? HrColors.accent : HrColors.text3)),
+              ]),
+            ),
+          ),
+          if (_reorder)
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: habits.length,
+              onReorderItem: appState.reorderHabits,
+              itemBuilder: (ctx, i) {
+                final h = habits[i];
+                return Padding(
+                  key: ValueKey('reorder-${h.id}'),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  child: Row(children: [
+                    Expanded(
+                      child: Text(h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: HrText.body),
+                    ),
+                    ReorderableDragStartListener(
+                      index: i,
+                      child: const Icon(Icons.drag_handle_rounded, color: HrColors.text3),
+                    ),
+                  ]),
+                );
+              },
+            )
+          else
+            for (final h in habits)
+              Dismissible(
+                key: ValueKey('five-${h.id}'),
+                direction: DismissDirection.endToStart,
+                onDismissed: (_) {
+                  appState.deleteHabit(h);
+                  hrToast(context, 'Habit removed',
+                      icon: Icons.delete_outline_rounded);
+                },
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  margin: const EdgeInsets.symmetric(vertical: 2),
+                  decoration: BoxDecoration(
+                      color: HrColors.dangerSurface,
+                      borderRadius: BorderRadius.circular(HrRadius.sm)),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: HrColors.dangerText),
+                ),
+                child: HabitRow(
+                  title: h.name,
+                  icon: h.icon,
+                  rarity: h.rarity,
+                  done: appState.doneToday(h),
+                  streak: h.streak,
+                  reminder: h.reminderMinutes != null
+                      ? _fmtReminder(h.reminderMinutes!)
+                      : null,
+                  onToggle: () => widget.onToggle(h),
+                  onEdit: () => showHabitEditor(context, h),
+                ),
+              ),
+        ]),
       ),
     );
   }
 }
+
+// Zero-habits prompt shown in place of the five-card.
+Widget _todayEmpty(BuildContext context) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+      child: HrCard(
+        padding: const EdgeInsets.all(24),
+        child: Column(children: [
+          const Text('🌱', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 12),
+          Text('No habits yet', style: HrText.title2),
+          const SizedBox(height: 6),
+          Text('Add your first habit to start your rail.',
+              textAlign: TextAlign.center, style: HrText.bodyS),
+          const SizedBox(height: 18),
+          HrButton(
+            label: 'Add habit',
+            icon: Icons.add_rounded,
+            expand: false,
+            onPressed: () => showHabitEditor(context),
+          ),
+        ]),
+      ),
+    );
 
 class _VictoryCard extends StatelessWidget {
   const _VictoryCard();
@@ -2417,128 +2484,7 @@ void _showBossDefeat(BuildContext context) {
   );
 }
 
-class _HabitTile extends StatelessWidget {
-  const _HabitTile({
-    required this.habit,
-    required this.done,
-    required this.onToggle,
-    required this.onDelete,
-    required this.onEdit,
-    this.reorderIndex,
-  });
-  final Habit habit;
-  final bool done;
-  final VoidCallback onToggle;
-  final VoidCallback onDelete;
-  final VoidCallback onEdit;
-  final int? reorderIndex; // when set, shows a drag handle for reordering
-
-  @override
-  Widget build(BuildContext context) {
-    final rc = rarityConfig[habit.rarity];
-    final rarityColor = rc?.color ?? kTextTertiary;
-    return Dismissible(
-      key: ValueKey(habit.id),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDelete(),
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        decoration: BoxDecoration(
-            color: const Color(0xFF3A1020),
-            borderRadius: BorderRadius.circular(14)),
-        child: const Icon(Icons.delete_outline, color: Color(0xFFFB7185)),
-      ),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: done ? kPlasma : kBorder),
-        ),
-        child: ListTile(
-          onTap: onToggle,
-          onLongPress: onEdit,
-          leading: AnimatedScale(
-            scale: done ? 1 : 0.94,
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutBack,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: done ? kPlasma : Colors.transparent,
-                border: Border.all(
-                    color: done ? kPlasma : const Color(0x4DFFFFFF), width: 2),
-                boxShadow: done
-                    ? [BoxShadow(color: kPlasma.withValues(alpha: 0.32), blurRadius: 10)]
-                    : null,
-              ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 140),
-                transitionBuilder: (child, animation) => ScaleTransition(
-                  scale: animation,
-                  child: FadeTransition(opacity: animation, child: child),
-                ),
-                child: done
-                    ? const Icon(Icons.check, key: ValueKey('checked'), size: 18, color: Colors.white)
-                    : const SizedBox(key: ValueKey('unchecked')),
-              ),
-            ),
-          ),
-          title: Text(
-              habit.icon.isEmpty ? habit.name : '${habit.icon}  ${habit.name}',
-              style: TextStyle(
-                color: done ? kTextTertiary : kTextPrimary,
-                decoration: done ? TextDecoration.lineThrough : null,
-                fontWeight: FontWeight.w500,
-              )),
-          subtitle: Row(children: [
-            Container(
-                width: 7,
-                height: 7,
-                decoration:
-                    BoxDecoration(shape: BoxShape.circle, color: rarityColor)),
-            const SizedBox(width: 6),
-            Text(rc?.label ?? 'Common',
-                style: TextStyle(color: rarityColor, fontSize: 11)),
-          ]),
-          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-            if (habit.reminderMinutes != null)
-              const Padding(
-                padding: EdgeInsets.only(right: 4),
-                child: Icon(Icons.notifications_active_rounded,
-                    size: 15, color: kTextTertiary),
-              ),
-            if (habit.streak > 0)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                    color: const Color(0x268B5CF6),
-                    borderRadius: BorderRadius.circular(20)),
-                child: Text('🔥 ${habit.streak}',
-                    style: TextStyle(
-                        color: kPlasmaGlow, fontWeight: FontWeight.bold)),
-              ),
-            if (reorderIndex != null)
-              ReorderableDragStartListener(
-                index: reorderIndex!,
-                child: const Padding(
-                  padding: EdgeInsets.only(left: 6),
-                  child: Icon(Icons.drag_indicator, color: kTextTertiary),
-                ),
-              ),
-          ]),
-        ),
-      ),
-    );
-  }
-}
+// _HabitTile was replaced by HabitRow (design-system kit) in the _FiveCard.
 
 // ── FOCUS ───────────────────────────────────────────────────────────────────
 class FocusScreen extends StatefulWidget {

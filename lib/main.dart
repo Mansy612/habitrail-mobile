@@ -2084,50 +2084,35 @@ class _VictoryCard extends StatelessWidget {
     final v = appState.victory();
     final color = victoryColor(v.score);
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      margin: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: const Border(top: BorderSide(color: HrColors.hairline)),
       ),
       child: Row(children: [
-        SizedBox(
-          width: 64,
-          height: 64,
-          child: Stack(alignment: Alignment.center, children: [
-            GlowRing(
-              value: v.score / 100,
-              size: 64,
-              stroke: 6,
-              colors: [color, Color.lerp(color, Colors.white, 0.35)!],
-            ),
-            Text('${v.score}',
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800)),
-          ]),
+        SegmentedRing(
+          size: 64,
+          segments: 1,
+          value: v.score / 100,
+          stroke: 6,
+          color: color,
+          center: Text('${v.score}', style: HrText.stat.copyWith(fontSize: 20)),
         ),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('VICTORY SCORE',
-                  style: TextStyle(
-                      color: kTextTertiary,
-                      fontSize: 11,
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.bold)),
+              Text('VICTORY SCORE', style: HrText.labelCaps),
               const SizedBox(height: 3),
               Text(victoryLabel(v.score),
-                  style: TextStyle(
-                      color: color, fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: HrText.headline.copyWith(color: color)),
               const SizedBox(height: 4),
               Text(
                   'Habits ${v.habits} · Nutr ${v.nutrition} · Focus ${v.focus} · Sleep ${v.sleep}',
-                  style: const TextStyle(color: kTextSecondary, fontSize: 11)),
+                  style: HrText.caption),
             ],
           ),
         ),
@@ -2143,10 +2128,13 @@ class _BossCard extends StatelessWidget {
     final count = appState.perfectDaysThisWeek().clamp(0, kBossGoal);
     final defeated = count >= kBossGoal;
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      margin: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       padding: const EdgeInsets.all(16),
-      decoration:
-          glassDecoration(radius: 16, border: defeated ? kGold : kBorder),
+      decoration: BoxDecoration(
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: Border(top: BorderSide(color: defeated ? HrColors.gold : HrColors.hairline)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2154,33 +2142,36 @@ class _BossCard extends StatelessWidget {
             Image.asset(kBossImageAsset,
                 width: 42, height: 42, fit: BoxFit.contain,
                 semanticLabel: 'Veil Regent weekly boss'),
-            const SizedBox(width: 8),
-            const Expanded(
+            const SizedBox(width: 10),
+            Expanded(
               child: Text(kBossTitle,
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
             ),
             Text(defeated ? 'DEFEATED' : '$count/$kBossGoal',
-                style: TextStyle(
-                    color: defeated ? kGold : kTextSecondary,
-                    fontWeight: FontWeight.bold)),
+                style: HrText.body.copyWith(
+                    color: defeated ? HrColors.gold : HrColors.text2,
+                    fontWeight: FontWeight.w800)),
           ]),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(HrRadius.full),
+            child: LinearProgressIndicator(
+                value: (count / kBossGoal).clamp(0.0, 1.0).toDouble(),
+                minHeight: 8,
+                backgroundColor: HrColors.surface3,
+                valueColor: const AlwaysStoppedAnimation(HrColors.gold)),
+          ),
           const SizedBox(height: 10),
-          GlowBar(
-              value: (count / kBossGoal).clamp(0.0, 1.0).toDouble(),
-              height: 8,
-              colors: const [Color(0xFFFBBF24), Color(0xFFFCD34D)]),
-          const SizedBox(height: 8),
           Text(
               defeated
                   ? 'Reward claimed: +$kBossXp XP · +$kBossCoins coins'
                   : '$kBossDesc  (+$kBossXp XP, +$kBossCoins coins)',
-              style: const TextStyle(color: kTextTertiary, fontSize: 11)),
-          const SizedBox(height: 8),
+              style: HrText.caption),
+          const SizedBox(height: 6),
           Text(
               'Season ${appState.currentSeason + 1} · ${appState.seasonBossDefeats}/4 bosses',
-              style: const TextStyle(
-                  color: kCyan, fontSize: 11, fontWeight: FontWeight.bold)),
+              style: HrText.caption.copyWith(
+                  color: HrColors.info, fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -2193,12 +2184,12 @@ class _QuestsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final claimed = appState.questClaimedIds;
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      margin: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: const Border(top: BorderSide(color: HrColors.hairline)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2206,39 +2197,31 @@ class _QuestsPanel extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('DAILY QUESTS',
-                  style: TextStyle(
-                      color: kTextTertiary,
-                      fontSize: 11,
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.bold)),
+              Text('DAILY QUESTS', style: HrText.labelCaps),
               Text('${claimed.length}/${kQuests.length}',
-                  style:
-                      const TextStyle(color: kCyan, fontWeight: FontWeight.bold)),
+                  style: HrText.labelCaps.copyWith(color: HrColors.accent)),
             ],
           ),
           const SizedBox(height: 10),
           ...kQuests.map((q) {
             final on = claimed.contains(q.id);
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(children: [
                 Icon(on ? Icons.check_circle_rounded : Icons.circle_outlined,
-                    size: 18, color: on ? kGreen : kTextTertiary),
+                    size: 18, color: on ? HrColors.accent : HrColors.text3),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(q.title,
-                      style: TextStyle(
-                        color: on ? kTextTertiary : kTextPrimary,
-                        fontSize: 13,
+                      style: HrText.bodyS.copyWith(
+                        color: on ? HrColors.text3 : HrColors.text,
                         decoration: on ? TextDecoration.lineThrough : null,
                       )),
                 ),
                 Text('+${q.xp}',
-                    style: TextStyle(
-                        color: on ? kGreen : kPlasmaGlow,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12)),
+                    style: HrText.caption.copyWith(
+                        color: on ? HrColors.text3 : HrColors.accent,
+                        fontWeight: FontWeight.w800)),
               ]),
             );
           }),
@@ -4366,50 +4349,31 @@ class _NutritionCard extends StatelessWidget {
     final n = appState.todayNutrition();
     final t = appState.targets();
     final score = appState.nutritionScore();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NutritionScreen())),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: _kGlassSheen,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: kBorder),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
+      child: HrCard(
+        onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const NutritionScreen())),
+        child: Row(children: [
+          Icon(Icons.restaurant_rounded, color: HrColors.accent, size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('NUTRITION', style: HrText.labelCaps),
+                const SizedBox(height: 3),
+                Text(
+                    '${n.calories.round()} / ${t.calories.round()} kcal · ${n.protein.round()}g protein',
+                    style: HrText.caption),
+              ],
             ),
-            child: Row(children: [
-              const Icon(Icons.restaurant_rounded, color: kGreen, size: 22),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('NUTRITION',
-                        style: TextStyle(
-                            color: kTextTertiary,
-                            fontSize: 11,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 3),
-                    Text(
-                        '${n.calories.round()} / ${t.calories.round()} kcal · ${n.protein.round()}g protein',
-                        style: const TextStyle(
-                            color: kTextSecondary, fontSize: 12)),
-                  ],
-                ),
-              ),
-              Text('$score',
-                  style: GoogleFonts.spaceGrotesk(
-                      color: kGreen, fontSize: 20, fontWeight: FontWeight.w800)),
-              const Icon(Icons.chevron_right, color: kTextTertiary),
-            ]),
           ),
-        ),
+          Text('$score',
+              style: HrText.stat.copyWith(fontSize: 20, color: HrColors.victory(score))),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+        ]),
       ),
     );
   }

@@ -4204,10 +4204,10 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
   ];
   await showModalBottomSheet<void>(
     context: context,
-    backgroundColor: kCard,
+    backgroundColor: HrColors.surface,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setLocal) {
         // Re-rate the habit: show the instant heuristic now, then let the local
@@ -4247,25 +4247,40 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(existing == null ? 'New habit' : 'Edit habit',
-                  style: GoogleFonts.spaceGrotesk(
-                      color: kTextPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold)),
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                      color: HrColors.surface3, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              Text(existing == null ? 'New habit' : 'Edit habit', style: HrText.title2),
               const SizedBox(height: 14),
               TextField(
                 controller: controller,
                 autofocus: existing == null,
-                style: const TextStyle(color: kTextPrimary),
+                style: HrText.body,
                 textCapitalization: TextCapitalization.sentences,
-                decoration:
-                    const InputDecoration(hintText: 'e.g. Meditate 10 min'),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Meditate 10 min',
+                  hintStyle: HrText.body.copyWith(color: HrColors.text3),
+                  filled: true,
+                  fillColor: HrColors.surface2,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(HrRadius.md),
+                      borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
+                ),
                 onChanged: analyze,
               ),
-              const SizedBox(height: 14),
-              const Text('Icon',
-                  style: TextStyle(color: kTextTertiary, fontSize: 12)),
-              const SizedBox(height: 6),
+              const SizedBox(height: 16),
+              const HrLabel('Icon'),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -4274,13 +4289,12 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                   return GestureDetector(
                     onTap: () => setLocal(() => icon = sel ? '' : e),
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: 42,
+                      height: 42,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                          color: sel ? kPlasma : kElevated,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: sel ? kPlasma : kBorder)),
+                          color: sel ? HrColors.accent : HrColors.surface2,
+                          borderRadius: BorderRadius.circular(HrRadius.sm)),
                       child: Text(e, style: const TextStyle(fontSize: 20)),
                     ),
                   );
@@ -4292,23 +4306,19 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 2, 6, 2),
                 decoration: BoxDecoration(
-                    color: kElevated,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: kBorder)),
+                    color: HrColors.surface2,
+                    borderRadius: BorderRadius.circular(HrRadius.md)),
                 child: Row(children: [
                   Icon(Icons.notifications_active_rounded,
                       size: 18,
-                      color: reminderMinutes != null
-                          ? kPlasmaBright
-                          : kTextTertiary),
+                      color: reminderMinutes != null ? HrColors.accent : HrColors.text3),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                         reminderMinutes == null
                             ? 'No daily reminder'
                             : 'Remind me at ${_fmtReminder(reminderMinutes!)}',
-                        style: const TextStyle(
-                            color: kTextSecondary, fontSize: 13)),
+                        style: HrText.bodyS.copyWith(color: HrColors.text)),
                   ),
                   TextButton(
                     onPressed: () async {
@@ -4324,14 +4334,14 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                             picked.hour * 60 + picked.minute);
                       }
                     },
-                    child: Text(reminderMinutes == null ? 'Set' : 'Change'),
+                    child: Text(reminderMinutes == null ? 'Set' : 'Change',
+                        style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w700)),
                   ),
                   if (reminderMinutes != null)
                     IconButton(
                       visualDensity: VisualDensity.compact,
                       onPressed: () => setLocal(() => reminderMinutes = null),
-                      icon: const Icon(Icons.close,
-                          size: 18, color: kTextTertiary),
+                      icon: const Icon(Icons.close, size: 18, color: HrColors.text3),
                     ),
                 ]),
               ),
@@ -4343,38 +4353,40 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                         appState.deleteHabit(existing);
                         Navigator.pop(ctx);
                       },
-                      icon: const Icon(Icons.delete_outline, color: kRed),
-                      label: const Text('Delete',
-                          style: TextStyle(color: kRed))),
+                      icon: const Icon(Icons.delete_outline, color: HrColors.dangerText),
+                      label: Text('Delete',
+                          style: HrText.body.copyWith(color: HrColors.dangerText))),
                 const Spacer(),
-                FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: kPlasma),
-                  onPressed: () {
-                    final name = controller.text.trim();
-                    if (name.isEmpty) {
+                SizedBox(
+                  width: 130,
+                  child: HrButton(
+                    label: existing == null ? 'Add' : 'Save',
+                    onPressed: () {
+                      final name = controller.text.trim();
+                      if (name.isEmpty) {
+                        Navigator.pop(ctx);
+                        return;
+                      }
+                      debounce?.cancel();
+                      final v = verdict;
+                      if (existing == null) {
+                        appState.addHabit(name, v.rarity,
+                            icon: icon,
+                            aiRated: v.fromAi,
+                            reason: v.reason,
+                            reminderMinutes: reminderMinutes);
+                      } else {
+                        appState.editHabit(existing,
+                            name: name,
+                            rarity: v.rarity,
+                            icon: icon,
+                            aiRated: v.fromAi,
+                            reason: v.reason);
+                        appState.setHabitReminder(existing, reminderMinutes);
+                      }
                       Navigator.pop(ctx);
-                      return;
-                    }
-                    debounce?.cancel();
-                    final v = verdict;
-                    if (existing == null) {
-                      appState.addHabit(name, v.rarity,
-                          icon: icon,
-                          aiRated: v.fromAi,
-                          reason: v.reason,
-                          reminderMinutes: reminderMinutes);
-                    } else {
-                      appState.editHabit(existing,
-                          name: name,
-                          rarity: v.rarity,
-                          icon: icon,
-                          aiRated: v.fromAi,
-                          reason: v.reason);
-                      appState.setHabitReminder(existing, reminderMinutes);
-                    }
-                    Navigator.pop(ctx);
-                  },
-                  child: Text(existing == null ? 'Add' : 'Save'),
+                    },
+                  ),
                 ),
               ]),
             ],
@@ -4388,13 +4400,11 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
 
 /// Shows the AI/heuristic difficulty verdict — the user can't change it.
 Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
-  final color = rarityConfig[v.rarity]?.color ?? kTextTertiary;
+  final color = HrColors.rarity[v.rarity] ?? HrColors.text3;
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-        color: kElevated,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder)),
+        color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
     child: Row(children: [
       Icon(Icons.auto_awesome_rounded, size: 18, color: color),
       const SizedBox(width: 10),
@@ -4405,10 +4415,7 @@ Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
             Row(children: [
               Flexible(
                 child: Text('${v.label} · ×${v.multiplier} · ~${estimatedXp(v.rarity)} XP',
-                    style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13)),
+                    style: HrText.bodyS.copyWith(color: color, fontWeight: FontWeight.w700)),
               ),
               const SizedBox(width: 8),
               _ratingChip(v, analyzing),
@@ -4418,7 +4425,7 @@ Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
                 analyzing
                     ? 'Reading your habit…'
                     : (v.reason.isEmpty ? 'Difficulty set automatically' : v.reason),
-                style: const TextStyle(color: kTextSecondary, fontSize: 11)),
+                style: HrText.caption),
           ],
         ),
       ),
@@ -4428,23 +4435,18 @@ Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
 
 Widget _ratingChip(DifficultyVerdict v, bool analyzing) {
   if (analyzing) {
-    return SizedBox(
-      width: 13,
-      height: 13,
-      child: CircularProgressIndicator(strokeWidth: 2, color: kPlasmaBright),
-    );
+    return const SizedBox(
+      width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2));
   }
   final ai = v.fromAi;
   final label = ai ? '🤖 AI' : '✨ Auto';
-  final c = ai ? kCyan : kTextTertiary;
+  final c = ai ? HrColors.info : HrColors.text3;
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
     decoration: BoxDecoration(
         color: c.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: c.withValues(alpha: 0.4))),
-    child: Text(label,
-        style: TextStyle(color: c, fontSize: 10, fontWeight: FontWeight.w700)),
+        borderRadius: BorderRadius.circular(HrRadius.xs)),
+    child: Text(label, style: HrText.micro.copyWith(color: c, fontWeight: FontWeight.w700)),
   );
 }
 

@@ -192,7 +192,8 @@ class WelcomeScreen extends StatelessWidget {
                       const SizedBox(height: 36),
                       Center(
                         child: CompanionSticker(
-                            icon: comp.icon, color: comp.color, size: 104, semanticLabel: comp.name),
+                            icon: comp.icon, color: comp.color, size: 104, semanticLabel: comp.name,
+                            imageAsset: comp.imageAsset),
                       ),
                       const SizedBox(height: 16),
                       const Center(
@@ -561,8 +562,8 @@ class AccountScreen extends StatelessWidget {
 
 // ── Onboarding (first run, right after creating an account) ─────────────────
 class _OnbSlide {
-  const _OnbSlide(this.emoji, this.title, this.body, this.accent);
-  final String emoji;
+  const _OnbSlide(this.imageAsset, this.title, this.body, this.accent);
+  final String imageAsset;
   final String title;
   final String body;
   final Color accent;
@@ -570,22 +571,22 @@ class _OnbSlide {
 
 const _onbSlides = [
   _OnbSlide(
-      '🔥',
+      'assets/onboarding/welcome.png',
       'Welcome to Habitrail',
       'Turn your daily habits into a game you actually want to play.',
       Color(0xFFFF8A4C)),
   _OnbSlide(
-      '⚡',
+      'assets/onboarding/xp.png',
       'Earn XP, level up',
       'Every habit you check off earns XP. Build streaks and combos for big multipliers, and climb from Level 1 to God-Tier.',
       Color(0xFF3DE7FF)),
   _OnbSlide(
-      '🏆',
+      'assets/onboarding/quests.png',
       'Quests, bosses & Victory Score',
       'Take on daily quests, defeat the weekly boss, and track each day with a 4-pillar Victory Score.',
       Color(0xFFFFD23F)),
   _OnbSlide(
-      '🐾',
+      'assets/onboarding/companions.png',
       'Companions & more',
       'Adopt a companion, log nutrition, prestige, and make every single day count.',
       Color(0xFF4ADE80)),
@@ -648,12 +649,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         width: 128,
                         height: 128,
                         alignment: Alignment.center,
+                        clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: HrColors.surface,
                           border: Border.all(color: HrColors.accent, width: 2),
                         ),
-                        child: Text(s.emoji, style: const TextStyle(fontSize: 60)),
+                        child: Image.asset(s.imageAsset,
+                            fit: BoxFit.cover, semanticLabel: s.title),
                       ),
                       const SizedBox(height: 32),
                       Text(s.title, textAlign: TextAlign.center, style: HrText.display),
@@ -976,7 +979,8 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            CompanionSticker(icon: comp.icon, color: comp.color, size: 64, semanticLabel: comp.name),
+            CompanionSticker(icon: comp.icon, color: comp.color, size: 64, semanticLabel: comp.name,
+                imageAsset: comp.imageAsset),
             const SizedBox(width: 10),
             const Flexible(child: SpeechBubble("Let's see if you last a week.", maxWidth: 200)),
           ],
@@ -2014,7 +2018,8 @@ class _TodayHero extends StatelessWidget {
                 stroke: 9,
                 color: HrColors.accent,
                 center: CompanionSticker(
-                    icon: comp.icon, color: comp.color, size: 92, semanticLabel: comp.name),
+                    icon: comp.icon, color: comp.color, size: 92, semanticLabel: comp.name,
+                    imageAsset: comp.imageAsset),
               ),
               if (streak > 0)
                 Positioned(top: 0, right: -4, child: StreakPill(count: streak, big: true)),
@@ -2225,7 +2230,9 @@ class _BossCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.shield_rounded, color: kGold, size: 18),
+            Image.asset(kBossImageAsset,
+                width: 42, height: 42, fit: BoxFit.contain,
+                semanticLabel: 'Veil Regent weekly boss'),
             const SizedBox(width: 8),
             const Expanded(
               child: Text(kBossTitle,
@@ -2320,58 +2327,90 @@ class _QuestsPanel extends StatelessWidget {
   }
 }
 
-void _showBossDefeat(BuildContext context) {
+// ── MOMENTS: shared celebration dialog ──────────────────────────────────────
+void _showMoment(
+  BuildContext context, {
+  required String label,
+  Color labelColor = HrColors.gold,
+  required Widget emblem,
+  required String title,
+  String? subtitle,
+  String? bubble,
+  List<Widget> rewards = const [],
+  String buttonLabel = 'Continue',
+}) {
   showDialog<void>(
     context: context,
     builder: (ctx) => Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 32),
       child: Container(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF3A2A08), Color(0xFF160B2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: kGold),
+          color: HrColors.surface,
+          borderRadius: BorderRadius.circular(HrRadius.xl),
+          border: const Border(top: BorderSide(color: HrColors.hairline)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.shield_rounded, color: kGold, size: 44),
-            const SizedBox(height: 10),
-            const Text('BOSS DEFEATED',
-                style: TextStyle(
-                    color: kGold,
-                    fontSize: 18,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.bold)),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(label.toUpperCase(),
+              style: HrText.labelCaps.copyWith(color: labelColor, letterSpacing: 2)),
+          const SizedBox(height: 16),
+          emblem,
+          const SizedBox(height: 18),
+          Text(title, textAlign: TextAlign.center, style: HrText.title1),
+          if (subtitle != null) ...[
             const SizedBox(height: 6),
-            const Text('Weekly Sovereignty Challenge',
-                style: TextStyle(color: kTextSecondary)),
-            const SizedBox(height: 14),
-            Text('+$kBossXp XP   ·   +$kBossCoins coins',
-                style: TextStyle(
-                    color: kPlasmaGlow, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Text(companionLine(appState.activeCompanion, 'boss_defeat'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: kTextSecondary,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12)),
-            const SizedBox(height: 18),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: kGold, foregroundColor: Colors.black),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Claim'),
-            ),
+            Text(subtitle, textAlign: TextAlign.center, style: HrText.bodyS),
           ],
-        ),
+          if (bubble != null) ...[
+            const SizedBox(height: 14),
+            SpeechBubble(bubble, maxWidth: 240),
+          ],
+          if (rewards.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: rewards),
+          ],
+          const SizedBox(height: 22),
+          HrButton(label: buttonLabel, onPressed: () => Navigator.pop(ctx)),
+        ]),
       ),
     ),
+  );
+}
+
+Widget _momentReward(String value, String label, Color color) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      decoration: BoxDecoration(
+          color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
+      child: Column(children: [
+        Text(value, style: HrText.title2.copyWith(color: color)),
+        const SizedBox(height: 2),
+        Text(label, style: HrText.micro),
+      ]),
+    );
+
+void _showBossDefeat(BuildContext context) {
+  _showMoment(
+    context,
+    label: 'Boss defeated',
+    labelColor: HrColors.gold,
+    emblem: SegmentedRing(
+      size: 136,
+      segments: 1,
+      value: 1,
+      stroke: 9,
+      color: HrColors.gold,
+      center: Image.asset(kBossImageAsset,
+          width: 76, height: 76, fit: BoxFit.contain, semanticLabel: 'Weekly boss'),
+    ),
+    title: 'Weekly Sovereignty\nChallenge',
+    bubble: companionLine(appState.activeCompanion, 'boss_defeat'),
+    rewards: [
+      _momentReward('+$kBossXp', 'XP', HrColors.gold),
+      _momentReward('+$kBossCoins', 'Coins', HrColors.text),
+    ],
+    buttonLabel: 'Claim',
   );
 }
 
@@ -2573,7 +2612,8 @@ class _FocusScreenState extends State<FocusScreen> {
         stroke: 10,
         color: HrColors.accent,
         center: CompanionSticker(
-            icon: comp.icon, color: comp.color, size: 96, semanticLabel: comp.name),
+            icon: comp.icon, color: comp.color, size: 96, semanticLabel: comp.name,
+            imageAsset: comp.imageAsset),
       ),
       const SizedBox(height: 16),
       const SpeechBubble('Session complete. Output logged.', maxWidth: 260),
@@ -2724,7 +2764,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   stroke: 9,
                   color: HrColors.accent,
                   center: CompanionSticker(
-                      icon: comp.icon, color: comp.color, size: 86, semanticLabel: comp.name),
+                      icon: comp.icon, color: comp.color, size: 86, semanticLabel: comp.name,
+                      imageAsset: comp.imageAsset),
                 ),
                 if (streak > 0)
                   Positioned(
@@ -3262,7 +3303,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 24),
       child: Column(children: [
-        CompanionSticker(icon: comp.icon, color: comp.color, size: 72, semanticLabel: comp.name),
+        CompanionSticker(icon: comp.icon, color: comp.color, size: 72, semanticLabel: comp.name,
+            imageAsset: comp.imageAsset),
         const SizedBox(height: 14),
         const SpeechBubble('Habits are easier with witnesses.', maxWidth: 240),
         const SizedBox(height: 20),
@@ -3874,16 +3916,35 @@ class _AchievementCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: on ? color : HrColors.surface2,
+          SizedBox(
+            width: 64,
+            height: 64,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: on ? 1 : 0.45,
+                    child: Image.asset(a.imageAsset, fit: BoxFit.contain),
+                  ),
+                ),
+                if (!on)
+                  Positioned(
+                    right: -1,
+                    bottom: -1,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: HrColors.surface2,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: HrColors.hairline),
+                      ),
+                      child: const Icon(Icons.lock_rounded,
+                          size: 12, color: HrColors.text2),
+                    ),
+                  ),
+              ],
             ),
-            child: Icon(on ? a.icon : Icons.lock_rounded,
-                size: 26, color: on ? HrColors.bg : HrColors.text3),
           ),
           const SizedBox(height: 12),
           Text(a.title,
@@ -4039,140 +4100,47 @@ class _EmptyState extends StatelessWidget {
 }
 
 void _showLevelUp(BuildContext context, int level) {
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2A1458), Color(0xFF160B2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: kPlasmaBright),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('⚡ LEVEL UP',
-                style: TextStyle(
-                    color: kPlasmaGlow,
-                    fontSize: 13,
-                    letterSpacing: 3,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Text('$level',
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 56,
-                    fontWeight: FontWeight.w800)),
-            Text(levelTitle(level).toUpperCase(),
-                style: const TextStyle(
-                    color: kCyan,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Text(companionLine(appState.activeCompanion, 'level_up'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: kTextSecondary,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12)),
-            const SizedBox(height: 18),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: kPlasma),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Continue'),
-            ),
-          ],
-        ),
-      ),
+  _showMoment(
+    context,
+    label: 'Level up',
+    labelColor: HrColors.accent,
+    emblem: SegmentedRing(
+      size: 136,
+      segments: 1,
+      value: 1,
+      stroke: 9,
+      color: HrColors.accent,
+      center: Text('$level', style: HrText.numeralXl),
     ),
+    title: 'Level $level.\n${levelTitle(level)}.',
+    bubble: companionLine(appState.activeCompanion, 'level_up'),
+    buttonLabel: 'Continue',
   );
 }
 
 void _showAchievementUnlocked(BuildContext context, List<Achievement> items) {
   if (items.isEmpty) return;
   final a = items.first;
-  final color = rarityConfig[a.rarity]?.color ?? kGold;
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2A1458), Color(0xFF160B2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: color),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('🏆 ACHIEVEMENT UNLOCKED',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            Container(
-              width: 84,
-              height: 84,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      color.withValues(alpha: 0.4),
-                      color.withValues(alpha: 0.12)
-                    ]),
-                border: Border.all(color: color.withValues(alpha: 0.6)),
-                boxShadow: [
-                  BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 24)
-                ],
-              ),
-              child: Icon(a.icon, color: color, size: 42),
-            ),
-            const SizedBox(height: 16),
-            Text(a.title,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(a.description,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: kTextSecondary, fontSize: 12)),
-            if (items.length > 1) ...[
-              const SizedBox(height: 8),
-              Text('+${items.length - 1} more unlocked',
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold)),
-            ],
-            const SizedBox(height: 20),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: kPlasma),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Nice!'),
-            ),
-          ],
-        ),
+  final color = HrColors.rarity[a.rarity] ?? HrColors.gold;
+  _showMoment(
+    context,
+    label: 'Achievement unlocked',
+    labelColor: color,
+    emblem: Container(
+      width: 112,
+      height: 112,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: color, width: 3),
       ),
+      child: Image.asset(a.imageAsset, fit: BoxFit.cover),
     ),
+    title: a.title,
+    subtitle: items.length > 1
+        ? '${a.description}\n+${items.length - 1} more unlocked'
+        : a.description,
+    buttonLabel: 'Nice',
   );
 }
 
@@ -4863,10 +4831,14 @@ Future<void> showAddFood(BuildContext context) async {
 // ── COMPANIONS ───────────────────────────────────────────────────────────────
 class _CompanionOrb extends StatelessWidget {
   const _CompanionOrb(
-      {required this.color, required this.icon, required this.size});
+      {required this.color,
+      required this.icon,
+      required this.size,
+      this.imageAsset});
   final Color color;
   final IconData icon;
   final double size;
+  final String? imageAsset;
 
   @override
   Widget build(BuildContext context) {
@@ -4876,16 +4848,23 @@ class _CompanionOrb extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-            colors: [color, color.withValues(alpha: 0.25)]),
-        boxShadow: [
-          BoxShadow(
-              color: color.withValues(alpha: 0.5),
-              blurRadius: 16,
-              spreadRadius: 1),
-        ],
+        color: imageAsset == null ? null : Colors.black,
+        gradient: imageAsset == null
+            ? RadialGradient(colors: [color, color.withValues(alpha: 0.25)])
+            : null,
+        boxShadow: imageAsset == null
+            ? [
+                BoxShadow(
+                    color: color.withValues(alpha: 0.5),
+                    blurRadius: 16,
+                    spreadRadius: 1),
+              ]
+            : null,
       ),
-      child: Icon(icon, color: Colors.white, size: size * 0.5),
+      clipBehavior: Clip.antiAlias,
+      child: imageAsset == null
+          ? Icon(icon, color: Colors.white, size: size * 0.5)
+          : Image.asset(imageAsset!, fit: BoxFit.cover),
     );
   }
 }
@@ -4915,7 +4894,11 @@ class _CompanionCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: kBorder)),
             child: Row(children: [
-              _CompanionOrb(color: c.color, icon: c.icon, size: 46),
+              _CompanionOrb(
+                  color: c.color,
+                  icon: c.icon,
+                  size: 46,
+                  imageAsset: c.imageAsset),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -4997,14 +4980,39 @@ class CompanionsScreen extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Opacity(
-                        opacity: unlocked ? 1 : 0.35,
-                        child: _CompanionOrb(
-                            color: c.color,
-                            icon: unlocked
-                                ? c.icon
-                                : Icons.lock_outline_rounded,
-                            size: 54),
+                      SizedBox(
+                        width: 54,
+                        height: 54,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned.fill(
+                              child: Opacity(
+                                opacity: unlocked ? 1 : 0.48,
+                                child: _CompanionOrb(
+                                    color: c.color,
+                                    icon: c.icon,
+                                    size: 54,
+                                    imageAsset: c.imageAsset),
+                              ),
+                            ),
+                            if (!unlocked)
+                              Positioned(
+                                right: -2,
+                                bottom: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: kSurfacePrimary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: kBorder),
+                                  ),
+                                  child: const Icon(Icons.lock_rounded,
+                                      size: 12, color: kTextSecondary),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 10),
                       Text(c.name,
@@ -5094,18 +5102,17 @@ Future<void> _confirmPrestige(BuildContext context) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: kCard,
-      title: const Text('Prestige?', style: TextStyle(color: kTextPrimary)),
-      content: const Text(
-          'This rebirths you to Level 1 and resets your XP, but grants a permanent ★ and +5% XP per star. Your habits, streaks, and coins are kept.',
-          style: TextStyle(color: kTextSecondary)),
+      backgroundColor: HrColors.surface,
+      title: Text('Prestige to ★${appState.prestige + 1}?', style: HrText.title2),
+      content: Text(
+          'You go back to Level 1 and your XP resets. You keep a permanent ★ and +5% XP per star. Habits, streaks and coins stay.',
+          style: HrText.bodyS),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false), child: const Text('Not yet')),
         FilledButton(
           style: FilledButton.styleFrom(
-              backgroundColor: kGold, foregroundColor: Colors.black),
+              backgroundColor: HrColors.btnPrimary, foregroundColor: HrColors.onBtnPrimary),
           onPressed: () => Navigator.pop(ctx, true),
           child: const Text('Prestige'),
         ),
@@ -5121,109 +5128,37 @@ Future<void> _confirmPrestige(BuildContext context) async {
 }
 
 void _showPrestige(BuildContext context, int prestige) {
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF3A2A08), Color(0xFF160B2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: kGold),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.auto_awesome_rounded, color: kGold, size: 46),
-            const SizedBox(height: 10),
-            const Text('PRESTIGE',
-                style: TextStyle(
-                    color: kGold,
-                    fontSize: 18,
-                    letterSpacing: 3,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('★' * prestige,
-                style: const TextStyle(color: kGold, fontSize: 26)),
-            const SizedBox(height: 8),
-            const Text('Reborn as Initiate — stronger than before.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: kTextSecondary)),
-            const SizedBox(height: 10),
-            Text(companionLine(appState.activeCompanion, 'prestige'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: kTextSecondary,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12)),
-            const SizedBox(height: 18),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: kGold, foregroundColor: Colors.black),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Rise'),
-            ),
-          ],
-        ),
-      ),
-    ),
+  final comp = companionByType(appState.activeCompanion);
+  _showMoment(
+    context,
+    label: 'Prestige',
+    labelColor: HrColors.gold,
+    emblem: CompanionSticker(
+        icon: comp.icon, color: comp.color, size: 104, semanticLabel: comp.name),
+    title: 'Reborn.  ${'★' * prestige}',
+    subtitle: 'Reborn as Initiate — stronger than before. +5% XP per star.',
+    bubble: companionLine(appState.activeCompanion, 'prestige'),
+    buttonLabel: 'Rise',
   );
 }
 
 void _showSeasonIntro(BuildContext context) {
   final s = appState.currentSeason + 1;
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0B2A4A), Color(0xFF160B2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: kCyan),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.public_rounded, color: kCyan, size: 44),
-            const SizedBox(height: 10),
-            const Text('NEW SEASON',
-                style: TextStyle(
-                    color: kCyan,
-                    fontSize: 14,
-                    letterSpacing: 3,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Season $s',
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 40,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            const Text('Four bosses fell. A new season begins.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: kTextSecondary)),
-            const SizedBox(height: 18),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: kCyan, foregroundColor: Colors.black),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Begin'),
-            ),
-          ],
-        ),
-      ),
+  _showMoment(
+    context,
+    label: 'New season',
+    labelColor: HrColors.info,
+    emblem: SegmentedRing(
+      size: 136,
+      segments: 4,
+      value: 4,
+      stroke: 9,
+      color: HrColors.info,
+      center: Text('4/4', style: HrText.stat),
     ),
+    title: 'Season $s',
+    subtitle: 'Four bosses fell. A new season begins — new boss, fresh leaderboard.',
+    buttonLabel: 'Begin',
   );
 }
 
@@ -5680,17 +5615,21 @@ Widget _youQuickCard({
   required String title,
   required String subtitle,
   required VoidCallback onTap,
+  String? imageAsset,
 }) =>
     HrCard(
       onTap: onTap,
       padding: const EdgeInsets.all(14),
       child: Row(children: [
         Container(
-          width: 36,
-          height: 36,
+          width: imageAsset == null ? 36 : 44,
+          height: imageAsset == null ? 36 : 44,
           alignment: Alignment.center,
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(shape: BoxShape.circle, color: iconColor),
-          child: Icon(icon, size: 18, color: HrColors.bg),
+          child: imageAsset == null
+              ? Icon(icon, size: 18, color: HrColors.bg)
+              : Image.asset(imageAsset, fit: BoxFit.cover),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -5781,6 +5720,7 @@ class SettingsScreen extends StatelessWidget {
                       iconColor: comp.color,
                       title: comp.name,
                       subtitle: 'Companion',
+                      imageAsset: comp.imageAsset,
                       onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const CompanionsScreen())),
                     ),
@@ -5884,29 +5824,26 @@ Future<void> _confirmReset(BuildContext context) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: kCard,
-      title: const Text('Reset all progress?',
-          style: TextStyle(color: kTextPrimary)),
-      content: const Text(
-          'This permanently clears your habits, XP, coins, streaks, nutrition, companions, prestige, and history. It cannot be undone.',
-          style: TextStyle(color: kTextSecondary)),
+      backgroundColor: HrColors.surface,
+      title: Text('Reset all progress?', style: HrText.title2),
+      content: Text(
+          'This permanently clears your habits, XP, coins, streaks, nutrition, companions, prestige and history on this device.',
+          style: HrText.bodyS),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
         FilledButton(
           style: FilledButton.styleFrom(
-              backgroundColor: kRed, foregroundColor: Colors.white),
+              backgroundColor: HrColors.danger, foregroundColor: Colors.white),
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Reset'),
+          child: const Text('Reset everything'),
         ),
       ],
     ),
   );
   if (ok == true && context.mounted) {
     appState.resetAll();
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Progress reset')));
+    hrToast(context, 'Progress reset', icon: Icons.refresh_rounded);
   }
 }
 
@@ -6237,22 +6174,9 @@ Widget _balanceHero() => Container(
         ],
       ),
       child: Row(children: [
-        Container(
-          width: 58,
-          height: 58,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-                colors: [Color(0xFFFFD873), Color(0xFFF5A623)]),
-            boxShadow: [
-              BoxShadow(
-                  color: const Color(0xFFF5A623).withValues(alpha: 0.5),
-                  blurRadius: 18),
-            ],
-          ),
-          child: const Icon(Icons.bolt, color: Color(0xFF3A2A05), size: 32),
-        ),
+        Image.asset('assets/shop/coin_stack.png',
+            width: 64, height: 64, fit: BoxFit.contain,
+            semanticLabel: 'Gold coin stack'),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -6316,6 +6240,7 @@ Widget _shopItem({
   required int cost,
   required VoidCallback? onBuy,
   String? activeLabel,
+  String? imageAsset,
 }) {
   return Container(
     margin: const EdgeInsets.symmetric(vertical: 6),
@@ -6329,6 +6254,7 @@ Widget _shopItem({
         width: 46,
         height: 46,
         alignment: Alignment.center,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           gradient: LinearGradient(
@@ -6340,7 +6266,9 @@ Widget _shopItem({
               ]),
           border: Border.all(color: color.withValues(alpha: 0.35)),
         ),
-        child: Icon(icon, color: color, size: 22),
+        child: imageAsset == null
+            ? Icon(icon, color: color, size: 22)
+            : Image.asset(imageAsset, fit: BoxFit.cover),
       ),
       const SizedBox(width: 14),
       Expanded(
@@ -6403,6 +6331,7 @@ class ShopScreen extends StatelessWidget {
               _shopItem(
                 icon: Icons.bolt_rounded,
                 color: kGold,
+                imageAsset: 'assets/powerups/xp_booster.png',
                 title: '2× XP Booster',
                 desc: appState.xpBoostActive
                     ? 'Active for the rest of today'
@@ -6420,6 +6349,7 @@ class ShopScreen extends StatelessWidget {
               _shopItem(
                 icon: Icons.shield_rounded,
                 color: kCyan,
+                imageAsset: 'assets/powerups/streak_shield.png',
                 title: 'Streak Shield',
                 desc:
                     'Saves a streak from one missed day · owned: ${appState.streakShields}',
@@ -6925,7 +6855,11 @@ class _DailyBriefingState extends State<_DailyBriefing> {
         'COACH',
         'Your coach',
         Column(children: [
-          _CompanionOrb(color: who.color, icon: who.icon, size: 56),
+          _CompanionOrb(
+              color: who.color,
+              icon: who.icon,
+              size: 56,
+              imageAsset: who.imageAsset),
           const SizedBox(height: 18),
           if (_coachLoading)
             Column(children: [
@@ -7040,7 +6974,11 @@ class _DailyBriefingState extends State<_DailyBriefing> {
         'DEPLOY',
         who.name,
         Column(children: [
-          _CompanionOrb(color: who.color, icon: who.icon, size: 60),
+          _CompanionOrb(
+              color: who.color,
+              icon: who.icon,
+              size: 60,
+              imageAsset: who.imageAsset),
           const SizedBox(height: 14),
           Text(
               '"${companionLine(appState.activeCompanion, v.score >= 90 ? 'elite_day' : 'level_up')}"',

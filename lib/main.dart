@@ -3272,8 +3272,14 @@ class _Ranked {
   final String? friendId; // null for the current user
 }
 
-class FriendsScreen extends StatelessWidget {
+class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
+  @override
+  State<FriendsScreen> createState() => _FriendsScreenState();
+}
+
+class _FriendsScreenState extends State<FriendsScreen> {
+  int _seg = 0;
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -3287,39 +3293,104 @@ class FriendsScreen extends StatelessWidget {
               f.name, f.totalXp, f.streak, f.borderId, false,
               friendId: f.id)),
         ]..sort((a, b) => b.totalXp.compareTo(a.totalXp));
-        final myRank = board.indexWhere((e) => e.isMe) + 1;
-        final suggestions = friends.suggestions();
         return Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: _titleBar('Friends'),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
-            children: [
-              _friendsRankHero(myRank, board.length),
-              const _AddFriendField(),
-              _sectionLabel('LEADERBOARD'),
-              for (int i = 0; i < board.length; i++)
-                _leaderRow(context, i + 1, board[i]),
-              _sectionLabel('YOUR FRIENDS'),
-              if (friends.friends.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: _EmptyState(
-                      emoji: '🧑‍🤝‍🧑',
-                      title: 'No friends yet',
-                      subtitle:
-                          'Add a friend by username to compare progress.'),
-                )
-              else
-                ...friends.friends.map((f) => _friendCard(context, f)),
-              if (suggestions.isNotEmpty) ...[
-                _sectionLabel('SUGGESTED'),
-                ...suggestions.map((f) => _suggestionCard(context, f)),
-              ],
-            ],
+          body: SafeArea(
+            bottom: false,
+            child: Column(children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+                child: Row(children: [
+                  Text('Friends', style: HrText.display),
+                  const Spacer(),
+                  Tooltip(
+                    message: 'Add a friend',
+                    child: Material(
+                      color: HrColors.surface2,
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => setState(() => _seg = 1),
+                        child: const SizedBox(
+                            width: 38, height: 38,
+                            child: Icon(Icons.person_add_alt_1_rounded, color: HrColors.text, size: 20)),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 10, HrSpace.gutter, 10),
+                child: HrSegmented(
+                  items: const ['Leaderboard', 'Friends'],
+                  index: _seg,
+                  onChanged: (i) => setState(() => _seg = i),
+                ),
+              ),
+              Expanded(
+                child: _seg == 0 ? _leaderboardTab(context, board) : _friendsTab(context)),
+            ]),
           ),
         );
       },
+    );
+  }
+
+  Widget _leaderboardTab(BuildContext context, List<_Ranked> board) {
+    final leader = board.first;
+    final myXp = appState.totalXp;
+    final quip = leader.isMe
+        ? "You're on top. Keep it there."
+        : '${leader.name} leads you by ${leader.totalXp - myXp} XP. Do something about it.';
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+      children: [
+        _podium(context, board),
+        const SizedBox(height: 16),
+        Center(child: SpeechBubble(quip, maxWidth: 290)),
+        const SizedBox(height: 22),
+        for (int i = 0; i < board.length; i++) _leaderRow(context, i + 1, board[i]),
+      ],
+    );
+  }
+
+  Widget _friendsTab(BuildContext context) {
+    final list = friends.friends;
+    final suggestions = friends.suggestions();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+      children: [
+        const _AddFriendField(),
+        const SizedBox(height: 16),
+        if (list.isEmpty)
+          _friendsEmpty(context)
+        else ...[
+          HrLabel('Your friends · ${list.length}'),
+          ...list.map((f) => _friendCard(context, f)),
+        ],
+        if (suggestions.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          const HrLabel('Suggested'),
+          ...suggestions.map((f) => _suggestionCard(context, f)),
+        ],
+      ],
+    );
+  }
+
+  Widget _friendsEmpty(BuildContext context) {
+    final comp = companionByType(appState.activeCompanion);
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(children: [
+        CompanionSticker(icon: comp.icon, color: comp.color, size: 72, semanticLabel: comp.name),
+        const SizedBox(height: 14),
+        const SpeechBubble('Habits are easier with witnesses.', maxWidth: 240),
+        const SizedBox(height: 20),
+        Text('No friends yet', style: HrText.title2),
+        const SizedBox(height: 6),
+        Text('Add a friend by username to compare XP and streaks.',
+            textAlign: TextAlign.center, style: HrText.bodyS),
+      ]),
     );
   }
 }
@@ -3375,96 +3446,92 @@ class _FriendAvatar extends StatelessWidget {
 Widget _youTag() => Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-          color: kPlasma.withValues(alpha: 0.25),
-          borderRadius: BorderRadius.circular(8)),
+          color: HrColors.accent.withValues(alpha: 0.22),
+          borderRadius: BorderRadius.circular(HrRadius.xs)),
       child: Text('YOU',
-          style: TextStyle(
-              color: kPlasmaGlow,
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5)),
+          style: HrText.micro.copyWith(
+              color: HrColors.accent, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
     );
 
-Widget _friendsRankHero(int rank, int total) {
-  final medal = rank == 1
-      ? '🥇'
-      : rank == 2
-          ? '🥈'
-          : rank == 3
-              ? '🥉'
-              : '#$rank';
-  return Container(
-    margin: const EdgeInsets.fromLTRB(0, 6, 0, 4),
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(20),
-      gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF301C62), Color(0xFF1A0F38)]),
-      border: Border.all(color: kBorder),
-      boxShadow: [
-        BoxShadow(
-            color: kPlasma.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 8)),
+// Top-3 podium: 2nd · 1st · 3rd, tallest in the middle.
+Widget _podium(BuildContext context, List<_Ranked> board) {
+  final top = board.take(3).toList();
+  _Ranked? at(int r) => top.length >= r ? top[r - 1] : null;
+  const order = [2, 1, 3];
+  const heights = {1: 96.0, 2: 70.0, 3: 58.0};
+  return SizedBox(
+    height: 200,
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (final r in order)
+          if (at(r) != null) Expanded(child: _podiumPillar(context, r, at(r)!, heights[r]!)),
       ],
     ),
-    child: Row(children: [
-      _Avatar(size: 54),
-      const SizedBox(width: 16),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('YOUR RANK',
-                style: TextStyle(
-                    color: kTextTertiary,
-                    fontSize: 11,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 3),
-            Text(rank == 1 ? 'Top of the board! 🎉' : "You're #$rank of $total",
-                style: GoogleFonts.spaceGrotesk(
-                    color: kTextPrimary,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800)),
-          ],
-        ),
-      ),
-      Text(medal,
-          style: GoogleFonts.spaceGrotesk(
-              color: kGold, fontSize: 24, fontWeight: FontWeight.w800)),
-    ]),
   );
+}
+
+Widget _podiumPillar(BuildContext context, int rank, _Ranked e, double height) {
+  final barColor = rank == 1
+      ? HrColors.gold
+      : rank == 2
+          ? HrColors.accent
+          : HrColors.surface3;
+  final onBar = rank == 3 ? HrColors.text : HrColors.bg;
+  final pillar = Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+    e.isMe ? _Avatar(size: 46) : _FriendAvatar(name: e.name, borderId: e.borderId, size: 46),
+    const SizedBox(height: 6),
+    Text(e.isMe ? 'You' : e.name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: HrText.caption.copyWith(color: HrColors.text, fontWeight: FontWeight.w700)),
+    const SizedBox(height: 6),
+    Container(
+      height: height,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.only(top: 10),
+      decoration: BoxDecoration(
+          color: barColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(HrRadius.sm))),
+      alignment: Alignment.topCenter,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('$rank', style: HrText.title1.copyWith(color: onBar)),
+        const SizedBox(height: 2),
+        Text('${e.totalXp}', style: HrText.micro.copyWith(color: onBar.withValues(alpha: 0.85))),
+      ]),
+    ),
+  ]);
+  return e.friendId == null
+      ? pillar
+      : GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => FriendProfileScreen(friendId: e.friendId!))),
+          child: pillar,
+        );
 }
 
 Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
   final ld = levelFromXp(e.totalXp);
-  final label = rank == 1
-      ? '🥇'
-      : rank == 2
-          ? '🥈'
-          : rank == 3
-              ? '🥉'
-              : '$rank';
   final row = Container(
-    margin: const EdgeInsets.symmetric(vertical: 4),
+    margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     decoration: BoxDecoration(
-      gradient: _kGlassSheen,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(
-          color: e.isMe ? kPlasma : kBorder, width: e.isMe ? 1.5 : 1),
+      color: e.isMe ? HrColors.accentSurface : HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: Border(
+          top: BorderSide(
+              color: e.isMe ? HrColors.accent : HrColors.hairline,
+              width: e.isMe ? 2 : 1)),
     ),
     child: Row(children: [
       SizedBox(
-        width: 26,
-        child: Text(label,
+        width: 24,
+        child: Text('$rank',
             textAlign: TextAlign.center,
-            style: GoogleFonts.spaceGrotesk(
-                color: rank <= 3 ? kGold : kTextTertiary,
-                fontSize: rank <= 3 ? 18 : 14,
+            style: HrText.body.copyWith(
+                color: rank <= 3 ? HrColors.text : HrColors.text3,
                 fontWeight: FontWeight.w800)),
       ),
       const SizedBox(width: 8),
@@ -3481,29 +3548,25 @@ Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
                 child: Text(e.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: kTextPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14)),
+                    style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
               ),
               if (e.isMe) ...[const SizedBox(width: 6), _youTag()],
             ]),
             const SizedBox(height: 2),
-            Text('Lv.${ld.level} · ${levelTitle(ld.level)}',
+            Text('Lv ${ld.level} · ${levelTitle(ld.level)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: kTextTertiary, fontSize: 11)),
+                style: HrText.caption),
           ],
         ),
       ),
       const SizedBox(width: 8),
+      if (e.streak > 0) ...[StreakPill(count: e.streak, quiet: true), const SizedBox(width: 10)],
       Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text('${e.totalXp}',
-              style: GoogleFonts.spaceGrotesk(
-                  color: kGold, fontSize: 15, fontWeight: FontWeight.w800)),
-          const Text('XP', style: TextStyle(color: kTextTertiary, fontSize: 9)),
+          Text('${e.totalXp}', style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
+          Text('XP', style: HrText.micro),
         ],
       ),
     ]),
@@ -3520,118 +3583,89 @@ Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
 
 Widget _friendCard(BuildContext context, Friend f) {
   final ld = levelFromXp(f.totalXp);
-  return GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: f.id))),
-    child: Container(
-    margin: const EdgeInsets.symmetric(vertical: 4),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      gradient: _kGlassSheen,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: kBorder),
-    ),
-    child: Row(children: [
-      _FriendAvatar(name: f.name, borderId: f.borderId, size: 46),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Flexible(
-                child: Text(f.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: kTextPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15)),
-              ),
-              if (f.prestige > 0) ...[
-                const SizedBox(width: 6),
-                Text('★${f.prestige}',
-                    style: const TextStyle(
-                        color: kGold,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
-              ],
-            ]),
-            const SizedBox(height: 2),
-            Text('@${f.username}',
-                style: TextStyle(
-                    color: kPlasmaBright,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Row(children: [
-              Text('Lv.${ld.level}',
-                  style: const TextStyle(color: kTextSecondary, fontSize: 11)),
-              const SizedBox(width: 10),
-              const Text('🔥', style: TextStyle(fontSize: 11)),
-              const SizedBox(width: 3),
-              Text('${f.streak}',
-                  style: const TextStyle(color: kTextSecondary, fontSize: 11)),
-            ]),
-          ],
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: HrCard(
+      onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: f.id))),
+      padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+      child: Row(children: [
+        _FriendAvatar(name: f.name, borderId: f.borderId, size: 46),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Flexible(
+                  child: Text(f.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+                ),
+                if (f.prestige > 0) ...[
+                  const SizedBox(width: 6),
+                  Text('★${f.prestige}',
+                      style: HrText.caption.copyWith(
+                          color: HrColors.gold, fontWeight: FontWeight.w800)),
+                ],
+              ]),
+              const SizedBox(height: 2),
+              Text('@${f.username} · Lv ${ld.level}',
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
+            ],
+          ),
         ),
-      ),
-      IconButton(
-        icon: const Icon(Icons.person_remove_rounded,
-            color: kTextTertiary, size: 20),
-        tooltip: 'Remove',
-        onPressed: () => _confirmRemoveFriend(context, f),
-      ),
-    ]),
+        const SizedBox(width: 8),
+        if (f.streak > 0) StreakPill(count: f.streak, quiet: true),
+        IconButton(
+          icon: const Icon(Icons.more_horiz_rounded, color: HrColors.text3, size: 20),
+          tooltip: 'Remove',
+          onPressed: () => _confirmRemoveFriend(context, f),
+        ),
+      ]),
     ),
   );
 }
 
 Widget _suggestionCard(BuildContext context, Friend f) {
   final ld = levelFromXp(f.totalXp);
-  return Container(
-    margin: const EdgeInsets.symmetric(vertical: 4),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      gradient: _kGlassSheen,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: kBorder),
-    ),
-    child: Row(children: [
-      _FriendAvatar(name: f.name, borderId: f.borderId, size: 42),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(f.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: kTextPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14)),
-            const SizedBox(height: 2),
-            Text('@${f.username} · Lv.${ld.level}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: kTextTertiary, fontSize: 11)),
-          ],
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: HrCard(
+      padding: const EdgeInsets.all(12),
+      child: Row(children: [
+        _FriendAvatar(name: f.name, borderId: f.borderId, size: 42),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(f.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text('@${f.username} · Lv ${ld.level}',
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
+            ],
+          ),
         ),
-      ),
-      const SizedBox(width: 8),
-      GradientButton(
-        label: 'Add',
-        expand: false,
-        height: 40,
-        onPressed: () async {
-          final err = await friends.addByUsername(f.username);
-          if (!context.mounted) return;
-          _toast(context, err ?? 'Added @${f.username}');
-        },
-      ),
-    ]),
+        const SizedBox(width: 8),
+        HrButton(
+          label: 'Add',
+          icon: Icons.add_rounded,
+          kind: HrButtonKind.secondary,
+          small: true,
+          expand: false,
+          onPressed: () async {
+            final err = await friends.addByUsername(f.username);
+            if (!context.mounted) return;
+            _toast(context, err ?? 'Added @${f.username}');
+          },
+        ),
+      ]),
+    ),
   );
 }
 
@@ -3690,26 +3724,77 @@ class _AddFriendFieldState extends State<_AddFriendField> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Row(children: [
-        Expanded(
-          child: TextField(
-            controller: _c,
-            onSubmitted: (_) => _add(),
-            textInputAction: TextInputAction.done,
-            style: const TextStyle(color: kTextPrimary),
-            decoration: const InputDecoration(
-              hintText: 'Add a friend by username',
-              prefixIcon: Icon(Icons.alternate_email_rounded, size: 18),
-            ),
+    return Row(children: [
+      Expanded(
+        child: TextField(
+          controller: _c,
+          onSubmitted: (_) => _add(),
+          textInputAction: TextInputAction.done,
+          style: HrText.body,
+          decoration: InputDecoration(
+            hintText: 'Add by username',
+            hintStyle: HrText.body.copyWith(color: HrColors.text3),
+            filled: true,
+            fillColor: HrColors.surface,
+            prefixIcon: const Icon(Icons.alternate_email_rounded, size: 18, color: HrColors.text3),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HrRadius.md),
+                borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
           ),
         ),
-        const SizedBox(width: 10),
-        GradientButton(label: 'Add', expand: false, onPressed: _add),
+      ),
+      const SizedBox(width: 10),
+      SizedBox(width: 76, child: HrButton(label: 'Add', small: true, onPressed: _add)),
+    ]);
+  }
+}
+
+Widget _profileStat(String value, String label, Color color) => Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: const Border(top: BorderSide(color: HrColors.hairline)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: HrText.stat.copyWith(color: color)),
+        const SizedBox(height: 2),
+        Text(label, style: HrText.caption),
       ]),
     );
-  }
+
+Widget _compareBar(double frac, Color color) => ClipRRect(
+      borderRadius: BorderRadius.circular(HrRadius.full),
+      child: LinearProgressIndicator(
+        value: frac.clamp(0.0, 1.0),
+        minHeight: 6,
+        backgroundColor: HrColors.surface2,
+        valueColor: AlwaysStoppedAnimation(color),
+      ),
+    );
+
+// Friend value (grey) over your value (accent), scaled to the larger of the two.
+Widget _compareRow(String label, int friendVal, int myVal) {
+  final peak = friendVal > myVal ? friendVal : myVal;
+  final denom = peak <= 0 ? 1.0 : peak.toDouble();
+  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Row(children: [
+      Expanded(child: Text(label, style: HrText.caption)),
+      Text('$friendVal', style: HrText.caption.copyWith(color: HrColors.text2, fontWeight: FontWeight.w700)),
+      Text('  vs  ', style: HrText.caption),
+      Text('$myVal', style: HrText.caption.copyWith(color: HrColors.accent, fontWeight: FontWeight.w700)),
+    ]),
+    const SizedBox(height: 6),
+    _compareBar(friendVal / denom, HrColors.text3),
+    const SizedBox(height: 5),
+    _compareBar(myVal / denom, HrColors.accent),
+  ]);
 }
 
 // Full profile / stat card for a friend (opened by tapping a friend).
@@ -3750,109 +3835,73 @@ class FriendProfileScreen extends StatelessWidget {
           backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
-            foregroundColor: kTextPrimary,
-            title: Text(f.name,
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text(f.name, style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 32),
             children: [
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF2A1458), Color(0xFF160B2E)]),
-                  border: Border.all(color: kBorder),
-                ),
-                child: Column(children: [
-                  _FriendAvatar(name: f.name, borderId: f.borderId, size: 96),
+              Column(children: [
+                _FriendAvatar(name: f.name, borderId: f.borderId, size: 96),
+                const SizedBox(height: 14),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Flexible(
+                    child: Text(f.name,
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.title1),
+                  ),
+                  if (f.prestige > 0) ...[
+                    const SizedBox(width: 8),
+                    Text('★${f.prestige}', style: HrText.title2.copyWith(color: HrColors.gold)),
+                  ],
+                ]),
+                const SizedBox(height: 4),
+                Text('@${f.username} · Lv ${ld.level} · ${levelTitle(ld.level)}',
+                    style: HrText.caption),
+              ]),
+              const SizedBox(height: 20),
+              Row(children: [
+                Expanded(child: _profileStat('${ld.level}', 'Level', HrColors.text)),
+                const SizedBox(width: 10),
+                Expanded(child: _profileStat('${f.streak}', 'Streak', HrColors.streak)),
+                const SizedBox(width: 10),
+                Expanded(child: _profileStat('#$rank', 'Rank', HrColors.accent)),
+              ]),
+              const SizedBox(height: 14),
+              HrCard(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const HrLabel('Compared to you'),
+                  _compareRow('Total XP', f.totalXp, myXp),
+                  const SizedBox(height: 12),
+                  _compareRow('Streak', f.streak, appState.bestStreak),
+                  const SizedBox(height: 12),
+                  _compareRow('Level', ld.level, levelFromXp(myXp).level),
                   const SizedBox(height: 14),
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Flexible(
-                      child: Text(f.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800)),
-                    ),
-                    if (f.prestige > 0) ...[
-                      const SizedBox(width: 8),
-                      Text('★${f.prestige}',
-                          style: const TextStyle(
-                              color: kGold,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold)),
-                    ],
-                  ]),
-                  const SizedBox(height: 3),
-                  Text('@${f.username}',
-                      style: TextStyle(
-                          color: kPlasmaBright,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                  Text('Level ${ld.level} · ${levelTitle(ld.level)}',
-                      style:
-                          const TextStyle(color: kTextTertiary, fontSize: 13)),
-                  const SizedBox(height: 20),
-                  Row(children: [
-                    _shareStat('⭐', 'Level', '${ld.level}'),
-                    _shareStat('⚡', 'Total XP', '${f.totalXp}'),
-                    _shareStat('🔥', 'Streak', '${f.streak}'),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    _shareStat('👑', 'Prestige', '${f.prestige}'),
-                    _shareStat('🏅', 'Rank', '#$rank'),
-                  ]),
+                  Text(cmp, style: HrText.bodyS),
                 ]),
               ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: _kGlassSheen,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: kBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('COMPARED TO YOU',
-                        style: TextStyle(
-                            color: kTextTertiary,
-                            fontSize: 11,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text(cmp,
-                        style: const TextStyle(
-                            color: kTextSecondary, fontSize: 13, height: 1.3)),
-                  ],
-                ),
-              ),
               const SizedBox(height: 18),
-              TextButton.icon(
+              HrButton(
+                label: 'Send a nudge',
+                icon: Icons.bolt_rounded,
+                onPressed: () => _toast(context, 'Nudged ${f.name}!'),
+              ),
+              const SizedBox(height: 10),
+              HrButton(
+                label: 'Remove friend',
+                kind: HrButtonKind.danger,
                 onPressed: () => showDialog<void>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    backgroundColor: kElevated,
-                    title: Text('Remove ${f.name}?',
-                        style: const TextStyle(color: kTextPrimary)),
+                    backgroundColor: HrColors.surface,
+                    title: Text('Remove ${f.name}?', style: HrText.title2),
                     content: Text('You can add @${f.username} again any time.',
-                        style: const TextStyle(color: kTextSecondary)),
+                        style: HrText.bodyS),
                     actions: [
                       TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel')),
+                          onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
                       FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: kRed),
+                        style: FilledButton.styleFrom(backgroundColor: HrColors.danger),
                         onPressed: () {
                           friends.remove(f.id);
                           Navigator.pop(ctx);
@@ -3863,10 +3912,6 @@ class FriendProfileScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                icon: const Icon(Icons.person_remove_rounded,
-                    size: 18, color: kRed),
-                label:
-                    const Text('Remove friend', style: TextStyle(color: kRed)),
               ),
             ],
           ),

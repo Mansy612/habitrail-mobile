@@ -5696,169 +5696,229 @@ Widget _sectionLabel(String s) => Padding(
               fontWeight: FontWeight.bold)),
     );
 
+// ── "You" hub rows (redesign) ────────────────────────────────────────────────
+class _YouRow {
+  const _YouRow(this.icon, this.title, this.subtitle, this.onTap, {this.danger = false});
+  final IconData icon;
+  final String title, subtitle;
+  final VoidCallback? onTap;
+  final bool danger;
+}
+
+Widget _youRowWidget(_YouRow r) => Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: r.onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(children: [
+            Icon(r.icon, size: 20, color: r.danger ? HrColors.dangerText : HrColors.text2),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(r.title,
+                    style: HrText.body.copyWith(
+                        color: r.danger ? HrColors.dangerText : HrColors.text,
+                        fontWeight: FontWeight.w600)),
+                if (r.subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(r.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
+                ],
+              ]),
+            ),
+            if (r.onTap != null && !r.danger)
+              const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+          ]),
+        ),
+      ),
+    );
+
+Widget _youGroup(List<_YouRow> rows) => HrCard(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(HrRadius.lg),
+        child: Column(children: [
+          for (int i = 0; i < rows.length; i++) ...[
+            if (i > 0)
+              const Divider(height: 1, thickness: 1, color: HrColors.hairline, indent: 48),
+            _youRowWidget(rows[i]),
+          ],
+        ]),
+      ),
+    );
+
+Widget _youQuickCard({
+  required IconData icon,
+  required Color iconColor,
+  required String title,
+  required String subtitle,
+  required VoidCallback onTap,
+}) =>
+    HrCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: Row(children: [
+        Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: iconColor),
+          child: Icon(icon, size: 18, color: HrColors.bg),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
+          ]),
+        ),
+      ]),
+    );
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: appState,
+      listenable: Listenable.merge([appState, auth]),
       builder: (context, _) {
         final ld = levelFromXp(appState.totalXp);
+        final authed = auth.isAuthed;
+        final u = auth.user;
+        final handle = (u != null && u.username.isNotEmpty) ? '@${u.username} · ' : '';
+        final p = appState.bodyProfile;
+        final n = appState.todayNutrition();
+        final t = appState.targets();
+        final comp = companionByType(appState.activeCompanion);
+        final bodySub = p == null
+            ? 'Set weight, height & goal'
+            : '${p.weight.round()} kg · ${p.goal[0].toUpperCase()}${p.goal.substring(1)} · ${t.calories.round()} kcal';
         return Scaffold(
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            title: Text('Settings',
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Account header
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: kBorder)),
-                child: Row(children: [
-                  GestureDetector(
-                    onTap: () => _pickProfilePhoto(context),
-                    child: Stack(children: [
-                      _Avatar(size: 58),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: kPlasma,
-                              border: Border.all(color: kCard, width: 2)),
-                          child: const Icon(Icons.camera_alt_rounded,
-                              size: 10, color: Colors.white),
-                        ),
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            bottom: false,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+              children: [
+                Row(children: [
+                  Text('You', style: HrText.display),
+                  const Spacer(),
+                  _coinChip(context),
+                ]),
+                const SizedBox(height: 16),
+                HrCard(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => authed ? const AccountScreen() : const LoginScreen())),
+                    child: Row(children: [
+                      GestureDetector(
+                        onTap: () => _pickProfilePhoto(context),
+                        child: _Avatar(size: 54),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(appState.displayName,
+                              maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.title2),
+                          const SizedBox(height: 3),
+                          Text('${handle}Lv ${ld.level} · ${levelTitle(ld.level)}',
+                              maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
+                          const SizedBox(height: 10),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(HrRadius.full),
+                            child: LinearProgressIndicator(
+                              value: ld.progress.clamp(0.0, 1.0).toDouble(),
+                              minHeight: 6,
+                              backgroundColor: HrColors.surface3,
+                              valueColor: const AlwaysStoppedAnimation(HrColors.text),
+                            ),
+                          ),
+                        ]),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.edit_rounded, color: HrColors.text3, size: 18),
+                        tooltip: 'Edit name',
+                        onPressed: () => _editName(context),
                       ),
                     ]),
                   ),
-                  const SizedBox(width: 14),
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(appState.displayName,
-                            style: const TextStyle(
-                                color: kTextPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold)),
-                        Text('Level ${ld.level} · ${levelTitle(ld.level)}',
-                            style: const TextStyle(
-                                color: kTextTertiary, fontSize: 12)),
-                        const SizedBox(height: 6),
-                        GestureDetector(
-                          onTap: () => _pickProfilePhoto(context),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(Icons.camera_alt_rounded,
-                                size: 13, color: kPlasmaBright),
-                            const SizedBox(width: 4),
-                            Text('Change photo',
-                                style: TextStyle(
-                                    color: kPlasmaBright,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600)),
-                          ]),
-                        ),
-                      ],
+                    child: _youQuickCard(
+                      icon: comp.icon,
+                      iconColor: comp.color,
+                      title: comp.name,
+                      subtitle: 'Companion',
+                      onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const CompanionsScreen())),
                     ),
                   ),
-                  IconButton(
-                      icon: Icon(Icons.edit,
-                          color: kPlasmaBright, size: 18),
-                      onPressed: () => _editName(context)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _youQuickCard(
+                      icon: Icons.monetization_on_rounded,
+                      iconColor: HrColors.gold,
+                      title: 'Shop',
+                      subtitle: '${appState.coins} coins',
+                      onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const ShopScreen())),
+                    ),
+                  ),
                 ]),
-              ),
-              _sectionLabel('ACCOUNT'),
-              ListenableBuilder(
-                listenable: auth,
-                builder: (context, _) {
-                  final authed = auth.isAuthed;
-                  final u = auth.user;
-                  return _settingsTile(
+                const SizedBox(height: 18),
+                const HrLabel('Account'),
+                _youGroup([
+                  _YouRow(
                     authed ? Icons.person_rounded : Icons.login_rounded,
                     authed ? 'Account' : 'Sign in or create account',
                     authed
-                        ? (auth.isRemote
-                            ? 'Signed in · ${u?.email ?? ''}'
-                            : '${u?.email ?? ''} · on this device')
-                        : 'Back up your progress & sync devices',
+                        ? (u?.email ?? 'Manage your account')
+                        : 'Back up progress & sync devices',
                     () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) =>
-                            authed ? const AccountScreen() : const LoginScreen())),
-                  );
-                },
-              ),
-              _sectionLabel('PREFERENCES'),
-              _settingsTile(
-                  Icons.palette_rounded,
-                  'Appearance',
-                  'Pick an accent theme',
-                  () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const AppearanceScreen()))),
-              _settingsTile(
-                  Icons.person_rounded,
-                  'Body profile',
-                  'Weight, height, goal → nutrition targets',
-                  () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const BodyProfileScreen()))),
-              _settingsTile(
-                  Icons.pets_rounded,
-                  'Companion',
-                  'Choose your active companion',
-                  () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const CompanionsScreen()))),
-              _settingsTile(
-                  Icons.auto_awesome_rounded,
-                  'AI difficulty',
-                  appState.aiEnabled
-                      ? 'Ollama rates new habits · ${appState.aiModel}'
-                      : 'Off — using the built-in estimate',
-                  () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const AiSettingsScreen()))),
-              _sectionLabel('DATA'),
-              _settingsTile(Icons.refresh_rounded, 'Reset all progress',
-                  'Wipe habits, XP, and history',
-                  () => _confirmReset(context),
-                  danger: true),
-              ListenableBuilder(
-                listenable: auth,
-                builder: (context, _) {
-                  if (!auth.isAuthed) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                          backgroundColor: kElevated,
-                          foregroundColor: kRed,
-                          minimumSize: const Size.fromHeight(50)),
-                      onPressed: () async {
-                        await auth.signOut();
-                        if (context.mounted) {
-                          Navigator.of(context).popUntil((r) => r.isFirst);
-                        }
-                      },
-                      icon: const Icon(Icons.logout_rounded, size: 18),
-                      label: const Text('Log out'),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-              const Center(
-                child: Text('Habitrail · v1.0.0\nRebuilt from the Habitrail web app',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: kTextTertiary, fontSize: 11)),
-              ),
-            ],
+                        builder: (_) => authed ? const AccountScreen() : const LoginScreen())),
+                  ),
+                  _YouRow(Icons.ios_share_rounded, 'Share progress', 'Level · streak · score',
+                      () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const ShareCardScreen()))),
+                ]),
+                const SizedBox(height: 18),
+                const HrLabel('Preferences'),
+                _youGroup([
+                  _YouRow(Icons.palette_rounded, 'Appearance', 'Rings, checks & progress colour',
+                      () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const AppearanceScreen()))),
+                  _YouRow(Icons.monitor_heart_rounded, 'Body profile', bodySub,
+                      () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const BodyProfileScreen()))),
+                  _YouRow(Icons.restaurant_rounded, 'Nutrition',
+                      '${n.calories.round()} / ${t.calories.round()} kcal today',
+                      () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const NutritionScreen()))),
+                  _YouRow(Icons.auto_awesome_rounded, 'AI difficulty',
+                      appState.aiEnabled ? 'Ollama · ${appState.aiModel}' : 'Built-in estimate',
+                      () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const AiSettingsScreen()))),
+                ]),
+                const SizedBox(height: 18),
+                const HrLabel('Data'),
+                _youGroup([
+                  _YouRow(Icons.refresh_rounded, 'Reset all progress', 'Wipe habits, XP & history',
+                      () => _confirmReset(context), danger: true),
+                  if (authed)
+                    _YouRow(Icons.logout_rounded, 'Log out', '', () async {
+                      await auth.signOut();
+                      if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+                    }, danger: true),
+                ]),
+                const SizedBox(height: 22),
+                Center(child: Text('Habitrail · v1.0.0', style: HrText.caption)),
+              ],
+            ),
           ),
         );
       },

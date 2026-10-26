@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:ui' show ImageFilter, MaskFilter, BlurStyle, ImageByteFormat;
+import 'dart:ui' show MaskFilter, BlurStyle, ImageByteFormat;
+
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -13,11 +14,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+
 import 'core.dart';
 import 'ai.dart';
 import 'auth.dart';
 import 'backend.dart';
 import 'friends.dart';
+import 'ui/hr_tokens.dart';
+import 'ui/hr_theme.dart';
+import 'ui/hr_widgets.dart';
 
 /// Single shared state object for the whole app (loads immediately).
 // Loaded eagerly in main() before the app renders — see main(). (Must NOT
@@ -26,106 +31,8 @@ import 'friends.dart';
 // and clobber it with the old saved state.)
 final appState = AppState();
 
-// ── Living background — drifting particles + ambient glow (the web's
-//    ParticleUniverse / "every screen is a place" atmosphere). ───────────────
-class _Particle {
-  _Particle(this.x, this.y, this.r, this.speed, this.phase);
-  double x, y, r, speed, phase;
-}
-
-class _ParticleBackground extends StatefulWidget {
-  const _ParticleBackground();
-  @override
-  State<_ParticleBackground> createState() => _ParticleBackgroundState();
-}
-
-class _ParticleBackgroundState extends State<_ParticleBackground>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-  final List<_Particle> _particles = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(seconds: 24))
-      ..repeat();
-    final r = Random(7);
-    for (int i = 0; i < 46; i++) {
-      _particles.add(_Particle(r.nextDouble(), r.nextDouble(),
-          1 + r.nextDouble() * 2.2, 0.3 + r.nextDouble() * 0.9, r.nextDouble()));
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, _) => CustomPaint(
-        painter: _ParticlePainter(_particles, _c.value),
-        size: Size.infinite,
-      ),
-    );
-  }
-}
-
-class _ParticlePainter extends CustomPainter {
-  _ParticlePainter(this.particles, this.t);
-  final List<_Particle> particles;
-  final double t;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    // Base radial gradient (violet haze over the deep base).
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(0.6, -0.9),
-          radius: 1.3,
-          colors: [Color(0xFF1C0B38), kBase],
-        ).createShader(rect),
-    );
-    // Soft ambient orbs.
-    void orb(Offset c, double rad, Color col) {
-      canvas.drawCircle(
-        c,
-        rad,
-        Paint()
-          ..shader = RadialGradient(
-            colors: [col, col.withValues(alpha: 0)],
-          ).createShader(Rect.fromCircle(center: c, radius: rad)),
-      );
-    }
-
-    orb(Offset(size.width * 0.82, size.height * 0.08), 200,
-        kPlasma.withValues(alpha: 0.12));
-    orb(Offset(size.width * 0.08, size.height * 0.5), 180,
-        kBlue.withValues(alpha: 0.10));
-    orb(Offset(size.width * 0.6, size.height * 1.02), 220,
-        kCyan.withValues(alpha: 0.07));
-    // Drifting particles.
-    final p = Paint();
-    for (final part in particles) {
-      double yy = (part.y - t * part.speed) % 1.0;
-      if (yy < 0) yy += 1;
-      final y = yy * size.height;
-      final x = part.x * size.width + sin((t + part.phase) * 2 * pi) * 7;
-      final tw = 0.5 + 0.5 * sin((part.phase + t) * 2 * pi);
-      p.color = kPlasmaGlow.withValues(alpha: (0.15 + 0.45 * tw).clamp(0.0, 1.0));
-      canvas.drawCircle(Offset(x, y), part.r, p);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ParticlePainter old) => old.t != t;
-}
+// The animated particle background was removed in the redesign — the ground is
+// a static black (HrColors.bg). See docs/design/.
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -161,12 +68,12 @@ void main() async {
 // and reload friends after a sign-in so the leaderboard reflects real data.
 void _startBackendSync() {
   void push() => pushProfileStats(
-        totalXp: appState.totalXp,
-        streak: appState.bestStreak,
-        prestige: appState.prestige,
-        borderId: appState.selectedBorder,
-        name: appState.displayName,
-      );
+    totalXp: appState.totalXp,
+    streak: appState.bestStreak,
+    prestige: appState.prestige,
+    borderId: appState.selectedBorder,
+    name: appState.displayName,
+  );
   push();
   Timer? debounce;
   appState.addListener(() {
@@ -186,89 +93,23 @@ class HabitrailApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = ThemeData(brightness: Brightness.dark);
     return MaterialApp(
       title: 'Habitrail',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme:
-            ColorScheme.fromSeed(seedColor: kPlasma, brightness: Brightness.dark),
-        scaffoldBackgroundColor: Colors.transparent,
-        textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
-            .apply(bodyColor: kTextPrimary, displayColor: kTextPrimary),
-        splashColor: kPlasma.withValues(alpha: 0.12),
-        highlightColor: kPlasma.withValues(alpha: 0.06),
-        // Short, consistent transitions keep navigation feeling light.
-        pageTransitionsTheme: const PageTransitionsTheme(builders: {
-          TargetPlatform.android: _FadeSlidePageTransitionsBuilder(),
-          TargetPlatform.iOS: _FadeSlidePageTransitionsBuilder(),
-          TargetPlatform.macOS: _FadeSlidePageTransitionsBuilder(),
-          TargetPlatform.windows: _FadeSlidePageTransitionsBuilder(),
-          TargetPlatform.linux: _FadeSlidePageTransitionsBuilder(),
-        }),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: false,
-        ),
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: kElevated,
-          contentTextStyle: const TextStyle(color: kTextPrimary),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          insetPadding: const EdgeInsets.all(16),
-        ),
-        dialogTheme: DialogThemeData(
-          backgroundColor: kCard,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        ),
-        bottomSheetTheme: const BottomSheetThemeData(
-          backgroundColor: kCard,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: kElevated,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          hintStyle: const TextStyle(color: kTextTertiary),
-          labelStyle: const TextStyle(color: kTextTertiary),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kBorder)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kPlasma, width: 1.5)),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: kBorder)),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: kPlasma,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
-            textStyle:
-                GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(foregroundColor: kPlasmaBright),
+      theme: hrTheme().copyWith(
+        // Keep the fade + 3.5% slide page transition from the old theme.
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.iOS: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.macOS: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.windows: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.linux: _FadeSlidePageTransitionsBuilder(),
+          },
         ),
       ),
-      // One cosmic background behind every screen so glass surfaces read.
-      builder: (context, child) => Stack(
-        children: [
-          const Positioned.fill(child: _ParticleBackground()),
-          if (child != null) Positioned.fill(child: child),
-        ],
-      ),
+      // Static black ground (the animated particle background was removed).
+      builder: (context, child) => ColoredBox(color: HrColors.bg, child: child),
       home: const AuthGate(),
     );
   }
@@ -293,8 +134,10 @@ class _FadeSlidePageTransitionsBuilder extends PageTransitionsBuilder {
     return FadeTransition(
       opacity: eased,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0.035, 0), end: Offset.zero)
-            .animate(eased),
+        position: Tween<Offset>(
+          begin: const Offset(0.035, 0),
+          end: Offset.zero,
+        ).animate(eased),
         child: child,
       ),
     );
@@ -323,7 +166,8 @@ class _AuthGateState extends State<AuthGate> {
         if (auth.status == AuthStatus.unknown) {
           return Scaffold(
             body: Center(
-                child: CircularProgressIndicator(color: kPlasmaBright)),
+              child: CircularProgressIndicator(color: kPlasmaBright),
+            ),
           );
         }
         final enter = auth.status == AuthStatus.signedIn || auth.guest;
@@ -338,10 +182,17 @@ class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
   @override
   Widget build(BuildContext context) {
+    final comp = companionByType(appState.activeCompanion);
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 12, 28, 24),
+          padding: const EdgeInsets.fromLTRB(
+            HrSpace.gutter,
+            12,
+            HrSpace.gutter,
+            24,
+          ),
           child: Column(
             children: [
               Expanded(
@@ -349,81 +200,59 @@ class WelcomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 36),
                       Center(
-                        child: Container(
-                          width: 104,
-                          height: 104,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: _kAccentGradient),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: kPlasma.withValues(alpha: 0.5),
-                                  blurRadius: 40,
-                                  spreadRadius: 2),
-                            ],
-                          ),
-                          child:
-                              const Text('🔥', style: TextStyle(fontSize: 50)),
+                        child: CompanionSticker(
+                          icon: comp.icon,
+                          color: comp.color,
+                          size: 104,
+                          semanticLabel: comp.name,
+                          imageAsset: comp.imageAsset,
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Text('Habitrail',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.spaceGrotesk(
-                              color: kTextPrimary,
-                              fontSize: 42,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 10),
-                      const Text('Build habits. Earn XP. Level up your life.',
-                          textAlign: TextAlign.center,
-                          style:
-                              TextStyle(color: kTextSecondary, fontSize: 15)),
-                      const SizedBox(height: 28),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: glassDecoration(radius: 18),
-                        child: Column(children: [
-                          _welcomeFeature('⚡', 'Earn XP & level up',
-                              'Check off habits, build streaks and combos.'),
-                          _welcomeFeature(
-                              '🏆',
-                              'Quests, bosses & Victory Score',
-                              'Daily quests, a weekly boss, and a score to beat.'),
-                          _welcomeFeature('🐾', 'Companions & rewards',
-                              'Adopt companions and spend coins in the shop.'),
-                        ]),
+                      const SizedBox(height: 16),
+                      const Center(
+                        child: SpeechBubble(
+                          "Five habits. Every day. I'm watching.",
+                          maxWidth: 260,
+                        ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 36),
+                      Text(
+                        'Build habits.\nEarn XP.\nLevel up your life.',
+                        style: HrText.displayXl,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Check off up to five habits a day, keep the streak alive, and let your companion keep you honest.',
+                        style: HrText.bodyS,
+                      ),
+                      const SizedBox(height: 28),
                     ],
                   ),
                 ),
               ),
-              GradientButton(
+              HrButton(
                 label: 'Create account',
-                onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SignUpScreen())),
+                onPressed: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const SignUpScreen())),
               ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    foregroundColor: kPlasmaBright,
-                    side: BorderSide(color: kPlasma.withValues(alpha: 0.5))),
-                onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const LoginScreen())),
-                child: const Text('Log in'),
+              const SizedBox(height: 10),
+              HrButton(
+                label: 'Log in',
+                kind: HrButtonKind.secondary,
+                onPressed: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const LoginScreen())),
               ),
               const SizedBox(height: 6),
               TextButton(
                 onPressed: () => auth.continueAsGuest(),
-                child: const Text('Continue without an account',
-                    style: TextStyle(color: kTextTertiary)),
+                child: Text(
+                  'Continue without an account',
+                  style: HrText.caption,
+                ),
               ),
             ],
           ),
@@ -432,47 +261,6 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 }
-
-// A feature highlight row on the welcome screen (emoji badge + title + blurb).
-Widget _welcomeFeature(String emoji, String title, String subtitle) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      child: Row(children: [
-        Container(
-          width: 44,
-          height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  kPlasma.withValues(alpha: 0.30),
-                  kCyan.withValues(alpha: 0.18)
-                ]),
-            border: Border.all(color: kBorder),
-          ),
-          child: Text(emoji, style: const TextStyle(fontSize: 20)),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: const TextStyle(
-                      color: kTextPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 2),
-              Text(subtitle,
-                  style: const TextStyle(
-                      color: kTextTertiary, fontSize: 12, height: 1.3)),
-            ],
-          ),
-        ),
-      ]),
-    );
 
 // ── Sign up ──────────────────────────────────────────────────────────────────
 class SignUpScreen extends StatefulWidget {
@@ -530,39 +318,55 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final u = _username.text.trim();
     if (u.isEmpty) return const SizedBox.shrink();
     if (!isValidUsername(u)) {
-      return _unameStatusLine(kTextTertiary, Icons.info_outline_rounded,
-          '3–20 letters, numbers, or underscores');
+      return _unameStatusLine(
+        HrColors.text3,
+        Icons.info_outline_rounded,
+        '3–20 letters, numbers, or underscores',
+      );
     }
     if (_unameChecking) {
-      return const Padding(
-        padding: EdgeInsets.only(left: 4, bottom: 10),
-        child: Row(children: [
-          SizedBox(
+      return Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 10),
+        child: Row(
+          children: [
+            const SizedBox(
               width: 12,
               height: 12,
-              child: CircularProgressIndicator(strokeWidth: 2)),
-          SizedBox(width: 8),
-          Text('Checking…', style: TextStyle(color: kTextTertiary, fontSize: 12)),
-        ]),
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 8),
+            Text('Checking…', style: HrText.caption),
+          ],
+        ),
       );
     }
     if (_unameAvailable == true) {
-      return _unameStatusLine(kGreen, Icons.check_circle_rounded, 'Available');
+      return _unameStatusLine(
+        HrColors.accent,
+        Icons.check_circle_rounded,
+        'Available',
+      );
     }
     if (_unameAvailable == false) {
-      return _unameStatusLine(kRed, Icons.cancel_rounded, 'Unavailable');
+      return _unameStatusLine(
+        HrColors.dangerText,
+        Icons.cancel_rounded,
+        'Unavailable',
+      );
     }
     return const SizedBox.shrink();
   }
 
   Widget _unameStatusLine(Color c, IconData icon, String text) => Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 10),
-        child: Row(children: [
-          Icon(icon, size: 14, color: c),
-          const SizedBox(width: 6),
-          Text(text, style: TextStyle(color: c, fontSize: 12)),
-        ]),
-      );
+    padding: const EdgeInsets.only(left: 4, bottom: 10),
+    child: Row(
+      children: [
+        Icon(icon, size: 14, color: c),
+        const SizedBox(width: 6),
+        Text(text, style: HrText.caption.copyWith(color: c)),
+      ],
+    ),
+  );
 
   Future<void> _submit() async {
     setState(() {
@@ -577,7 +381,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // then introduce the app with the onboarding flow.
       appState.startFreshForAccount(auth.user?.name ?? '');
       Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const OnboardingQuizScreen()));
+        MaterialPageRoute(builder: (_) => const OnboardingQuizScreen()),
+      );
     } else {
       setState(() => _error = err);
     }
@@ -590,13 +395,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
       title: 'Create account',
       subtitle: 'Start earning XP for your habits.',
       children: [
-        _authField(_username, 'Username',
-            hint: 'e.g. sam_92', onChanged: _onUsernameChanged),
+        _authField(
+          _username,
+          'Username',
+          hint: 'e.g. sam_92',
+          onChanged: _onUsernameChanged,
+        ),
         _usernameStatus(),
-        _authField(_email, 'Email',
-            keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
-        _authField(_pw, 'Password',
-            obscure: true, hint: 'At least 6 characters'),
+        _authField(
+          _email,
+          'Email',
+          keyboard: TextInputType.emailAddress,
+          hint: 'you@example.com',
+        ),
+        _authField(
+          _pw,
+          'Password',
+          obscure: true,
+          hint: 'At least 6 characters',
+        ),
         if (_error != null) _authError(_error!),
         const SizedBox(height: 4),
         _authSubmit('Create account', _busy, _submit),
@@ -607,10 +424,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const SizedBox(height: 16),
         Center(
           child: TextButton(
-            onPressed: () => Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (_) => const LoginScreen())),
-            child: Text('Already have an account? Log in',
-                style: TextStyle(color: kPlasmaBright)),
+            onPressed: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+            ),
+            child: Text(
+              'Already have an account? Log in',
+              style: HrText.bodyS.copyWith(
+                color: HrColors.text,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
         _authNote(),
@@ -663,8 +487,12 @@ class _LoginScreenState extends State<LoginScreen> {
       title: 'Welcome back',
       subtitle: 'Log in to pick up where you left off.',
       children: [
-        _authField(_email, 'Email',
-            keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
+        _authField(
+          _email,
+          'Email',
+          keyboard: TextInputType.emailAddress,
+          hint: 'you@example.com',
+        ),
         _authField(_pw, 'Password', obscure: true, hint: 'Your password'),
         if (_error != null) _authError(_error!),
         const SizedBox(height: 4),
@@ -676,10 +504,17 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 16),
         Center(
           child: TextButton(
-            onPressed: () => Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (_) => const SignUpScreen())),
-            child: Text("New here? Create an account",
-                style: TextStyle(color: kPlasmaBright)),
+            onPressed: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SignUpScreen()),
+            ),
+            child: Text(
+              'New here? Create an account',
+              style: HrText.bodyS.copyWith(
+                color: HrColors.text,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
         _authNote(),
@@ -700,99 +535,127 @@ class AccountScreen extends StatelessWidget {
         if (u == null) return const SizedBox.shrink();
         final ld = levelFromXp(appState.totalXp);
         return Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
-            foregroundColor: kTextPrimary,
-            title: Text('Account',
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Account', style: HrText.title2),
           ),
-          body: ListView(padding: const EdgeInsets.all(16), children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                  gradient: _kGlassSheen,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: kBorder)),
-              child: Column(children: [
-                GestureDetector(
-                  onTap: () => _pickProfilePhoto(context),
-                  child: Stack(children: [
-                    _Avatar(size: 76),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: kPlasma,
-                            border: Border.all(color: kCard, width: 2)),
-                        child: const Icon(Icons.camera_alt_rounded,
-                            size: 12, color: Colors.white),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              24,
+            ),
+            children: [
+              HrCard(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _pickProfilePhoto(context),
+                      child: Stack(
+                        children: [
+                          _Avatar(size: 76),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: HrColors.accent,
+                                border: Border.all(
+                                  color: HrColors.surface,
+                                  width: 2,
+                              ),
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_rounded,
+                                size: 12,
+                                color: HrColors.bg,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ]),
+                    const SizedBox(height: 10),
+                    _photoActions(context),
+                    const SizedBox(height: 12),
+                    Text(u.name, style: HrText.title1),
+                    const SizedBox(height: 2),
+                    Text(u.email, style: HrText.caption),
+                    if (u.username.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '@${u.username}',
+                        style: HrText.caption.copyWith(
+                          color: HrColors.text2,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    if (_memberSince(u.createdAt).isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(_memberSince(u.createdAt), style: HrText.micro),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 10),
-                _photoActions(context),
-                const SizedBox(height: 12),
-                Text(u.name,
-                    style: const TextStyle(
-                        color: kTextPrimary,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 2),
-                Text(u.email,
-                    style: const TextStyle(color: kTextTertiary, fontSize: 13)),
-                if (u.username.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text('@${u.username}',
-                      style: TextStyle(
-                          color: kPlasmaBright,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(height: 4),
+              _sectionLabel('LIFETIME'),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _statChip('Level', '${ld.level}'),
+                  _statChip('Total XP', '${appState.totalXp}'),
+                  _statChip('Best streak', '${appState.bestStreak}'),
+                  _statChip('Habits', '${appState.habits.length}'),
+                  _statChip('Prestige', '${appState.prestige}'),
                 ],
-                if (_memberSince(u.createdAt).isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(_memberSince(u.createdAt),
-                      style:
-                          const TextStyle(color: kTextTertiary, fontSize: 11)),
-                ],
-              ]),
-            ),
-            const SizedBox(height: 4),
-            _sectionLabel('LIFETIME'),
-            Wrap(spacing: 10, runSpacing: 10, children: [
-              _statChip('Level', '${ld.level}'),
-              _statChip('Total XP', '${appState.totalXp}'),
-              _statChip('Best streak', '${appState.bestStreak}'),
-              _statChip('Habits', '${appState.habits.length}'),
-              _statChip('Prestige', '${appState.prestige}'),
-            ]),
-            const SizedBox(height: 16),
-            GradientButton(
-              label: 'Share my progress',
-              icon: Icons.ios_share_rounded,
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const ShareCardScreen())),
-            ),
-            const SizedBox(height: 4),
-            _sectionLabel('ACCOUNT'),
-            _settingsTile(Icons.edit_rounded, 'Edit name', u.name,
-                () => _editAccountName(context)),
-            if (!auth.isRemote)
-              _settingsTile(Icons.cloud_off_rounded, 'Cloud sync',
-                  'On this device for now — Supabase wires in later', null),
-            const SizedBox(height: 10),
-            TextButton.icon(
-              onPressed: () => _confirmDeleteAccount(context),
-              icon: const Icon(Icons.delete_forever_rounded,
-                  size: 18, color: kRed),
-              label:
-                  const Text('Delete account', style: TextStyle(color: kRed)),
-            ),
-          ]),
+              ),
+              const SizedBox(height: 16),
+              HrButton(
+                label: 'Share my progress',
+                icon: Icons.ios_share_rounded,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ShareCardScreen()),
+                ),
+              ),
+              const SizedBox(height: 4),
+              _sectionLabel('ACCOUNT'),
+              _settingsTile(
+                Icons.edit_rounded,
+                'Edit name',
+                u.name,
+                () => _editAccountName(context),
+              ),
+              if (!auth.isRemote)
+                _settingsTile(
+                  Icons.cloud_off_rounded,
+                  'Cloud sync',
+                  'On this device for now — Supabase wires in later',
+                  null,
+                ),
+              const SizedBox(height: 10),
+              TextButton.icon(
+                onPressed: () => _confirmDeleteAccount(context),
+                icon: const Icon(
+                  Icons.delete_forever_rounded,
+                  size: 18,
+                  color: HrColors.dangerText,
+                ),
+                label: Text(
+                  'Delete account',
+                  style: HrText.body.copyWith(color: HrColors.dangerText),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -801,8 +664,8 @@ class AccountScreen extends StatelessWidget {
 
 // ── Onboarding (first run, right after creating an account) ─────────────────
 class _OnbSlide {
-  const _OnbSlide(this.emoji, this.title, this.body, this.accent);
-  final String emoji;
+  const _OnbSlide(this.imageAsset, this.title, this.body, this.accent);
+  final String imageAsset;
   final String title;
   final String body;
   final Color accent;
@@ -810,25 +673,29 @@ class _OnbSlide {
 
 const _onbSlides = [
   _OnbSlide(
-      '🔥',
-      'Welcome to Habitrail',
-      'Turn your daily habits into a game you actually want to play.',
-      Color(0xFFFF8A4C)),
+    'assets/onboarding/welcome.png',
+    'Welcome to Habitrail',
+    'Turn your daily habits into a game you actually want to play.',
+    Color(0xFFFF8A4C),
+  ),
   _OnbSlide(
-      '⚡',
-      'Earn XP, level up',
-      'Every habit you check off earns XP. Build streaks and combos for big multipliers, and climb from Level 1 to God-Tier.',
-      Color(0xFF3DE7FF)),
+    'assets/onboarding/xp.png',
+    'Earn XP, level up',
+    'Every habit you check off earns XP. Build streaks and combos for big multipliers, and climb from Level 1 to God-Tier.',
+    Color(0xFF3DE7FF),
+  ),
   _OnbSlide(
-      '🏆',
-      'Quests, bosses & Victory Score',
-      'Take on daily quests, defeat the weekly boss, and track each day with a 4-pillar Victory Score.',
-      Color(0xFFFFD23F)),
+    'assets/onboarding/quests.png',
+    'Quests, bosses & Victory Score',
+    'Take on daily quests, defeat the weekly boss, and track each day with a 4-pillar Victory Score.',
+    Color(0xFFFFD23F),
+  ),
   _OnbSlide(
-      '🐾',
-      'Companions & more',
-      'Adopt a companion, log nutrition, prestige, and make every single day count.',
-      Color(0xFF4ADE80)),
+    'assets/onboarding/companions.png',
+    'Companions & more',
+    'Adopt a companion, log nutrition, prestige, and make every single day count.',
+    Color(0xFF4ADE80),
+  ),
 ];
 
 class OnboardingScreen extends StatefulWidget {
@@ -854,7 +721,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _finish();
     } else {
       _pc.nextPage(
-          duration: const Duration(milliseconds: 280), curve: Curves.easeOut);
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -862,15 +731,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final last = _page == _onbSlides.length - 1;
     return Scaffold(
-      body: Stack(children: [
-        SafeArea(
-          child: Column(children: [
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Column(
+          children: [
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: _finish,
-                child:
-                    const Text('Skip', style: TextStyle(color: kTextTertiary)),
+                child: Text('Skip', style: HrText.caption),
               ),
             ),
             Expanded(
@@ -889,38 +758,33 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           width: 128,
                           height: 128,
                           alignment: Alignment.center,
+                          clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: RadialGradient(colors: [
-                              s.accent.withValues(alpha: 0.35),
-                              s.accent.withValues(alpha: 0.04)
-                            ]),
+                            color: HrColors.surface,
                             border: Border.all(
-                                color: s.accent.withValues(alpha: 0.45)),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: s.accent.withValues(alpha: 0.3),
-                                  blurRadius: 44,
-                                  spreadRadius: 4)
-                            ],
+                              color: HrColors.accent,
+                              width: 2,
                           ),
-                          child: Text(s.emoji,
-                              style: const TextStyle(fontSize: 60)),
+                          ),
+                          child: Image.asset(
+                            s.imageAsset,
+                            fit: BoxFit.cover,
+                            semanticLabel: s.title,
+                          ),
                         ),
                         const SizedBox(height: 32),
-                        Text(s.title,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.spaceGrotesk(
-                                color: kTextPrimary,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w800)),
+                        Text(
+                          s.title,
+                          textAlign: TextAlign.center,
+                          style: HrText.display,
+                        ),
                         const SizedBox(height: 14),
-                        Text(s.body,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: kTextSecondary,
-                                fontSize: 15,
-                                height: 1.5)),
+                        Text(
+                          s.body,
+                          textAlign: TextAlign.center,
+                          style: HrText.bodyS.copyWith(height: 1.5),
+                        ),
                       ],
                     ),
                   );
@@ -937,21 +801,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   width: on ? 22 : 8,
                   height: 8,
                   decoration: BoxDecoration(
-                      color: on ? _onbSlides[_page].accent : kBorder,
-                      borderRadius: BorderRadius.circular(4)),
+                    color: on ? HrColors.accent : HrColors.surface3,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 );
               }),
             ),
             Padding(
               padding: const EdgeInsets.all(28),
-              child: GradientButton(
+              child: HrButton(
                 label: last ? 'Get started' : 'Next',
                 onPressed: _next,
               ),
             ),
-          ]),
+          ],
         ),
-      ]),
+      ),
     );
   }
 }
@@ -1018,13 +883,16 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     final h = double.tryParse(_height.text.trim()) ?? 0;
     final w = double.tryParse(_weight.text.trim()) ?? 0;
     if (a > 0 && h > 0 && w > 0) {
-      appState.setBodyProfile(BodyProfile(
+      appState.setBodyProfile(
+        BodyProfile(
           weight: w,
           height: h,
           age: a,
           gender: _gender,
           activity: _activity,
-          goal: _goal));
+          goal: _goal,
+        ),
+      );
     }
     appState.seedHabitsForAreas(_areas);
     Navigator.of(context).popUntil((r) => r.isFirst);
@@ -1035,7 +903,9 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
       _finish();
     } else {
       _pc.nextPage(
-          duration: const Duration(milliseconds: 260), curve: Curves.easeOut);
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -1044,100 +914,101 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     final last = _page == _last;
     return Scaffold(
       body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-            child: Row(children: [
-              SizedBox(
-                width: 44,
-                child: _page > 0
-                    ? IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded,
-                            color: kTextTertiary),
-                        onPressed: () => _pc.previousPage(
-                            duration: const Duration(milliseconds: 240),
-                            curve: Curves.easeOut))
-                    : null,
-              ),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: (_page + 1) / (_last + 1),
-                    minHeight: 6,
-                    backgroundColor: kBorder,
-                    valueColor: AlwaysStoppedAnimation(kPlasma),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 44,
+                    child: _page > 0
+                        ? IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back_rounded,
+                              color: HrColors.text2,
+                            ),
+                            onPressed: () => _pc.previousPage(
+                              duration: const Duration(milliseconds: 240),
+                              curve: Curves.easeOut,
+                            ),
+                          )
+                        : null,
                   ),
-                ),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(HrRadius.full),
+                      child: LinearProgressIndicator(
+                        value: (_page + 1) / (_last + 1),
+                        minHeight: 6,
+                        backgroundColor: HrColors.surface3,
+                        valueColor: const AlwaysStoppedAnimation(HrColors.text),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 54,
+                    child: last
+                        ? null
+                        : TextButton(
+                            onPressed: _skip,
+                            child: Text('Skip', style: HrText.caption),
+                          ),
+                  ),
+                ],
               ),
-              SizedBox(
-                width: 54,
-                child: last
-                    ? null
-                    : TextButton(
-                        onPressed: _skip,
-                        child: const Text('Skip',
-                            style: TextStyle(color: kTextTertiary))),
+            ),
+            Expanded(
+              child: PageView(
+                controller: _pc,
+                physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: (i) => setState(() => _page = i),
+                children: [
+                  _areasPage(),
+                  _genderPage(),
+                  _agePage(),
+                  _bodyPage(),
+                  _activityPage(),
+                  _goalPage(),
+                  _summaryPage(),
+                ],
               ),
-            ]),
-          ),
-          Expanded(
-            child: PageView(
-              controller: _pc,
-              physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (i) => setState(() => _page = i),
-              children: [
-                _areasPage(),
-                _genderPage(),
-                _agePage(),
-                _bodyPage(),
-                _activityPage(),
-                _goalPage(),
-                _summaryPage(),
-              ],
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: GradientButton(
-              label: last ? "Let's go!" : 'Continue',
-              onPressed: _canAdvance ? _next : null,
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: HrButton(
+                label: last ? "Let's go" : 'Continue',
+                onPressed: _canAdvance ? _next : null,
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
 
   Widget _quizPage(String title, String? subtitle, Widget content) => ListView(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-        children: [
-          Text(title,
-              style: GoogleFonts.spaceGrotesk(
-                  color: kTextPrimary,
-                  fontSize: 26,
-                  height: 1.15,
-                  fontWeight: FontWeight.w800)),
-          if (subtitle != null) ...[
-            const SizedBox(height: 8),
-            Text(subtitle,
-                style: const TextStyle(
-                    color: kTextSecondary, fontSize: 14, height: 1.4)),
-          ],
-          const SizedBox(height: 24),
-          content,
-        ],
-      );
+    padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 12, HrSpace.gutter, 16),
+    children: [
+      Text(title, style: HrText.display.copyWith(height: 1.1)),
+      if (subtitle != null) ...[
+        const SizedBox(height: 8),
+        Text(subtitle, style: HrText.bodyS),
+      ],
+      const SizedBox(height: 24),
+      content,
+    ],
+  );
 
   Widget _areasPage() => _quizPage(
-        'What do you want to work on?',
-        "Pick a few — we'll set up starter habits for each.",
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [for (final a in _kAreas) _areaChip(a.$1, a.$2, a.$3)],
-        ),
-      );
+    'What do you want to work on?',
+    "Pick a few — we'll set up starter habits for each.",
+    Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [for (final a in _kAreas) _areaChip(a.$1, a.$2, a.$3)],
+    ),
+  );
 
   Widget _areaChip(String id, String label, String emoji) {
     final on = _areas.contains(id);
@@ -1146,79 +1017,145 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: on
-              ? const LinearGradient(colors: _kAccentGradient)
-              : _kGlassSheen,
-          border: Border.all(color: on ? Colors.transparent : kBorder),
+          borderRadius: BorderRadius.circular(HrRadius.full),
+          color: on ? HrColors.text : HrColors.surface,
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
-          const SizedBox(width: 8),
-          Text(label,
-              style: TextStyle(
-                  color: on ? Colors.white : kTextPrimary,
-                  fontWeight: FontWeight.w600)),
-        ]),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: HrText.body.copyWith(
+                color: on ? HrColors.bg : HrColors.text,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _genderPage() => _quizPage(
-        'How do you identify?',
-        'Used only to personalize your nutrition targets.',
-        Column(children: [
-          _choiceRow(
-              'male', 'Male', '♂️', _gender, (v) => setState(() => _gender = v)),
-          _choiceRow('female', 'Female', '♀️', _gender,
-              (v) => setState(() => _gender = v)),
-          _choiceRow('other', 'Other / prefer not to say', '⚧️', _gender,
-              (v) => setState(() => _gender = v)),
-        ]),
-      );
+    'How do you identify?',
+    'Used only to personalize your nutrition targets.',
+    Column(
+      children: [
+        _choiceRow(
+          'male',
+          'Male',
+          '♂️',
+          _gender,
+          (v) => setState(() => _gender = v),
+        ),
+        _choiceRow(
+          'female',
+          'Female',
+          '♀️',
+          _gender,
+          (v) => setState(() => _gender = v),
+        ),
+        _choiceRow(
+          'other',
+          'Other / prefer not to say',
+          '⚧️',
+          _gender,
+          (v) => setState(() => _gender = v),
+        ),
+      ],
+    ),
+  );
 
   Widget _agePage() =>
       _quizPage('How old are you?', null, _numberField(_age, 'Age', 'years'));
 
   Widget _bodyPage() => _quizPage(
-        'Your height & weight',
-        'We use these for your calorie & macro targets.',
-        Column(children: [
-          _numberField(_height, 'Height', 'cm'),
-          const SizedBox(height: 14),
-          _numberField(_weight, 'Weight', 'kg'),
-        ]),
-      );
+    'Your height & weight',
+    'We use these for your calorie & macro targets.',
+    Column(
+      children: [
+        _numberField(_height, 'Height', 'cm'),
+        const SizedBox(height: 14),
+        _numberField(_weight, 'Weight', 'kg'),
+      ],
+    ),
+  );
 
   Widget _activityPage() => _quizPage(
-        'How active are you?',
-        null,
-        Column(children: [
-          _choiceRow('sedentary', 'Sedentary — little exercise', '🪑',
-              _activity, (v) => setState(() => _activity = v)),
-          _choiceRow('light', 'Lightly active — 1–3 days/wk', '🚶', _activity,
-              (v) => setState(() => _activity = v)),
-          _choiceRow('moderate', 'Moderately active — 3–5 days/wk', '🏃',
-              _activity, (v) => setState(() => _activity = v)),
-          _choiceRow('active', 'Very active — 6–7 days/wk', '🏋️', _activity,
-              (v) => setState(() => _activity = v)),
-          _choiceRow('very_active', 'Athlete — intense daily', '🔥', _activity,
-              (v) => setState(() => _activity = v)),
-        ]),
-      );
+    'How active are you?',
+    null,
+    Column(
+      children: [
+        _choiceRow(
+          'sedentary',
+          'Sedentary — little exercise',
+          '🪑',
+          _activity,
+          (v) => setState(() => _activity = v),
+        ),
+        _choiceRow(
+          'light',
+          'Lightly active — 1–3 days/wk',
+          '🚶',
+          _activity,
+          (v) => setState(() => _activity = v),
+        ),
+        _choiceRow(
+          'moderate',
+          'Moderately active — 3–5 days/wk',
+          '🏃',
+          _activity,
+          (v) => setState(() => _activity = v),
+        ),
+        _choiceRow(
+          'active',
+          'Very active — 6–7 days/wk',
+          '🏋️',
+          _activity,
+          (v) => setState(() => _activity = v),
+        ),
+        _choiceRow(
+          'very_active',
+          'Athlete — intense daily',
+          '🔥',
+          _activity,
+          (v) => setState(() => _activity = v),
+        ),
+      ],
+    ),
+  );
 
   Widget _goalPage() => _quizPage(
-        "What's your goal?",
-        'This sets your daily calorie target.',
-        Column(children: [
-          _choiceRow('cut', 'Lose weight', '📉', _goal,
-              (v) => setState(() => _goal = v)),
-          _choiceRow('maintain', 'Maintain', '⚖️', _goal,
-              (v) => setState(() => _goal = v)),
-          _choiceRow('bulk', 'Build muscle', '📈', _goal,
-              (v) => setState(() => _goal = v)),
-        ]),
-      );
+    "What's your goal?",
+    'This sets your daily calorie target.',
+    Column(
+      children: [
+        _choiceRow(
+          'cut',
+          'Lose weight',
+          '📉',
+          _goal,
+          (v) => setState(() => _goal = v),
+        ),
+        _choiceRow(
+          'maintain',
+          'Maintain',
+          '⚖️',
+          _goal,
+          (v) => setState(() => _goal = v),
+        ),
+        _choiceRow(
+          'bulk',
+          'Build muscle',
+          '📈',
+          _goal,
+          (v) => setState(() => _goal = v),
+        ),
+      ],
+    ),
+  );
 
   Widget _summaryPage() {
     final a = int.tryParse(_age.text.trim()) ?? 0;
@@ -1226,72 +1163,139 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     final w = double.tryParse(_weight.text.trim()) ?? 0;
     final hasBody = a > 0 && h > 0 && w > 0;
     final cals = hasBody
-        ? computeMacroTargets(BodyProfile(
-                weight: w,
-                height: h,
-                age: a,
-                gender: _gender,
-                activity: _activity,
-                goal: _goal))
-            .calories
-            .round()
+        ? computeMacroTargets(
+            BodyProfile(
+              weight: w,
+              height: h,
+              age: a,
+              gender: _gender,
+              activity: _activity,
+              goal: _goal,
+            ),
+          ).calories.round()
         : null;
+    final comp = companionByType(appState.activeCompanion);
     return _quizPage(
-      "You're all set!",
-      'Your plan is personalized — tap below to start.',
-      Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _summaryTile(Icons.local_fire_department_rounded, 'Daily calorie target',
-            hasBody ? '$cals kcal' : 'Add body stats later'),
-        const SizedBox(height: 12),
-        _summaryTile(
+      "You're all set.",
+      'Your plan is personalized.',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _summaryTile(
+            Icons.local_fire_department_rounded,
+            'Daily calorie target',
+            hasBody ? '$cals kcal' : 'Add body stats later',
+          ),
+          const SizedBox(height: 12),
+          _summaryTile(
             Icons.checklist_rounded,
-            'Focus areas',
+            'Starter habits',
             _areas.isEmpty
                 ? 'Default starter habits'
-                : _areas.map(_areaLabel).join(' · ')),
-      ]),
+                : _areas.map(_areaLabel).join(' · '),
+          ),
+          const SizedBox(height: 28),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              CompanionSticker(
+                icon: comp.icon,
+                color: comp.color,
+                size: 64,
+                semanticLabel: comp.name,
+                imageAsset: comp.imageAsset,
+              ),
+              const SizedBox(width: 10),
+              const Flexible(
+                child: SpeechBubble(
+                  "Let's see if you last a week.",
+                  maxWidth: 200,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _summaryTile(IconData icon, String title, String value) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-            gradient: _kGlassSheen,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kBorder)),
-        child: Row(children: [
-          Icon(icon, color: kPlasmaBright, size: 22),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(color: kTextTertiary, fontSize: 12)),
-                const SizedBox(height: 2),
-                Text(value,
-                    style: const TextStyle(
-                        color: kTextPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600)),
-              ],
-            ),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: const Border(top: BorderSide(color: HrColors.hairline)),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: HrColors.accent,
           ),
-        ]),
-      );
+          child: Icon(icon, color: HrColors.bg, size: 18),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: HrText.caption),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _numberField(TextEditingController c, String hint, String suffix) =>
       TextField(
-        controller: c,
-        keyboardType: TextInputType.number,
-        onChanged: (_) => setState(() {}),
-        style: GoogleFonts.spaceGrotesk(
-            color: kTextPrimary, fontSize: 20, fontWeight: FontWeight.w700),
-        decoration: InputDecoration(hintText: hint, suffixText: suffix),
-      );
+    controller: c,
+    keyboardType: TextInputType.number,
+    onChanged: (_) => setState(() {}),
+    style: HrText.title2,
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: HrText.title2.copyWith(color: HrColors.text3),
+      suffixText: suffix,
+      suffixStyle: HrText.caption,
+      filled: true,
+      fillColor: HrColors.surface,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            borderSide: BorderSide.none,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            borderSide: BorderSide.none,
+          ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+      ),
+    ),
+  );
 
-  Widget _choiceRow(String id, String label, String emoji, String group,
-      ValueChanged<String> onTap) {
+  Widget _choiceRow(
+    String id,
+    String label,
+    String emoji,
+    String group,
+    ValueChanged<String> onTap,
+  ) {
     final on = group == id;
     return GestureDetector(
       onTap: () => onTap(id),
@@ -1299,64 +1303,80 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: _kGlassSheen,
-          border:
-              Border.all(color: on ? kPlasma : kBorder, width: on ? 1.5 : 1),
-        ),
-        child: Row(children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(label,
-                style: const TextStyle(
-                    color: kTextPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600)),
+          borderRadius: BorderRadius.circular(HrRadius.md),
+          color: HrColors.surface,
+          border: Border(
+            top: BorderSide(
+              color: on ? HrColors.accent : HrColors.hairline,
+              width: on ? 2 : 1,
+            ),
           ),
-          if (on)
-            Icon(Icons.check_circle_rounded, color: kPlasmaGlow, size: 22),
-        ]),
+        ),
+        child: Row(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+            ),
+            if (on)
+              Icon(
+                Icons.check_circle_rounded,
+                color: HrColors.accent,
+                size: 22,
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
 // ── Auth UI helpers ──────────────────────────────────────────────────────────
-Widget _authScaffold(BuildContext context,
-    {required String title,
-    required String subtitle,
-    required List<Widget> children}) {
+Widget _authScaffold(
+  BuildContext context, {
+  required String title,
+  required String subtitle,
+  required List<Widget> children,
+}) {
   return Scaffold(
-    appBar:
-        AppBar(backgroundColor: Colors.transparent, foregroundColor: kTextPrimary),
-    body: Stack(children: [
-      SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-          children: [
-            Text(title,
-                style: GoogleFonts.spaceGrotesk(
-                    color: kTextPrimary,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            Text(subtitle,
-                style: const TextStyle(color: kTextSecondary, fontSize: 14)),
-            const SizedBox(height: 24),
-            ...children,
-          ],
+    backgroundColor: Colors.transparent,
+    appBar: AppBar(
+      backgroundColor: Colors.transparent,
+      foregroundColor: HrColors.text,
+      elevation: 0,
+    ),
+    body: SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          HrSpace.gutter,
+          8,
+          HrSpace.gutter,
+          24,
         ),
+        children: [
+          Text(title, style: HrText.display),
+          const SizedBox(height: 6),
+          Text(subtitle, style: HrText.bodyS),
+          const SizedBox(height: 24),
+          ...children,
+        ],
       ),
-    ]),
+    ),
   );
 }
 
-Widget _authField(TextEditingController c, String label,
-    {bool obscure = false,
-    TextInputType? keyboard,
-    String? hint,
-    ValueChanged<String>? onChanged}) {
+Widget _authField(
+  TextEditingController c,
+  String label, {
+  bool obscure = false,
+  TextInputType? keyboard,
+  String? hint,
+  ValueChanged<String>? onChanged,
+}) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 14),
     child: Column(
@@ -1364,27 +1384,35 @@ Widget _authField(TextEditingController c, String label,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(label,
-              style: const TextStyle(color: kTextTertiary, fontSize: 12)),
+          child: Text(label, style: HrText.caption),
         ),
         TextField(
           controller: c,
           obscureText: obscure,
           keyboardType: keyboard,
           onChanged: onChanged,
-          style: const TextStyle(color: kTextPrimary),
+          style: HrText.body,
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: HrText.body.copyWith(color: HrColors.text3),
             filled: true,
-            fillColor: kElevated,
+            fillColor: HrColors.surface,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 16,
+            ),
             enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: kPlasma)),
+              borderRadius: BorderRadius.circular(HrRadius.md),
+              borderSide: BorderSide.none,
+            ),
             border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12)),
+              borderRadius: BorderRadius.circular(HrRadius.md),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(HrRadius.md),
+              borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+            ),
           ),
         ),
       ],
@@ -1392,98 +1420,103 @@ Widget _authField(TextEditingController c, String label,
   );
 }
 
-Widget _authSubmit(String label, bool busy, VoidCallback onTap) => busy
-    ? Container(
-        height: 52,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: const LinearGradient(colors: _kAccentGradient)),
-        child: const SizedBox(
-            width: 20,
-            height: 20,
-            child:
-                CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-      )
-    : GradientButton(label: label, onPressed: onTap);
+Widget _authSubmit(String label, bool busy, VoidCallback onTap) =>
+    HrButton(label: label, loading: busy, onPressed: busy ? null : onTap);
 
 Widget _authError(String msg) => Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-          color: kRed.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: kRed.withValues(alpha: 0.4))),
-      child: Row(children: [
-        const Icon(Icons.error_outline_rounded, color: kRed, size: 17),
-        const SizedBox(width: 8),
-        Expanded(
-            child: Text(msg,
-                style: const TextStyle(color: kRed, fontSize: 12.5))),
-      ]),
-    );
-
-Widget _authDivider() => Row(children: [
-      Expanded(child: Container(height: 1, color: kBorder)),
-      const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10),
-          child: Text('or', style: TextStyle(color: kTextTertiary, fontSize: 12))),
-      Expanded(child: Container(height: 1, color: kBorder)),
-    ]);
-
-Widget _appleButton() => Column(children: [
-      OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
-            foregroundColor: kTextSecondary,
-            side: BorderSide(color: kBorder)),
-        onPressed: null, // Sign in with Apple is wired on iOS later.
-        icon: const Icon(Icons.apple, size: 20),
-        label: const Text('Continue with Apple'),
+  margin: const EdgeInsets.only(bottom: 12),
+  padding: const EdgeInsets.all(11),
+  decoration: BoxDecoration(
+    color: HrColors.dangerSurface,
+    borderRadius: BorderRadius.circular(HrRadius.sm),
+  ),
+  child: Row(
+    children: [
+      const Icon(
+        Icons.error_outline_rounded,
+        color: HrColors.dangerText,
+        size: 17,
       ),
-      const SizedBox(height: 6),
-      const Text('Available on iOS',
-          style: TextStyle(color: kTextTertiary, fontSize: 11)),
-    ]);
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(
+          msg,
+          style: HrText.caption.copyWith(color: HrColors.dangerText),
+        ),
+      ),
+    ],
+  ),
+);
+
+Widget _authDivider() => Row(
+  children: [
+    const Expanded(child: Divider(color: HrColors.hairline, thickness: 1)),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Text('or', style: HrText.caption),
+    ),
+    const Expanded(child: Divider(color: HrColors.hairline, thickness: 1)),
+  ],
+);
+
+Widget _appleButton() => Column(
+  children: [
+    const HrButton(
+      label: 'Continue with Apple',
+      icon: Icons.apple,
+      kind: HrButtonKind.secondary,
+      onPressed: null,
+    ),
+    const SizedBox(height: 6),
+    Text('Available on iOS', style: HrText.micro),
+  ],
+);
 
 Widget _authNote() {
   if (auth.isRemote) return const SizedBox.shrink();
-  return const Padding(
-    padding: EdgeInsets.only(top: 18),
+  return Padding(
+    padding: const EdgeInsets.only(top: 18),
     child: Text(
       'Accounts are stored on this device for now — cloud sync turns on when Supabase is connected.',
       textAlign: TextAlign.center,
-      style: TextStyle(color: kTextTertiary, fontSize: 11, height: 1.4),
+      style: HrText.micro.copyWith(height: 1.4),
     ),
   );
 }
 
 Widget _statChip(String label, String value) => Container(
-      width: 104,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder)),
-      child: Column(children: [
-        Text(value,
-            style: GoogleFonts.spaceGrotesk(
-                color: kTextPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w800)),
-        const SizedBox(height: 2),
-        Text(label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: kTextTertiary, fontSize: 11)),
-      ]),
-    );
+  width: 104,
+  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+  decoration: BoxDecoration(
+    color: HrColors.surface,
+    borderRadius: BorderRadius.circular(HrRadius.md),
+    border: const Border(top: BorderSide(color: HrColors.hairline)),
+  ),
+  child: Column(
+    children: [
+      Text(value, style: HrText.stat),
+      const SizedBox(height: 2),
+      Text(label, textAlign: TextAlign.center, style: HrText.caption),
+    ],
+  ),
+);
 
 String _memberSince(String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return '';
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return 'Member since ${months[d.month - 1]} ${d.year}';
 }
@@ -1503,7 +1536,9 @@ Future<void> _editAccountName(BuildContext context) async {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kPlasma),
           onPressed: () => Navigator.pop(ctx, c.text.trim()),
@@ -1523,18 +1558,24 @@ Future<void> _confirmDeleteAccount(BuildContext context) async {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: kCard,
-      title:
-          const Text('Delete account?', style: TextStyle(color: kTextPrimary)),
+      title: const Text(
+        'Delete account?',
+        style: TextStyle(color: kTextPrimary),
+      ),
       content: const Text(
-          'This removes your account and signs you out. Your habits and progress stay on this device — use "Reset all progress" to clear those. This cannot be undone.',
-          style: TextStyle(color: kTextSecondary)),
+        'This removes your account and signs you out. Your habits and progress stay on this device — use "Reset all progress" to clear those. This cannot be undone.',
+        style: TextStyle(color: kTextSecondary),
+      ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(
-              backgroundColor: kRed, foregroundColor: Colors.white),
+            backgroundColor: kRed,
+            foregroundColor: Colors.white,
+          ),
           onPressed: () => Navigator.pop(ctx, true),
           child: const Text('Delete'),
         ),
@@ -1548,6 +1589,9 @@ Future<void> _confirmDeleteAccount(BuildContext context) async {
 }
 
 // ── Shell: bottom nav + the 5 screens ───────────────────────────────────────
+// Lets any screen jump the bottom-nav to a tab (e.g. Focus → "Back to Today").
+final ValueNotifier<int> shellTab = ValueNotifier<int>(0);
+
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
   @override
@@ -1563,13 +1607,23 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    _reminderTimer =
-        Timer.periodic(const Duration(seconds: 30), (_) => _checkReminders());
+    shellTab.addListener(_onShellTab);
+    _reminderTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _checkReminders(),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkReminders());
+  }
+
+  void _onShellTab() {
+    if (mounted && shellTab.value != _index) {
+      setState(() => _index = shellTab.value);
+    }
   }
 
   @override
   void dispose() {
+    shellTab.removeListener(_onShellTab);
     _reminderTimer?.cancel();
     super.dispose();
   }
@@ -1588,35 +1642,23 @@ class _HomeShellState extends State<HomeShell> {
       final key = '$day|${h.id}';
       if (_firedReminders.contains(key)) continue;
       _firedReminders.add(key);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('⏰ Time for: ${h.name}'),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⏰ Time for: ${h.name}'),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
             label: 'Done',
             onPressed: () {
               if (!appState.doneToday(h)) appState.toggle(h);
-            }),
-      ));
+            },
+          ),
+        ),
+      );
     }
   }
 
-  Widget? _fab() {
-    if (_index == 0) {
-      return GradientButton(
-          label: 'Add habit',
-          icon: Icons.add,
-          expand: false,
-          onPressed: () => showHabitEditor(context));
-    }
-    if (_index == 4) {
-      return GradientButton(
-          label: 'Reflect',
-          icon: Icons.edit,
-          expand: false,
-          onPressed: () => showAddReflection(context));
-    }
-    return null;
-  }
+  // Today has its own '+' in the header now, so no global FAB.
+  Widget? _fab() => null;
 
   @override
   Widget build(BuildContext context) {
@@ -1625,7 +1667,8 @@ class _HomeShellState extends State<HomeShell> {
       builder: (context, _) {
         if (appState.loading) {
           return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (!_briefingChecked && appState.needsBriefing) {
           _briefingChecked = true;
@@ -1642,13 +1685,19 @@ class _HomeShellState extends State<HomeShell> {
         // (A const list would canonicalize them and Flutter would skip rebuilds,
         // which is why completed habits weren't showing their checked state.)
         // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
-        final screens = <Widget>[HomeScreen(), FocusScreen(), StatsScreen(), AwardsScreen(), JournalScreen(), FriendsScreen()];
+        final screens = <Widget>[
+          HomeScreen(),
+          FocusScreen(),
+          ProgressScreen(),
+          FriendsScreen(),
+          SettingsScreen(),
+        ];
         return Scaffold(
           body: IndexedStack(index: _index, children: screens),
           floatingActionButton: _fab(),
-          bottomNavigationBar: _BottomNav(
+          bottomNavigationBar: HrTabBar(
             index: _index,
-            onTap: (i) => setState(() => _index = i),
+            onTap: (i) => shellTab.value = i,
           ),
         );
       },
@@ -1656,155 +1705,89 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({required this.index, required this.onTap});
-  final int index;
-  final ValueChanged<int> onTap;
-
-  static const _items = [
-    (Icons.dashboard_rounded, 'Home'),
-    (Icons.timer_rounded, 'Focus'),
-    (Icons.bar_chart_rounded, 'Stats'),
-    (Icons.emoji_events_rounded, 'Awards'),
-    (Icons.menu_book_rounded, 'Journal'),
-    (Icons.people_alt_rounded, 'Friends'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(26),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xCC140A2A),
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: const Color(0x26FFFFFF)),
-                boxShadow: const [
-                  BoxShadow(
-                      color: Color(0x55000000),
-                      blurRadius: 24,
-                      offset: Offset(0, 8)),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  for (int i = 0; i < _items.length; i++)
-                    _NavItem(
-                      icon: _items[i].$1,
-                      label: _items[i].$2,
-                      active: i == index,
-                      onTap: () => onTap(i),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: active
-              ? const LinearGradient(
-                  colors: [Color(0xFF26124F), Color(0xFF141A3A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          border: Border.all(
-              color: active ? kPlasma : Colors.transparent, width: 1),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                size: 20, color: active ? kPlasmaBright : kTextTertiary),
-            const SizedBox(height: 3),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: active ? Colors.white : kTextTertiary)),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// _BottomNav and _NavItem were replaced by HrTabBar (the 5-tab redesign).
 
 // ── Reusable app bar with the coins pill ────────────────────────────────────
 // A circular profile picture (or the user's initial) wrapped in the selected
 // border. Used in the app bar and on the account/settings screens.
 class _Avatar extends StatelessWidget {
-  const _Avatar({this.size = 40});
+  const _Avatar({this.size = 40, this.showBorder = true});
   final double size;
+  final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
     final b = borderById(appState.selectedBorder);
-    final hasBorder = b.id != 'none';
+    final hasBorder = showBorder && b.id != 'none';
     // Thicker, glowing ring with a thin dark gap so the colour reads as a
     // distinct border against both the avatar and the cosmic background.
     final ringW = hasBorder
         ? (size * 0.11).clamp(3.0, 7.0)
         : (size * 0.06).clamp(2.0, 4.0);
-    final gapW = hasBorder ? (size * 0.03).clamp(1.5, 3.0) : 0.0;
-    final inner = size - (ringW + gapW) * 2;
+    final gapW = hasBorder && b.frameAsset == null
+        ? (size * 0.03).clamp(1.5, 3.0)
+        : 0.0;
+    final frameAsset = showBorder ? b.frameAsset : null;
+    final inner = frameAsset != null
+        ? size * 0.72
+        : (showBorder ? size - (ringW + gapW) * 2 : size);
     final name = appState.displayName;
     final Widget pic = appState.pfpBytes != null
-        ? Image.memory(appState.pfpBytes!,
-            width: inner, height: inner, fit: BoxFit.cover, gaplessPlayback: true)
+        ? Image.memory(
+            appState.pfpBytes!,
+            width: inner,
+            height: inner,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          )
         : Container(
             width: inner,
             height: inner,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [kPlasma, kBlue])),
-            child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: inner * 0.42,
-                    fontWeight: FontWeight.w800)),
+              gradient: LinearGradient(colors: [kPlasma, kBlue]),
+            ),
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: GoogleFonts.spaceGrotesk(
+                color: Colors.white,
+                fontSize: inner * 0.42,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           );
     Widget avatar = ClipOval(child: pic);
     // Dark separator ring between the colour and the avatar.
     if (gapW > 0) {
       avatar = Container(
         decoration: const BoxDecoration(
-            shape: BoxShape.circle, color: Color(0xFF140B2B)),
+          shape: BoxShape.circle,
+          color: Color(0xFF140B2B),
+        ),
         padding: EdgeInsets.all(gapW),
         child: avatar,
+      );
+    }
+    if (!showBorder) {
+      return SizedBox(width: size, height: size, child: avatar);
+    }
+    if (frameAsset != null) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(width: inner, height: inner, child: avatar),
+            Image.asset(
+              frameAsset,
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+            ),
+          ],
+        ),
       );
     }
     return Container(
@@ -1820,9 +1803,10 @@ class _Avatar extends StatelessWidget {
         boxShadow: b.glow
             ? [
                 BoxShadow(
-                    color: b.colors.first.withValues(alpha: 0.75),
-                    blurRadius: size * 0.3,
-                    spreadRadius: 1.0)
+                  color: b.colors.first.withValues(alpha: 0.75),
+                  blurRadius: size * 0.3,
+                  spreadRadius: 1.0,
+                ),
               ]
             : null,
       ),
@@ -1834,6 +1818,32 @@ class _Avatar extends StatelessWidget {
 // A preview ring of a specific border (for the Shop), independent of the
 // currently-selected one.
 Widget _borderPreview(BorderDef b, {double size = 42}) {
+  if (b.frameAsset != null) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: size * 0.56,
+            height: size * 0.56,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: kElevated,
+            ),
+          ),
+          Image.asset(
+            b.frameAsset!,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+          ),
+        ],
+      ),
+    );
+  }
   final ringW = (size * 0.1).clamp(2.0, 5.0);
   return Container(
     width: size,
@@ -1846,19 +1856,28 @@ Widget _borderPreview(BorderDef b, {double size = 42}) {
           ? SweepGradient(colors: [...b.colors, b.colors.first])
           : null,
       boxShadow: b.glow
-          ? [BoxShadow(color: b.colors.first.withValues(alpha: 0.5), blurRadius: 8)]
+          ? [
+              BoxShadow(
+                color: b.colors.first.withValues(alpha: 0.5),
+                blurRadius: 8,
+              ),
+            ]
           : null,
     ),
     child: const DecoratedBox(
-        decoration: BoxDecoration(shape: BoxShape.circle, color: kElevated)),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: kElevated),
+    ),
   );
 }
 
 // Pick a photo, center-crop + downscale to a tiny JPEG, and store it.
 Future<void> _pickProfilePhoto(BuildContext context) async {
   try {
-    final x = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, maxWidth: 512, imageQuality: 85);
+    final x = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      imageQuality: 85,
+    );
     if (x == null) return;
     final bytes = await x.readAsBytes();
     final decoded = img.decodeImage(bytes);
@@ -1866,12 +1885,16 @@ Future<void> _pickProfilePhoto(BuildContext context) async {
       if (context.mounted) _toast(context, "Couldn't read that image.");
       return;
     }
-    final side = decoded.width < decoded.height ? decoded.width : decoded.height;
-    final cropped = img.copyCrop(decoded,
-        x: (decoded.width - side) ~/ 2,
-        y: (decoded.height - side) ~/ 2,
-        width: side,
-        height: side);
+    final side = decoded.width < decoded.height
+        ? decoded.width
+        : decoded.height;
+    final cropped = img.copyCrop(
+      decoded,
+      x: (decoded.width - side) ~/ 2,
+      y: (decoded.height - side) ~/ 2,
+      width: side,
+      height: side,
+    );
     final resized = img.copyResize(cropped, width: 256, height: 256);
     appState.setPfp(base64Encode(img.encodeJpg(resized, quality: 82)));
   } catch (_) {
@@ -1881,56 +1904,21 @@ Future<void> _pickProfilePhoto(BuildContext context) async {
 
 // "Change photo" / "Remove" actions shown under the account avatar.
 Widget _photoActions(BuildContext context) => Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _secondaryPill('Change photo', () => _pickProfilePhoto(context)),
-        if (appState.pfpBase64.isNotEmpty) ...[
-          const SizedBox(width: 10),
-          TextButton(
-            onPressed: () => appState.setPfp(''),
-            child:
-                const Text('Remove', style: TextStyle(color: kTextTertiary)),
-          ),
-        ],
-      ],
-    );
-
-// Coins pill (→ Shop).
-Widget _coinsPill(BuildContext context) => GestureDetector(
-      onTap: () => Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: kElevated,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kBorder),
-        ),
-        child: Row(children: [
-          if (appState.xpBoostActive) ...[
-            Text('2×',
-                style: TextStyle(
-                    color: kPlasmaGlow,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12)),
-            const SizedBox(width: 6),
-          ],
-          const Icon(Icons.bolt, size: 16, color: kGold),
-          const SizedBox(width: 5),
-          Text('${appState.coins}',
-              style: const TextStyle(color: kGold, fontWeight: FontWeight.bold)),
-        ]),
+  mainAxisSize: MainAxisSize.min,
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    _secondaryPill('Change photo', () => _pickProfilePhoto(context)),
+    if (appState.pfpBase64.isNotEmpty) ...[
+      const SizedBox(width: 10),
+      TextButton(
+        onPressed: () => appState.setPfp(''),
+        child: Text('Remove', style: HrText.caption),
       ),
-    );
+    ],
+  ],
+);
 
-Widget _shopButton(BuildContext context) => IconButton(
-      icon:
-          const Icon(Icons.storefront_rounded, color: kTextTertiary, size: 20),
-      tooltip: 'Shop',
-      onPressed: () => Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
-    );
+// _coinsPill and _shopButton were replaced by _coinChip and per-screen headers.
 
 // ── Glass phase-2 helpers ───────────────────────────────────────────────────
 
@@ -1944,13 +1932,17 @@ const LinearGradient _kGlassSheen = LinearGradient(
 
 BoxDecoration glassDecoration({double radius = 18, Color? border}) =>
     BoxDecoration(
-      borderRadius: BorderRadius.circular(radius),
-      gradient: _kGlassSheen,
-      border: Border.all(color: border ?? kBorder),
+  borderRadius: BorderRadius.circular(radius),
+  gradient: _kGlassSheen,
+  border: Border.all(color: border ?? kBorder),
       boxShadow: const [
-        BoxShadow(color: Color(0x40000000), blurRadius: 18, offset: Offset(0, 8)),
+        BoxShadow(
+          color: Color(0x40000000),
+          blurRadius: 18,
+          offset: Offset(0, 8),
+        ),
       ],
-    );
+);
 
 const List<Color> _kAccentGradient = [Color(0xFF8B5CF6), Color(0xFF22D3EE)];
 
@@ -1988,9 +1980,10 @@ class GradientButton extends StatelessWidget {
               gradient: const LinearGradient(colors: _kAccentGradient),
               boxShadow: [
                 BoxShadow(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6)),
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
               ],
             ),
             child: Row(
@@ -2001,11 +1994,14 @@ class GradientButton extends StatelessWidget {
                   Icon(icon, size: 18, color: Colors.white),
                   const SizedBox(width: 8),
                 ],
-                Text(label,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
               ],
             ),
           ),
@@ -2034,21 +2030,28 @@ class GlowBar extends StatelessWidget {
         height: height,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(height),
-          child: Stack(children: [
-            const Positioned.fill(child: ColoredBox(color: Color(0x22FFFFFF))),
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: value,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: c),
-                  boxShadow: [
-                    BoxShadow(color: c.last.withValues(alpha: 0.5), blurRadius: 6),
-                  ],
+          child: Stack(
+            children: [
+              const Positioned.fill(
+                child: ColoredBox(color: Color(0x22FFFFFF)),
+              ),
+              FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: value,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: c),
+                    boxShadow: [
+                      BoxShadow(
+                        color: c.last.withValues(alpha: 0.5),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ),
       ),
     );
@@ -2057,12 +2060,13 @@ class GlowBar extends StatelessWidget {
 
 // Luminous gradient progress ring.
 class GlowRing extends StatelessWidget {
-  const GlowRing(
-      {required this.value,
-      required this.size,
-      this.stroke = 6,
-      this.colors,
-      super.key});
+  const GlowRing({
+    required this.value,
+    required this.size,
+    this.stroke = 6,
+    this.colors,
+    super.key,
+  });
   final double value;
   final double size;
   final double stroke;
@@ -2078,7 +2082,11 @@ class GlowRing extends StatelessWidget {
         width: size,
         height: size,
         child: CustomPaint(
-          painter: _RingPainter(animatedValue, stroke, colors ?? _kAccentGradient),
+          painter: _RingPainter(
+            animatedValue,
+            stroke,
+            colors ?? _kAccentGradient,
+          ),
         ),
       ),
     );
@@ -2096,12 +2104,13 @@ class _RingPainter extends CustomPainter {
     final radius = (size.width - stroke) / 2;
     final rect = Rect.fromCircle(center: center, radius: radius);
     canvas.drawCircle(
-        center,
-        radius,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = stroke
-          ..color = const Color(0x1FFFFFFF));
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..color = const Color(0x1FFFFFFF),
+    );
     if (value <= 0) return;
     final sweep = 2 * pi * value;
     final ring = colors.length > 1 ? colors : [colors.first, colors.first];
@@ -2114,16 +2123,17 @@ class _RingPainter extends CustomPainter {
         transform: const GradientRotation(-pi / 2),
       ).createShader(rect);
     canvas.drawArc(
-        rect,
-        -pi / 2,
-        sweep,
-        false,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = stroke
-          ..strokeCap = StrokeCap.round
-          ..color = ring.last.withValues(alpha: 0.4)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+      rect,
+      -pi / 2,
+      sweep,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round
+        ..color = ring.last.withValues(alpha: 0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
     canvas.drawArc(rect, -pi / 2, sweep, false, arc);
   }
 
@@ -2133,84 +2143,10 @@ class _RingPainter extends CustomPainter {
 }
 
 // Dashboard app bar: profile picture + level on the LEFT, coins + shop RIGHT.
-PreferredSizeWidget _dashboardBar() {
-  return AppBar(
-    backgroundColor: Colors.transparent,
-    automaticallyImplyLeading: false,
-    titleSpacing: 14,
-    title: Builder(
-      builder: (context) => GestureDetector(
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
-        child: ListenableBuilder(
-          listenable: appState,
-          builder: (_, _) {
-            final ld = levelFromXp(appState.totalXp);
-            return Row(mainAxisSize: MainAxisSize.min, children: [
-              _Avatar(size: 38),
-              const SizedBox(width: 10),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Lv.${ld.level}',
-                      style: GoogleFonts.spaceGrotesk(
-                          color: kTextPrimary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                          height: 1.1)),
-                  const SizedBox(height: 3),
-                  SizedBox(
-                    width: 96,
-                    child: GlowBar(
-                        value: ld.progress.clamp(0.0, 1.0).toDouble(),
-                        height: 6),
-                  ),
-                ],
-              ),
-            ]);
-          },
-        ),
-      ),
-    ),
-    actions: [
-      Builder(builder: (context) => _coinsPill(context)),
-      Builder(builder: (context) => _shopButton(context)),
-      const SizedBox(width: 8),
-    ],
-  );
-}
+// _dashboardBar was replaced by the Today header (see _todayHeader).
 
 // Standard app bar for the other tabs: title left; coins + shop + avatar right.
-PreferredSizeWidget _titleBar(String title) {
-  return AppBar(
-    backgroundColor: Colors.transparent,
-    title: title.isEmpty
-        ? null
-        : Text(title,
-            style: GoogleFonts.spaceGrotesk(
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.5,
-                color: kTextPrimary)),
-    actions: [
-      Builder(builder: (context) => _coinsPill(context)),
-      Builder(builder: (context) => _shopButton(context)),
-      Builder(
-        builder: (context) => Padding(
-          padding: const EdgeInsets.only(right: 12, left: 2),
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen())),
-            child: ListenableBuilder(
-                listenable: appState,
-                builder: (_, _) => _Avatar(size: 34)),
-          ),
-        ),
-      ),
-    ],
-  );
-}
+// _titleBar was replaced by flat per-screen headers in the redesign.
 
 // ── HOME ────────────────────────────────────────────────────────────────────
 class HomeScreen extends StatelessWidget {
@@ -2230,16 +2166,25 @@ class HomeScreen extends StatelessWidget {
         final reward = h.todayAwardXp;
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            duration: const Duration(milliseconds: 1100),
-            content: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.bolt_rounded, color: kGold, size: 18),
-              const SizedBox(width: 8),
-              Text('Habit complete  ·  +$reward XP',
-                  style: const TextStyle(color: kTextPrimary,
-                      fontWeight: FontWeight.w600)),
-            ]),
-          ));
+          ..showSnackBar(
+            SnackBar(
+              duration: const Duration(milliseconds: 1100),
+              content: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.bolt_rounded, color: kGold, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Habit complete  ·  +$reward XP',
+                    style: const TextStyle(
+                      color: kTextPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
       }
       final who = appState.activeCompanion;
       bool shownMajor = false;
@@ -2266,7 +2211,9 @@ class HomeScreen extends StatelessWidget {
           appState.setCompanionLine(companionLine(who, 'elite_day'));
         }
         // A perfect day just completed → a little confetti.
-        if (total > 0 && doneBefore < total && appState.doneTodayCount == total) {
+        if (total > 0 &&
+            doneBefore < total &&
+            appState.doneTodayCount == total) {
           celebrate(context);
         }
       }
@@ -2283,189 +2230,516 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _dashboardBar(),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 96),
-        children: [
-          const _DashboardHero(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 12, 20, 8),
-            child: Row(children: [
-              Expanded(
-                child: Text('TODAY’S HABITS',
-                    style: TextStyle(color: kTextTertiary, fontSize: 12,
-                        letterSpacing: 1.5, fontWeight: FontWeight.bold)),
-              ),
-              Text('Tap to complete',
-                  style: TextStyle(color: kTextTertiary, fontSize: 11)),
-            ]),
-          ),
-          if (appState.habits.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: _EmptyState(
-                  emoji: '🌱',
-                  title: 'No habits yet',
-                  subtitle: 'Tap “Add habit” to start.'),
-            )
-          else
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              itemCount: appState.habits.length,
-              onReorderItem: appState.reorderHabits,
-              itemBuilder: (ctx, i) {
-                final h = appState.habits[i];
-                return Padding(
-                  key: ValueKey('habit-${h.id}'),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: _HabitTile(
-                    habit: h,
-                    done: appState.doneToday(h),
-                    onToggle: () => onToggle(h),
-                    onDelete: () => appState.deleteHabit(h),
-                    onEdit: () => showHabitEditor(context, h),
-                    reorderIndex: i,
-                  ),
-                );
-              },
-            ),
-          const SizedBox(height: 12),
-          const _VictoryCard(),
-          const _CompanionCard(),
-          const _NutritionCard(),
-          const _BossCard(),
-          const _QuestsPanel(),
-          const _PrestigeCard(),
-        ],
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(0, 6, 0, 100),
+          children: [
+            _todayHeader(context),
+            const SizedBox(height: 16),
+            const _TodayHero(),
+            const SizedBox(height: 18),
+            if (appState.habits.isEmpty)
+              _todayEmpty(context)
+            else
+              _FiveCard(onToggle: onToggle),
+            const SizedBox(height: 14),
+            const _VictoryCard(),
+            const _CompanionCard(),
+            const _NutritionCard(),
+            const _BossCard(),
+            const _QuestsPanel(),
+            const _PrestigeCard(),
+          ],
+        ),
       ),
     );
   }
 }
 
-// Greeting hero at the top of the dashboard: time-aware greeting, name,
-// today's completion ring, streak chip, and a motivating nudge.
-class _DashboardHero extends StatelessWidget {
-  const _DashboardHero();
-  @override
-  Widget build(BuildContext context) {
-    final hour = DateTime.now().hour;
-    final greeting = hour < 12
-        ? 'Good morning'
-        : hour < 18
-            ? 'Good afternoon'
-            : 'Good evening';
-    final name = appState.displayName;
-    final total = appState.habits.length;
-    final done = appState.doneTodayCount;
-    final pct = total == 0 ? 0.0 : done / total;
-    final allDone = total > 0 && done == total;
-    final streak = appState.bestStreak;
-    final sub = total == 0
-        ? 'Add your first habit to begin.'
-        : allDone
-            ? 'Perfect day — every habit done!'
-            : done == 0
-                ? "Let's get the first one done."
-                : '${total - done} to go — finish strong.';
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF301C62), Color(0xFF1A0F38)]),
-        border: Border.all(color: kBorder),
-        boxShadow: [
-          BoxShadow(
-              color: kPlasma.withValues(alpha: 0.18),
-              blurRadius: 26,
-              offset: const Offset(0, 10)),
+// ── TODAY primitives (redesign) ──────────────────────────────────────────────
+const _kWeekdays = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+const _kMonths = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+String _prettyToday() {
+  final d = DateTime.now();
+  return '${_kWeekdays[d.weekday - 1]}, ${_kMonths[d.month - 1]} ${d.day}';
+}
+
+// Small tappable coins chip (opens the Shop) — replaces the old violet pill.
+Widget _coinChip(BuildContext context) => GestureDetector(
+  onTap: () =>
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
+  child: Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      color: HrColors.surface2,
+      borderRadius: BorderRadius.circular(HrRadius.full),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (appState.xpBoostActive) ...[
+          Text(
+            '2×',
+            style: HrText.caption.copyWith(
+              color: HrColors.gold,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(width: 6),
         ],
-      ),
-      child: Row(children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(greeting,
-                  style: const TextStyle(color: kTextTertiary, fontSize: 13)),
-              const SizedBox(height: 2),
-              Text(name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.spaceGrotesk(
-                      color: kTextPrimary,
-                      fontSize: 24,
-                      height: 1.05,
-                      fontWeight: FontWeight.w800)),
-              const SizedBox(height: 10),
-              if (streak > 0) ...[
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: kGold.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: kGold.withValues(alpha: 0.35)),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Text('🔥', style: TextStyle(fontSize: 12)),
-                    const SizedBox(width: 5),
-                    Text('$streak day streak',
-                        style: const TextStyle(
-                            color: kGold,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                  ]),
-                ),
-                const SizedBox(height: 10),
-              ],
-              Text(sub,
-                  style: const TextStyle(
-                      color: kTextSecondary, fontSize: 13, height: 1.3)),
-            ],
+        Image.asset(
+          'assets/shop/coin_stack.png',
+          width: 19,
+          height: 19,
+          fit: BoxFit.contain,
+          semanticLabel: 'Coins',
+        ),
+        const SizedBox(width: 5),
+        Text(
+          '${appState.coins}',
+          style: HrText.caption.copyWith(
+            color: HrColors.text,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(width: 14),
-        SizedBox(
-          width: 78,
-          height: 78,
-          child: Stack(alignment: Alignment.center, children: [
-            GlowRing(
-              value: pct,
-              size: 78,
-              stroke: 7,
-              colors: allDone
-                  ? [kGreen, const Color(0xFF8BF0C0)]
-                  : [kPlasma, kCyan],
+      ],
+    ),
+  ),
+);
+
+// Header: date, "Today", a completion sticker, coins + add, and the level rail.
+Widget _todayHeader(BuildContext context) {
+  final ld = levelFromXp(appState.totalXp);
+  final remainingXp = (ld.requiredXp - ld.currentXp).toString().replaceAllMapped(
+    RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+    (match) => '${match[1]},',
+  );
+  final done = appState.doneTodayCount;
+  final total = appState.habits.length;
+  final allDone = total > 0 && done == total;
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_prettyToday().toUpperCase(), style: HrText.labelCaps),
+                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text('Today', style: HrText.display),
+                      if (total > 0) ...[
+                        const SizedBox(width: 12),
+                        CountSticker(
+                          '$done/$total',
+                          size: 24,
+                          fill: allDone ? HrColors.accent : null,
+                          semanticLabel: '$done of $total habits done',
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-            Column(mainAxisSize: MainAxisSize.min, children: [
-              Text('$done/$total',
-                  style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 18,
-                      height: 1,
-                      fontWeight: FontWeight.w800)),
-              const Text('today',
-                  style: TextStyle(
-                      color: kTextTertiary, fontSize: 9, letterSpacing: 0.5)),
-            ]),
-          ]),
+            const SizedBox(width: 10),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _coinChip(context),
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: 'Add habit',
+                  child: Material(
+                    color: HrColors.surface2,
+                    shape: const CircleBorder(),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => showHabitEditor(context),
+                      child: const SizedBox(
+                        width: 38,
+                        height: 38,
+                        child: Icon(
+                          Icons.add_rounded,
+                          color: HrColors.text,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ]),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Text(
+              'Lv ${ld.level}',
+              style: HrText.caption.copyWith(
+                color: HrColors.text2,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const Spacer(),
+            Text(levelTitle(ld.level), style: HrText.caption),
+          ],
+        ),
+        const SizedBox(height: 7),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const markerSize = 13.0;
+            final progress = ld.progress.clamp(0.0, 1.0).toDouble();
+            final markerLeft = (constraints.maxWidth * progress - markerSize / 2)
+                .clamp(0.0, constraints.maxWidth - markerSize)
+                .toDouble();
+            return SizedBox(
+              height: 14,
+              child: Stack(
+                alignment: Alignment.centerLeft,
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF17171C),
+                      borderRadius: BorderRadius.circular(HrRadius.full),
+                      border: Border.all(color: const Color(0xFF393940), width: 1),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x66000000),
+                          blurRadius: 5,
+                          offset: Offset(0, 2),
+                        ),
+                        BoxShadow(
+                          color: Color(0x1AFFFFFF),
+                          blurRadius: 1,
+                          offset: Offset(0, -1),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(HrRadius.full),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        width: constraints.maxWidth * progress,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(HrRadius.full),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF9D4EFF), Color(0xFF38D8F2)],
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x663B9DF5),
+                              blurRadius: 7,
+                              spreadRadius: 0.5,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: markerLeft,
+                    child: Transform.rotate(
+                      angle: pi / 4,
+                      child: Container(
+                        width: markerSize,
+                        height: markerSize,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFFE6C7FF), Color(0xFF8D4BFF), Color(0xFF5426B8)],
+                          ),
+                          border: Border.all(color: const Color(0xFFC99BFF), width: 0.8),
+                          borderRadius: BorderRadius.circular(3),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0xAA8D4BFF),
+                              blurRadius: 9,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 3),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            '$remainingXp XP to next level',
+            style: HrText.micro.copyWith(color: HrColors.text3),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Companion ring showing today's completion, with a speech line and streak.
+class _TodayHero extends StatelessWidget {
+  const _TodayHero();
+  @override
+  Widget build(BuildContext context) {
+    final total = appState.habits.length;
+    final done = appState.doneTodayCount;
+    final allDone = total > 0 && done == total;
+    final comp = companionByType(appState.activeCompanion);
+    final streak = appState.bestStreak;
+    final segs = total == 0 ? 1 : (total <= 12 ? total : 1);
+    final val = total == 0
+        ? 0.0
+        : (total <= 12 ? done.toDouble() : done / total);
+    final line = appState.lastCompanionLine.isNotEmpty
+        ? appState.lastCompanionLine
+        : total == 0
+        ? comp.tagline
+        : allDone
+        ? 'Perfect day. Every rail cleared.'
+        : done == 0
+        ? "Let's clear the first one."
+        : '${total - done} to go — keep the streak alive.';
+    return Column(
+      children: [
+        SizedBox(
+          height: 156,
+          child: Center(
+            child: SizedBox(
+              width: 150,
+              height: 150,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  SegmentedRing(
+                    size: 140,
+                    segments: segs,
+                    value: val,
+                    stroke: 9,
+                    color: HrColors.accent,
+                    center: CompanionSticker(
+                      icon: comp.icon,
+                      color: comp.color,
+                      size: 92,
+                      semanticLabel: comp.name,
+                      imageAsset: comp.imageAsset,
+                    ),
+                  ),
+                  if (streak > 0)
+                    Positioned(
+                      top: 0,
+                      right: -4,
+                      child: StreakPill(count: streak, big: true),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SpeechBubble(line, speaker: comp.name, maxWidth: 290),
+      ],
+    );
+  }
+}
+
+// "The five" — today's habits as HabitRows, with swipe-to-delete and a
+// reorder mode. Replaces the old _HabitTile list + TODAY'S HABITS label.
+class _FiveCard extends StatefulWidget {
+  const _FiveCard({required this.onToggle});
+  final void Function(Habit) onToggle;
+  @override
+  State<_FiveCard> createState() => _FiveCardState();
+}
+
+class _FiveCardState extends State<_FiveCard> {
+  bool _reorder = false;
+  @override
+  Widget build(BuildContext context) {
+    final habits = appState.habits;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+      child: HrCard(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            HrLabel(
+              habits.length == 5 ? 'The five' : "Today's habits",
+              trailing: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _reorder = !_reorder),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _reorder ? Icons.check_rounded : Icons.swap_vert_rounded,
+                      size: 16,
+                      color: _reorder ? HrColors.accent : HrColors.text3,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _reorder ? 'DONE' : 'REORDER',
+                      style: HrText.labelCaps.copyWith(
+                        color: _reorder ? HrColors.accent : HrColors.text3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_reorder)
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                itemCount: habits.length,
+                onReorderItem: appState.reorderHabits,
+                itemBuilder: (ctx, i) {
+                  final h = habits[i];
+                  return Padding(
+                    key: ValueKey('reorder-${h.id}'),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: HrText.body,
+                          ),
+                        ),
+                        ReorderableDragStartListener(
+                          index: i,
+                          child: const Icon(
+                            Icons.drag_handle_rounded,
+                            color: HrColors.text3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              )
+            else
+              for (final h in habits)
+                Dismissible(
+                  key: ValueKey('five-${h.id}'),
+                  direction: DismissDirection.endToStart,
+                  onDismissed: (_) {
+                    appState.deleteHabit(h);
+                    hrToast(
+                      context,
+                      'Habit removed',
+                      icon: Icons.delete_outline_rounded,
+                    );
+                  },
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    decoration: BoxDecoration(
+                      color: HrColors.dangerSurface,
+                      borderRadius: BorderRadius.circular(HrRadius.sm),
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: HrColors.dangerText,
+                    ),
+                  ),
+                  child: HabitRow(
+                    title: h.name,
+                    icon: h.icon,
+                    rarity: h.rarity,
+                    done: appState.doneToday(h),
+                    streak: h.streak,
+                    reminder: h.reminderMinutes != null
+                        ? _fmtReminder(h.reminderMinutes!)
+                        : null,
+                    onToggle: () => widget.onToggle(h),
+                    onEdit: () => showHabitEditor(context, h),
+                  ),
+                ),
+          ],
         ),
       ),
     );
   }
 }
+
+// Zero-habits prompt shown in place of the five-card.
+Widget _todayEmpty(BuildContext context) => Padding(
+  padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+  child: HrCard(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      children: [
+        const Text('🌱', style: TextStyle(fontSize: 40)),
+        const SizedBox(height: 12),
+        Text('No habits yet', style: HrText.title2),
+        const SizedBox(height: 6),
+        Text(
+          'Add your first habit to start your rail.',
+          textAlign: TextAlign.center,
+          style: HrText.bodyS,
+        ),
+        const SizedBox(height: 18),
+        HrButton(
+          label: 'Add habit',
+          icon: Icons.add_rounded,
+          expand: false,
+          onPressed: () => showHabitEditor(context),
+        ),
+      ],
+    ),
+  ),
+);
 
 class _VictoryCard extends StatelessWidget {
   const _VictoryCard();
@@ -2474,54 +2748,47 @@ class _VictoryCard extends StatelessWidget {
     final v = appState.victory();
     final color = victoryColor(v.score);
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      margin: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: const Border(top: BorderSide(color: HrColors.hairline)),
       ),
-      child: Row(children: [
-        SizedBox(
-          width: 64,
-          height: 64,
-          child: Stack(alignment: Alignment.center, children: [
-            GlowRing(
-              value: v.score / 100,
-              size: 64,
-              stroke: 6,
-              colors: [color, Color.lerp(color, Colors.white, 0.35)!],
+      child: Row(
+        children: [
+          SegmentedRing(
+            size: 64,
+            segments: 1,
+            value: v.score / 100,
+            stroke: 6,
+            color: color,
+            center: Text(
+              '${v.score}',
+              style: HrText.stat.copyWith(fontSize: 20),
             ),
-            Text('${v.score}',
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800)),
-          ]),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('VICTORY SCORE',
-                  style: TextStyle(
-                      color: kTextTertiary,
-                      fontSize: 11,
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 3),
-              Text(victoryLabel(v.score),
-                  style: TextStyle(
-                      color: color, fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text(
-                  'Habits ${v.habits} · Nutr ${v.nutrition} · Focus ${v.focus} · Sleep ${v.sleep}',
-                  style: const TextStyle(color: kTextSecondary, fontSize: 11)),
-            ],
           ),
-        ),
-      ]),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('VICTORY SCORE', style: HrText.labelCaps),
+                const SizedBox(height: 3),
+                Text(
+                  victoryLabel(v.score),
+                  style: HrText.headline.copyWith(color: color),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Habits ${v.habits} · Nutr ${v.nutrition} · Focus ${v.focus} · Sleep ${v.sleep}',
+                  style: HrText.caption,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2533,42 +2800,68 @@ class _BossCard extends StatelessWidget {
     final count = appState.perfectDaysThisWeek().clamp(0, kBossGoal);
     final defeated = count >= kBossGoal;
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      margin: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       padding: const EdgeInsets.all(16),
-      decoration:
-          glassDecoration(radius: 16, border: defeated ? kGold : kBorder),
+      decoration: BoxDecoration(
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: Border(
+          top: BorderSide(color: defeated ? HrColors.gold : HrColors.hairline),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.shield_rounded, color: kGold, size: 18),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text(kBossTitle,
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-            Text(defeated ? 'DEFEATED' : '$count/$kBossGoal',
-                style: TextStyle(
-                    color: defeated ? kGold : kTextSecondary,
-                    fontWeight: FontWeight.bold)),
-          ]),
-          const SizedBox(height: 10),
-          GlowBar(
+          Row(
+            children: [
+              Image.asset(
+                kBossImageAsset,
+                width: 42,
+                height: 42,
+                fit: BoxFit.contain,
+                semanticLabel: 'Veil Regent weekly boss',
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  kBossTitle,
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              Text(
+                defeated ? 'DEFEATED' : '$count/$kBossGoal',
+                style: HrText.body.copyWith(
+                  color: defeated ? HrColors.gold : HrColors.text2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(HrRadius.full),
+            child: LinearProgressIndicator(
               value: (count / kBossGoal).clamp(0.0, 1.0).toDouble(),
-              height: 8,
-              colors: const [Color(0xFFFBBF24), Color(0xFFFCD34D)]),
-          const SizedBox(height: 8),
+              minHeight: 8,
+              backgroundColor: HrColors.surface3,
+              valueColor: const AlwaysStoppedAnimation(HrColors.gold),
+            ),
+          ),
+          const SizedBox(height: 10),
           Text(
-              defeated
-                  ? 'Reward claimed: +$kBossXp XP · +$kBossCoins coins'
-                  : '$kBossDesc  (+$kBossXp XP, +$kBossCoins coins)',
-              style: const TextStyle(color: kTextTertiary, fontSize: 11)),
-          const SizedBox(height: 8),
+            defeated
+                ? 'Reward claimed: +$kBossXp XP · +$kBossCoins coins'
+                : '$kBossDesc  (+$kBossXp XP, +$kBossCoins coins)',
+            style: HrText.caption,
+          ),
+          const SizedBox(height: 6),
           Text(
-              'Season ${appState.currentSeason + 1} · ${appState.seasonBossDefeats}/4 bosses',
-              style: const TextStyle(
-                  color: kCyan, fontSize: 11, fontWeight: FontWeight.bold)),
+            'Season ${appState.currentSeason + 1} · ${appState.seasonBossDefeats}/4 bosses',
+            style: HrText.caption.copyWith(
+              color: HrColors.info,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -2581,12 +2874,12 @@ class _QuestsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final claimed = appState.questClaimedIds;
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      margin: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: const Border(top: BorderSide(color: HrColors.hairline)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2594,40 +2887,44 @@ class _QuestsPanel extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('DAILY QUESTS',
-                  style: TextStyle(
-                      color: kTextTertiary,
-                      fontSize: 11,
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.bold)),
-              Text('${claimed.length}/${kQuests.length}',
-                  style:
-                      const TextStyle(color: kCyan, fontWeight: FontWeight.bold)),
+              Text('DAILY QUESTS', style: HrText.labelCaps),
+              Text(
+                '${claimed.length}/${kQuests.length}',
+                style: HrText.labelCaps.copyWith(color: HrColors.accent),
+              ),
             ],
           ),
           const SizedBox(height: 10),
           ...kQuests.map((q) {
             final on = claimed.contains(q.id);
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Row(children: [
-                Icon(on ? Icons.check_circle_rounded : Icons.circle_outlined,
-                    size: 18, color: on ? kGreen : kTextTertiary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(q.title,
-                      style: TextStyle(
-                        color: on ? kTextTertiary : kTextPrimary,
-                        fontSize: 13,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    on ? Icons.check_circle_rounded : Icons.circle_outlined,
+                    size: 18,
+                    color: on ? HrColors.accent : HrColors.text3,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      q.title,
+                      style: HrText.bodyS.copyWith(
+                        color: on ? HrColors.text3 : HrColors.text,
                         decoration: on ? TextDecoration.lineThrough : null,
-                      )),
-                ),
-                Text('+${q.xp}',
-                    style: TextStyle(
-                        color: on ? kGreen : kPlasmaGlow,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12)),
-              ]),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '+${q.xp}',
+                    style: HrText.caption.copyWith(
+                      color: on ? HrColors.text3 : HrColors.accent,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
             );
           }),
         ],
@@ -2636,54 +2933,61 @@ class _QuestsPanel extends StatelessWidget {
   }
 }
 
-void _showBossDefeat(BuildContext context) {
+// ── MOMENTS: shared celebration dialog ──────────────────────────────────────
+void _showMoment(
+  BuildContext context, {
+  required String label,
+  Color labelColor = HrColors.gold,
+  required Widget emblem,
+  required String title,
+  String? subtitle,
+  String? bubble,
+  List<Widget> rewards = const [],
+  String buttonLabel = 'Continue',
+}) {
   showDialog<void>(
     context: context,
     builder: (ctx) => Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 32),
       child: Container(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF3A2A08), Color(0xFF160B2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: kGold),
+          color: HrColors.surface,
+          borderRadius: BorderRadius.circular(HrRadius.xl),
+          border: const Border(top: BorderSide(color: HrColors.hairline)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.shield_rounded, color: kGold, size: 44),
-            const SizedBox(height: 10),
-            const Text('BOSS DEFEATED',
-                style: TextStyle(
-                    color: kGold,
-                    fontSize: 18,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            const Text('Weekly Sovereignty Challenge',
-                style: TextStyle(color: kTextSecondary)),
-            const SizedBox(height: 14),
-            Text('+$kBossXp XP   ·   +$kBossCoins coins',
-                style: TextStyle(
-                    color: kPlasmaGlow, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Text(companionLine(appState.activeCompanion, 'boss_defeat'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: kTextSecondary,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12)),
-            const SizedBox(height: 18),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: kGold, foregroundColor: Colors.black),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Claim'),
+            Text(
+              label.toUpperCase(),
+              style: HrText.labelCaps.copyWith(
+                color: labelColor,
+                letterSpacing: 2,
+              ),
             ),
+            const SizedBox(height: 16),
+            emblem,
+            const SizedBox(height: 18),
+            Text(title, textAlign: TextAlign.center, style: HrText.title1),
+            if (subtitle != null) ...[
+              const SizedBox(height: 6),
+              Text(subtitle, textAlign: TextAlign.center, style: HrText.bodyS),
+            ],
+            if (bubble != null) ...[
+              const SizedBox(height: 14),
+              SpeechBubble(bubble, maxWidth: 240),
+            ],
+            if (rewards.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: rewards,
+              ),
+            ],
+            const SizedBox(height: 22),
+            HrButton(label: buttonLabel, onPressed: () => Navigator.pop(ctx)),
           ],
         ),
       ),
@@ -2691,128 +2995,52 @@ void _showBossDefeat(BuildContext context) {
   );
 }
 
-class _HabitTile extends StatelessWidget {
-  const _HabitTile({
-    required this.habit,
-    required this.done,
-    required this.onToggle,
-    required this.onDelete,
-    required this.onEdit,
-    this.reorderIndex,
-  });
-  final Habit habit;
-  final bool done;
-  final VoidCallback onToggle;
-  final VoidCallback onDelete;
-  final VoidCallback onEdit;
-  final int? reorderIndex; // when set, shows a drag handle for reordering
+Widget _momentReward(String value, String label, Color color) => Container(
+  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+  margin: const EdgeInsets.symmetric(horizontal: 5),
+  decoration: BoxDecoration(
+    color: HrColors.surface2,
+    borderRadius: BorderRadius.circular(HrRadius.md),
+  ),
+  child: Column(
+    children: [
+      Text(value, style: HrText.title2.copyWith(color: color)),
+      const SizedBox(height: 2),
+      Text(label, style: HrText.micro),
+    ],
+  ),
+);
 
-  @override
-  Widget build(BuildContext context) {
-    final rc = rarityConfig[habit.rarity];
-    final rarityColor = rc?.color ?? kTextTertiary;
-    return Dismissible(
-      key: ValueKey(habit.id),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDelete(),
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        decoration: BoxDecoration(
-            color: const Color(0xFF3A1020),
-            borderRadius: BorderRadius.circular(14)),
-        child: const Icon(Icons.delete_outline, color: Color(0xFFFB7185)),
+void _showBossDefeat(BuildContext context) {
+  _showMoment(
+    context,
+    label: 'Boss defeated',
+    labelColor: HrColors.gold,
+    emblem: SegmentedRing(
+      size: 136,
+      segments: 1,
+      value: 1,
+      stroke: 9,
+      color: HrColors.gold,
+      center: Image.asset(
+        kBossImageAsset,
+        width: 76,
+        height: 76,
+        fit: BoxFit.contain,
+        semanticLabel: 'Weekly boss',
       ),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: done ? kPlasma : kBorder),
-        ),
-        child: ListTile(
-          onTap: onToggle,
-          onLongPress: onEdit,
-          leading: AnimatedScale(
-            scale: done ? 1 : 0.94,
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutBack,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: done ? kPlasma : Colors.transparent,
-                border: Border.all(
-                    color: done ? kPlasma : const Color(0x4DFFFFFF), width: 2),
-                boxShadow: done
-                    ? [BoxShadow(color: kPlasma.withValues(alpha: 0.32), blurRadius: 10)]
-                    : null,
-              ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 140),
-                transitionBuilder: (child, animation) => ScaleTransition(
-                  scale: animation,
-                  child: FadeTransition(opacity: animation, child: child),
-                ),
-                child: done
-                    ? const Icon(Icons.check, key: ValueKey('checked'), size: 18, color: Colors.white)
-                    : const SizedBox(key: ValueKey('unchecked')),
-              ),
-            ),
-          ),
-          title: Text(
-              habit.icon.isEmpty ? habit.name : '${habit.icon}  ${habit.name}',
-              style: TextStyle(
-                color: done ? kTextTertiary : kTextPrimary,
-                decoration: done ? TextDecoration.lineThrough : null,
-                fontWeight: FontWeight.w500,
-              )),
-          subtitle: Row(children: [
-            Container(
-                width: 7,
-                height: 7,
-                decoration:
-                    BoxDecoration(shape: BoxShape.circle, color: rarityColor)),
-            const SizedBox(width: 6),
-            Text(rc?.label ?? 'Common',
-                style: TextStyle(color: rarityColor, fontSize: 11)),
-          ]),
-          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-            if (habit.reminderMinutes != null)
-              const Padding(
-                padding: EdgeInsets.only(right: 4),
-                child: Icon(Icons.notifications_active_rounded,
-                    size: 15, color: kTextTertiary),
-              ),
-            if (habit.streak > 0)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                    color: const Color(0x268B5CF6),
-                    borderRadius: BorderRadius.circular(20)),
-                child: Text('🔥 ${habit.streak}',
-                    style: TextStyle(
-                        color: kPlasmaGlow, fontWeight: FontWeight.bold)),
-              ),
-            if (reorderIndex != null)
-              ReorderableDragStartListener(
-                index: reorderIndex!,
-                child: const Padding(
-                  padding: EdgeInsets.only(left: 6),
-                  child: Icon(Icons.drag_indicator, color: kTextTertiary),
-                ),
-              ),
-          ]),
-        ),
-      ),
-    );
-  }
+    ),
+    title: 'Weekly Sovereignty\nChallenge',
+    bubble: companionLine(appState.activeCompanion, 'boss_defeat'),
+    rewards: [
+      _momentReward('+$kBossXp', 'XP', HrColors.gold),
+      _momentReward('+$kBossCoins', 'Coins', HrColors.text),
+    ],
+    buttonLabel: 'Claim',
+  );
 }
+
+// _HabitTile was replaced by HabitRow (design-system kit) in the _FiveCard.
 
 // ── FOCUS ───────────────────────────────────────────────────────────────────
 class FocusScreen extends StatefulWidget {
@@ -2822,10 +3050,13 @@ class FocusScreen extends StatefulWidget {
 }
 
 class _FocusScreenState extends State<FocusScreen> {
+  static const _durations = [15, 25, 45, 60];
   int _minutes = 25;
   int _remaining = 25 * 60;
   bool _running = false;
   bool _started = false;
+  bool _complete = false;
+  int _lastGain = 0;
   Timer? _timer;
 
   @override
@@ -2846,23 +3077,21 @@ class _FocusScreenState extends State<FocusScreen> {
     setState(() {
       _running = true;
       _started = true;
+      _complete = false;
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_remaining <= 1) {
         t.cancel();
         final gain = appState.completeFocus(_minutes);
+        if (!mounted) return;
+        HapticFeedback.mediumImpact();
         setState(() {
           _running = false;
           _started = false;
           _remaining = _minutes * 60;
+          _complete = true;
+          _lastGain = gain;
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: kElevated,
-            content: Text('Focus complete! +$gain XP',
-                style: TextStyle(color: kPlasmaGlow)),
-          ));
-        }
       } else {
         setState(() => _remaining--);
       }
@@ -2883,83 +3112,620 @@ class _FocusScreenState extends State<FocusScreen> {
     });
   }
 
+  void _backToToday() {
+    setState(() {
+      _complete = false;
+      _remaining = _minutes * 60;
+    });
+    shellTab.value = 0; // jump the bottom-nav back to Today
+  }
+
   @override
   Widget build(BuildContext context) {
-    final mm = (_remaining ~/ 60).toString().padLeft(2, '0');
-    final ss = (_remaining % 60).toString().padLeft(2, '0');
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _titleBar('Focus'),
-      body: Center(
+      body: SafeArea(
+        bottom: false,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Wrap(
-              spacing: 10,
-              children: [15, 25, 50].map((m) {
-                final sel = m == _minutes;
-                return ChoiceChip(
-                  label: Text('$m min'),
-                  selected: sel,
-                  onSelected: _started ? null : (_) => _setMinutes(m),
-                  selectedColor: kPlasma,
-                  backgroundColor: kCard,
-                  labelStyle: TextStyle(
-                      color: sel ? Colors.white : kTextSecondary),
-                  side: const BorderSide(color: kBorder),
-                );
-              }).toList(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter,
+                4,
+                HrSpace.gutter,
+                0,
+              ),
+              child: Row(
+                children: [
+                  Text('Focus', style: HrText.display),
+                  const Spacer(),
+                  _coinChip(context),
+                ],
+              ),
             ),
-            const SizedBox(height: 32),
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                GlowRing(
-                  value: 1 - _remaining / (_minutes * 60),
-                  size: 250,
-                  stroke: 4,
-                  colors: _running ? [kCyan, kPlasmaBright] : null,
+            Expanded(
+              child: _complete ? _completeView(context) : _timerView(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _timerView(BuildContext context) {
+    final mm = (_remaining ~/ 60).toString().padLeft(2, '0');
+    final ss = (_remaining % 60).toString().padLeft(2, '0');
+    // The dial stays quiet while idle, then fills clockwise as focus time passes.
+    final frac = _started ? 1 - _remaining / (_minutes * 60) : 0.0;
+    final sub = !_started
+        ? '$_minutes MIN SESSION'
+        : _running
+        ? 'DEEP WORK · $_minutes MIN'
+        : 'PAUSED · $_minutes MIN';
+    return Column(
+      children: [
+        const Spacer(),
+        _FocusTimerDial(
+          size: 260,
+          value: frac,
+          color: HrColors.accent,
+          center: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: mm,
+                      style: HrText.numeralXl.copyWith(
+                        fontSize: 62,
+                        letterSpacing: -1.8,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ':',
+                      style: HrText.numeralXl.copyWith(
+                        color: HrColors.accent,
+                        fontSize: 56,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ss,
+                      style: HrText.numeralXl.copyWith(
+                        color: HrColors.text2,
+                        fontSize: 62,
+                        letterSpacing: -1.8,
+                      ),
+                    ),
+                  ],
                 ),
-                Container(
-              width: 230,
-              height: 230,
-              alignment: Alignment.center,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 7),
+              Text(
+                sub,
+                style: HrText.micro.copyWith(
+                  color: HrColors.text2,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Spacer(),
+        if (!_started)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+            child: HrSegmented(
+              items: _durations.map((m) => '$m').toList(),
+              index: _durations
+                  .indexOf(_minutes)
+                  .clamp(0, _durations.length - 1),
+              onChanged: (i) => _setMinutes(_durations[i]),
+            ),
+          ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+          child: !_started
+              ? _FocusStartButton(onPressed: _start, minutes: _minutes)
+              : Row(
+                  children: [
+                    Expanded(
+                      child: HrButton(
+                        label: 'Reset',
+                        icon: Icons.refresh_rounded,
+                        kind: HrButtonKind.secondary,
+                        onPressed: _reset,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _running
+                          ? HrButton(
+                              label: 'Pause',
+                              icon: Icons.pause_rounded,
+                              kind: HrButtonKind.primary,
+                              onPressed: _pause,
+                            )
+                          : HrButton(
+                              label: 'Resume',
+                              icon: Icons.play_arrow_rounded,
+                              kind: HrButtonKind.accent,
+                              onPressed: _start,
+                            ),
+                    ),
+                  ],
+                ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          !_started
+              ? 'Finish a session to earn XP · today ${appState.focusMinutesToday} min'
+              : _running
+              ? 'Session in progress · +${_minutes * 2} XP at the end'
+              : 'Session paused',
+          style: HrText.caption,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _completeView(BuildContext context) {
+    final comp = companionByType(appState.activeCompanion);
+    final questDone = kQuests.firstWhere((q) => q.id == 'q2').done(appState);
+    return Column(
+      children: [
+        const Spacer(),
+        SegmentedRing(
+          size: 260,
+          segments: 1,
+          value: 1,
+          stroke: 10,
+          color: HrColors.accent,
+          center: CompanionSticker(
+            icon: comp.icon,
+            color: comp.color,
+            size: 96,
+            semanticLabel: comp.name,
+            imageAsset: comp.imageAsset,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const SpeechBubble('Session complete. Output logged.', maxWidth: 260),
+        const Spacer(),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+          child: Row(
+            children: [
+              Expanded(
+                child: _rewardTile('+$_lastGain', 'XP', HrColors.streak),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _rewardTile(
+                  '${appState.focusMinutesToday}',
+                  'Min today',
+                  HrColors.text,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _rewardTile(
+                  questDone ? '1/1' : '0/1',
+                  'Quest',
+                  questDone ? HrColors.accent : HrColors.text3,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+          child: HrButton(label: 'Back to Today', onPressed: _backToToday),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _rewardTile(String value, String label, Color color) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+    decoration: BoxDecoration(
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: const Border(top: BorderSide(color: HrColors.hairline)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: HrText.title2.copyWith(color: color),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: HrText.caption),
+      ],
+    ),
+  );
+}
+
+// ── STATS ───────────────────────────────────────────────────────────────────
+class _FocusStartButton extends StatelessWidget {
+  const _FocusStartButton({required this.onPressed, required this.minutes});
+
+  final VoidCallback onPressed;
+  final int minutes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Start focus',
+      child: Container(
+        height: 68,
+        decoration: BoxDecoration(
+          color: HrColors.surface,
+          borderRadius: BorderRadius.circular(HrRadius.lg),
+          border: Border.all(color: HrColors.accent.withValues(alpha: 0.42)),
+          boxShadow: [
+            BoxShadow(
+              color: HrColors.accent.withValues(alpha: 0.16),
+              blurRadius: 16,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(HrRadius.lg),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(HrRadius.lg),
+            onTap: onPressed,
+            child: Ink(
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const RadialGradient(
-                    colors: [Color(0xFF2A1458), Color(0xFF0B0420)]),
-                border: Border.all(color: kPlasma, width: 2),
-              ),
-              child: Text('$mm:$ss',
-                  style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 52,
-                      fontWeight: FontWeight.w800)),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [HrColors.accentSurface, HrColors.surface],
                 ),
-              ],
+                borderRadius: BorderRadius.circular(HrRadius.lg),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 1,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      height: 1,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: HrColors.accentSurface,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: HrColors.accent.withValues(alpha: 0.55),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: HrColors.accent.withValues(alpha: 0.16),
+                                blurRadius: 9,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.play_arrow_rounded,
+                            size: 25,
+                            color: HrColors.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Start focus',
+                                style: HrText.body.copyWith(
+                                  color: HrColors.text,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                '$minutes min · +${minutes * 2} XP',
+                                style: HrText.micro.copyWith(
+                                  color: HrColors.text2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 18,
+                          color: HrColors.accent.withValues(alpha: 0.86),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 32),
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                    backgroundColor: kPlasma,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
-                onPressed: _running ? _pause : _start,
-                icon: Icon(_running ? Icons.pause_rounded : Icons.play_arrow_rounded),
-                label: Text(_started ? (_running ? 'Pause' : 'Resume') : 'Start focus'),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FocusTimerDial extends StatelessWidget {
+  const _FocusTimerDial({
+    required this.size,
+    required this.value,
+    required this.color,
+    required this.center,
+  });
+
+  final double size, value;
+  final Color color;
+  final Widget center;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween<double>(end: value),
+    duration: const Duration(milliseconds: 450),
+    curve: Curves.easeOutCubic,
+    builder: (context, progress, _) => SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _FocusDialPainter(progress, color),
+        child: Center(child: center),
+      ),
+    ),
+  );
+}
+
+class _FocusDialPainter extends CustomPainter {
+  const _FocusDialPainter(this.value, this.color);
+
+  final double value;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.width / 2 - 18;
+    final ringRect = Rect.fromCircle(center: center, radius: radius);
+    final ringPath = Path()..addOval(ringRect);
+
+    canvas.drawShadow(ringPath, const Color(0xB8000000), 14, true);
+    canvas.drawCircle(
+      center,
+      radius + 8,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 17
+        ..color = const Color(0xFF17171C),
+    );
+    canvas.drawCircle(
+      center,
+      radius + 15,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = const Color(0x44FFFFFF),
+    );
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 12
+        ..color = const Color(0xFF303039),
+    );
+    canvas.drawCircle(
+      center,
+      radius - 9,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = const Color(0x22FFFFFF),
+    );
+    canvas.drawCircle(
+      center,
+      radius - 17,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: [Color(0xFF18151F), Color(0xFF09090B)],
+        ).createShader(Rect.fromCircle(center: center, radius: radius - 17)),
+    );
+
+    for (var i = 0; i < 12; i++) {
+      final angle = -pi / 2 + i * (2 * pi / 12);
+      final outer = radius - 19;
+      final inner = radius - (i % 3 == 0 ? 27 : 24);
+      final tickPaint = Paint()
+        ..color = i % 3 == 0
+            ? const Color(0x668E83A6)
+            : const Color(0x338E83A6)
+        ..strokeWidth = i % 3 == 0 ? 1.5 : 1
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        center + Offset(cos(angle) * inner, sin(angle) * inner),
+        center + Offset(cos(angle) * outer, sin(angle) * outer),
+        tickPaint,
+      );
+    }
+
+    final sweep = 2 * pi * value.clamp(0.0, 1.0).toDouble();
+    if (sweep > 0) {
+      final glowPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 13
+        ..strokeCap = StrokeCap.round
+        ..shader = SweepGradient(
+          startAngle: -pi / 2,
+          endAngle: 3 * pi / 2,
+          colors: [
+            color,
+            Color(0xFF7278FF),
+            Color(0xFF4DD6E5),
+            color,
+          ],
+        ).createShader(ringRect)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+      canvas.drawArc(ringRect, -pi / 2, sweep, false, glowPaint);
+
+      final arcPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 10
+        ..strokeCap = StrokeCap.round
+        ..shader = SweepGradient(
+          startAngle: -pi / 2,
+          endAngle: 3 * pi / 2,
+          colors: [
+            color,
+            Color(0xFF8D72FF),
+            Color(0xFF54D8E8),
+            color,
+          ],
+        ).createShader(ringRect);
+      canvas.drawArc(ringRect, -pi / 2, sweep, false, arcPaint);
+    }
+
+    final markerAngle = -pi / 2 + sweep;
+    final markerCenter = center +
+        Offset(cos(markerAngle) * radius, sin(markerAngle) * radius);
+    final gem = Path()
+      ..moveTo(markerCenter.dx, markerCenter.dy - 10)
+      ..lineTo(markerCenter.dx + 7, markerCenter.dy)
+      ..lineTo(markerCenter.dx, markerCenter.dy + 10)
+      ..lineTo(markerCenter.dx - 7, markerCenter.dy)
+      ..close();
+    canvas.drawShadow(
+      gem,
+      const Color(0xAA8D5AFF),
+      value > 0 ? 9 : 3,
+      true,
+    );
+    canvas.drawPath(
+      gem,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF0DFFF), Color(0xFFAA78FF), Color(0xFF6335C9)],
+        ).createShader(Rect.fromCircle(center: markerCenter, radius: 11)),
+    );
+    final facet = Path()
+      ..moveTo(markerCenter.dx, markerCenter.dy - 8)
+      ..lineTo(markerCenter.dx, markerCenter.dy + 1)
+      ..lineTo(markerCenter.dx - 5, markerCenter.dy)
+      ..close();
+    canvas.drawPath(facet, Paint()..color = const Color(0x99FFFFFF));
+    canvas.drawPath(
+      gem,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8
+        ..color = const Color(0xFFDCC3FF),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FocusDialPainter oldDelegate) =>
+      oldDelegate.value != value || oldDelegate.color != color;
+}
+
+// ── PROGRESS (Stats · Awards · Journal) ─────────────────────────────────────
+// Folds the old Stats, Awards and Journal tabs behind one segmented control.
+class ProgressScreen extends StatefulWidget {
+  const ProgressScreen({super.key});
+  @override
+  State<ProgressScreen> createState() => _ProgressScreenState();
+}
+
+class _ProgressScreenState extends State<ProgressScreen> {
+  int _seg = 0;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter,
+                4,
+                HrSpace.gutter,
+                0,
               ),
-              if (_started) ...[
-                const SizedBox(width: 10),
-                IconButton.filledTonal(
-                  tooltip: 'Reset session',
-                  onPressed: _reset,
-                  icon: const Icon(Icons.stop_rounded),
-                ),
-              ],
-            ]),
-            const SizedBox(height: 10),
-            Text(_started ? (_running ? 'Session in progress' : 'Session paused') : 'Finish a session to earn XP',
-                style: const TextStyle(color: kTextTertiary, fontSize: 12)),
+              child: Row(
+                children: [
+                  Text('Progress', style: HrText.display),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ShareCardScreen(),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.ios_share_rounded,
+                      color: HrColors.text2,
+                    ),
+                    tooltip: 'Share progress',
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter,
+                8,
+                HrSpace.gutter,
+                10,
+              ),
+              child: HrSegmented(
+                items: const ['Calendar', 'Stats', 'Awards', 'Journal'],
+                index: _seg,
+                onChanged: (i) => setState(() => _seg = i),
+              ),
+            ),
+            Expanded(
+              // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
+              child: IndexedStack(
+                index: _seg,
+                children: <Widget>[
+                  CalendarScreen(embedded: true),
+                  StatsScreen(embedded: true),
+                  AwardsScreen(embedded: true),
+                  JournalScreen(embedded: true),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -2967,135 +3733,421 @@ class _FocusScreenState extends State<FocusScreen> {
   }
 }
 
-// ── STATS ───────────────────────────────────────────────────────────────────
-class StatsScreen extends StatelessWidget {
-  const StatsScreen({super.key});
+const _kMonthsFull = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+String _compactNum(int n) {
+  if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+  if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+  return '$n';
+}
+
+// ── CALENDAR (Progress tab) ─────────────────────────────────────────────────
+// A weekly streak ring + a month grid coloured by each day's victory score.
+class CalendarScreen extends StatefulWidget {
+  const CalendarScreen({this.embedded = false, super.key});
+  final bool embedded;
+  @override
+  State<CalendarScreen> createState() => _CalendarScreenState();
+}
+
+class _CalendarScreenState extends State<CalendarScreen> {
+  late DateTime _month;
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month, 1);
+  }
+
+  void _shift(int d) =>
+      setState(() => _month = DateTime(_month.year, _month.month + d, 1));
 
   @override
   Widget build(BuildContext context) {
-    final ld = levelFromXp(appState.totalXp);
-    final stats = <(String, String, Color, IconData)>[
-      ('Level', '${ld.level}', kPlasmaBright, Icons.military_tech_rounded),
-      ('Title', levelTitle(ld.level), kCyan, Icons.star_rounded),
-      ('Total XP', '${appState.totalXp}', kPlasma, Icons.bolt_rounded),
-      ('Coins', '${appState.coins}', kGold, Icons.savings_rounded),
-      ('Habits', '${appState.habits.length}', kBlue, Icons.widgets_rounded),
-      ('Done today', '${appState.doneTodayCount}', kCyan,
-          Icons.check_circle_rounded),
-      ('Best streak', '${appState.bestStreak}', const Color(0xFFFB7185),
-          Icons.local_fire_department_rounded),
-      ('Reflections', '${appState.reflections.length}', kPlasmaGlow,
-          Icons.menu_book_rounded),
-      ('Perfect days', '${appState.totalPerfectDays}', kGreen,
-          Icons.verified_rounded),
-      ('Avg score 7d', '${appState.avgScoreLastDays(7).round()}',
-          kPlasmaBright, Icons.trending_up_rounded),
-    ];
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: _titleBar('Stats'),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 96),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const LegacyScreen())),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                      gradient: _kGlassSheen,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: kBorder)),
-                  child: Row(children: [
-                    const Icon(Icons.history_rounded, color: kCyan, size: 22),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Text('Legacy Timeline',
-                          style: TextStyle(
-                              color: kTextPrimary,
-                              fontWeight: FontWeight.bold)),
+    final now = DateTime.now();
+    final week = appState.perfectDaysThisWeek();
+    final comp = companionByType(appState.activeCompanion);
+    final streak = appState.bestStreak;
+    final line =
+        '$week of 7 this week. ${week >= 6 ? 'Close.' : 'Keep going.'}';
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 100),
+      children: [
+        SizedBox(
+          height: 150,
+          child: Center(
+            child: SizedBox(
+              width: 150,
+              height: 150,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  SegmentedRing(
+                    size: 140,
+                    segments: 7,
+                    value: week.toDouble(),
+                    stroke: 9,
+                    color: HrColors.accent,
+                    center: CompanionSticker(
+                      icon: comp.icon,
+                      color: comp.color,
+                      size: 86,
+                      semanticLabel: comp.name,
+                      imageAsset: comp.imageAsset,
                     ),
-                    Text('${appState.milestoneLog.length}',
-                        style: const TextStyle(
-                            color: kCyan, fontWeight: FontWeight.bold)),
-                    const Icon(Icons.chevron_right, color: kTextTertiary),
-                  ]),
-                ),
+                  ),
+                  if (streak > 0)
+                    Positioned(
+                      bottom: -6,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: StreakPill(
+                          count: streak,
+                          big: true,
+                          label: '$streak DAY STREAK',
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
-          const _WeekTrendCard(),
-          const _HeatmapCard(),
-          const _HabitStreaksCard(),
-          GridView.count(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
-            children: stats
-                .map((s) => _StatCard(
-                    label: s.$1, value: s.$2, color: s.$3, icon: s.$4))
-                .toList(),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        Center(child: SpeechBubble(line, speaker: comp.name, maxWidth: 220)),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+          child: _monthCard(context, now),
+        ),
+      ],
     );
   }
-}
 
-class _StatCard extends StatelessWidget {
-  const _StatCard(
-      {required this.label,
-      required this.value,
-      required this.color,
-      required this.icon});
-  final String label;
-  final String value;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
-      ),
+  Widget _monthCard(BuildContext context, DateTime now) {
+    final first = _month;
+    final daysInMonth = DateTime(first.year, first.month + 1, 0).day;
+    final leading = first.weekday - 1; // Monday = 0 leading cells
+    final todayK = dateKey(now);
+    final atCurrentMonth = first.year == now.year && first.month == now.month;
+    return HrCard(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, color: color, size: 22),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800)),
-              Text(label,
-                  style: const TextStyle(color: kTextTertiary, fontSize: 12)),
+              Text(
+                '${_kMonthsFull[first.month - 1]} ${first.year}',
+                style: HrText.headline,
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => _shift(-1),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(
+                  Icons.chevron_left_rounded,
+                  color: HrColors.text2,
+                ),
+              ),
+              IconButton(
+                onPressed: atCurrentMonth ? null : () => _shift(1),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: HrColors.text2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              for (final d in const ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'])
+                Expanded(
+                  child: Center(child: Text(d, style: HrText.micro)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 7,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 6,
+            children: [
+              for (int i = 0; i < leading; i++) const SizedBox.shrink(),
+              for (int day = 1; day <= daysInMonth; day++)
+                _dayCell(
+                  context,
+                  DateTime(first.year, first.month, day),
+                  todayK,
+                  now,
+                ),
             ],
           ),
         ],
       ),
     );
   }
+
+  Widget _dayCell(
+    BuildContext context,
+    DateTime date,
+    String todayK,
+    DateTime now,
+  ) {
+    final k = dateKey(date);
+    final score = appState.dailyScore[k];
+    final perfect = appState.perfectDays.contains(k);
+    final isToday = k == todayK;
+    final isFuture = date.isAfter(DateTime(now.year, now.month, now.day));
+    final strong = perfect || (score != null && score >= 75);
+    Color bg = HrColors.surface2;
+    Widget? mark;
+    if (strong) {
+      bg = HrColors.accent;
+      mark = Icon(Icons.check_rounded, size: 15, color: HrColors.onAccent);
+    } else if (score != null && score > 0) {
+      bg = HrColors.victory(score).withValues(alpha: 0.9);
+    }
+    return GestureDetector(
+      onTap: isFuture ? null : () => _showDay(context, date, score, perfect),
+      child: Opacity(
+        opacity: isFuture ? 0.35 : 1,
+        child: Container(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(HrRadius.xs),
+            border: isToday
+                ? Border.all(color: HrColors.text, width: 1.5)
+                : null,
+          ),
+          alignment: Alignment.center,
+          child:
+              mark ??
+              Text(
+                '${date.day}',
+                style: HrText.caption.copyWith(
+                  color: strong ? HrColors.onAccent : HrColors.text2,
+                  fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                ),
+              ),
+        ),
+      ),
+    );
+  }
+
+  void _showDay(BuildContext context, DateTime date, int? score, bool perfect) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: HrColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: HrColors.surface3,
+                  borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ),
+            Text(
+              '${_kWeekdays[date.weekday - 1]}, ${_kMonthsFull[date.month - 1]} ${date.day}',
+              style: HrText.title2,
+            ),
+            const SizedBox(height: 14),
+            if (score == null)
+              Text('No activity recorded for this day.', style: HrText.bodyS)
+            else
+              Row(
+                children: [
+                  CountSticker(
+                    '$score',
+                    size: 30,
+                    fill: HrColors.victory(score),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        victoryLabel(score),
+                        style: HrText.headline.copyWith(
+                          color: HrColors.victory(score),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Victory score${perfect ? ' · Perfect day' : ''}',
+                        style: HrText.caption,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.label,
+    required this.value,
+    this.sub,
+    required this.color,
+  });
+  final String label, value;
+  final String? sub;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: const Border(top: BorderSide(color: HrColors.hairline)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: HrText.stat.copyWith(color: color),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.caption,
+            ),
+            if (sub != null)
+              Text(
+                sub!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: HrText.micro.copyWith(color: HrColors.text3),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _legacyLink(BuildContext context) => HrCard(
+  onTap: () =>
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const LegacyScreen())),
+  child: Row(
+    children: [
+      const Icon(Icons.history_rounded, color: HrColors.text2, size: 20),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Text(
+          'Legacy timeline',
+          style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+      ),
+      ),
+      Text(
+        '${appState.milestoneLog.length}',
+        style: HrText.body.copyWith(color: HrColors.text3),
+      ),
+      const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+    ],
+  ),
+);
+
+class StatsScreen extends StatelessWidget {
+  const StatsScreen({this.embedded = false, super.key});
+  final bool embedded;
+
+  @override
+  Widget build(BuildContext context) {
+    final ld = levelFromXp(appState.totalXp);
+    final tiles = <(String, String, String?, Color)>[
+      ('Level', '${ld.level}', levelTitle(ld.level), HrColors.text),
+      ('Total XP', _compactNum(appState.totalXp), null, HrColors.accent),
+      ('Best streak', '${appState.bestStreak}', null, HrColors.streak),
+      ('Perfect days', '${appState.totalPerfectDays}', null, HrColors.text),
+      (
+        'Avg score 7d',
+        '${appState.avgScoreLastDays(7).round()}',
+        null,
+        HrColors.text,
+      ),
+      ('Coins', '${appState.coins}', null, HrColors.gold),
+    ];
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        HrSpace.gutter,
+        4,
+        HrSpace.gutter,
+        100,
+      ),
+      children: [
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 3,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 0.9,
+          children: tiles
+              .map(
+                (t) =>
+                    _StatTile(label: t.$1, value: t.$2, sub: t.$3, color: t.$4),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 14),
+        const _WeekTrendCard(),
+        const SizedBox(height: 14),
+        const _HabitStreaksCard(),
+        const SizedBox(height: 14),
+        const _HeatmapCard(),
+        const SizedBox(height: 14),
+        _legacyLink(context),
+      ],
+    );
+  }
+}
+
+// _StatCard was replaced by _StatTile (flat redesign).
 
 class _HabitStreaksCard extends StatelessWidget {
   const _HabitStreaksCard();
@@ -3104,43 +4156,44 @@ class _HabitStreaksCard extends StatelessWidget {
     final habits = [...appState.habits]
       ..sort((a, b) => b.streak.compareTo(a.streak));
     if (habits.isEmpty) return const SizedBox.shrink();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kBorder)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: const [
-            Icon(Icons.local_fire_department_rounded, color: kGold, size: 18),
-            SizedBox(width: 8),
-            Text('Habit streaks',
-                style: TextStyle(
-                    color: kTextPrimary, fontWeight: FontWeight.bold)),
-          ]),
-          const SizedBox(height: 6),
-          ...habits.take(8).map((h) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: Row(children: [
-                  Expanded(
-                    child: Text(
-                        h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: kTextSecondary, fontSize: 13)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+      child: HrCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const HrLabel('Habit streaks'),
+            ...habits
+                .take(8)
+                .map(
+                  (h) => Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 6,
+                      horizontal: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: HrText.body.copyWith(color: HrColors.text2),
+                          ),
+                        ),
+                        if (h.streak > 0)
+                          StreakPill(count: h.streak, quiet: true)
+                        else
+                          Text(
+                            '—',
+                            style: HrText.body.copyWith(color: HrColors.text3),
+                          ),
+                      ],
+                    ),
                   ),
-                  Text(h.streak > 0 ? '🔥 ${h.streak}' : '—',
-                      style: TextStyle(
-                          color: h.streak > 0 ? kPlasmaGlow : kTextTertiary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13)),
-                ]),
-              )),
-        ],
+                ),
+          ],
+        ),
       ),
     );
   }
@@ -3163,20 +4216,24 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
       final boundary =
           _cardKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       final box = context.findRenderObject() as RenderBox?;
-      final origin =
-          box != null ? (box.localToGlobal(Offset.zero) & box.size) : null;
+      final origin = box != null
+          ? (box.localToGlobal(Offset.zero) & box.size)
+          : null;
       final image = await boundary.toImage(pixelRatio: 3);
       final data = await image.toByteData(format: ImageByteFormat.png);
       if (data == null) throw 'encode failed';
       final file = File(
-          '${Directory.systemTemp.path}/habitrail_progress_${DateTime.now().millisecondsSinceEpoch}.png');
+        '${Directory.systemTemp.path}/habitrail_progress_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
       await file.writeAsBytes(data.buffer.asUint8List());
-      await SharePlus.instance.share(ShareParams(
-        files: [XFile(file.path)],
-        text:
-            "I'm Level ${appState.level} on Habitrail with a ${appState.bestStreak}-day streak! 🔥 Build habits, earn XP, level up.",
-        sharePositionOrigin: origin,
-      ));
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text:
+              "I'm Level ${appState.level} on Habitrail with a ${appState.bestStreak}-day streak! 🔥 Build habits, earn XP, level up.",
+          sharePositionOrigin: origin,
+        ),
+      );
     } catch (_) {
       if (mounted) _toast(context, "Couldn't share right now.");
     } finally {
@@ -3191,89 +4248,222 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
       builder: (context, _) {
         final ld = levelFromXp(appState.totalXp);
         final v = appState.victory();
+        final cardWidth = min(
+          360.0,
+          MediaQuery.sizeOf(context).width - HrSpace.gutter * 2,
+        );
         return Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: _titleBar('Share progress'),
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Share progress', style: HrText.title2),
+          ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              32,
+            ),
             children: [
               Center(
                 child: RepaintBoundary(
                   key: _cardKey,
-                  child: Container(
-                    width: 340,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      gradient: const LinearGradient(
+                  child: SizedBox(
+                    width: cardWidth,
+                    height: cardWidth * 16 / 9,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 24,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFF2A1458), Color(0xFF130A2A)]),
-                      border: Border.all(color: kBorder),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('🔥', style: TextStyle(fontSize: 22)),
-                            const SizedBox(width: 8),
-                            Text('Habitrail',
-                                style: GoogleFonts.spaceGrotesk(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800)),
-                          ],
+                          colors: [Color(0xFF17151E), Color(0xFF0A0A0D)],
                         ),
-                        const SizedBox(height: 22),
-                        _Avatar(size: 92),
-                        const SizedBox(height: 14),
-                        Text(appState.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.spaceGrotesk(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 3),
-                        Text('Level ${ld.level} · ${levelTitle(ld.level)}',
-                            style: const TextStyle(
-                                color: kTextTertiary, fontSize: 13)),
-                        const SizedBox(height: 22),
-                        Row(children: [
-                          _shareStat('🔥', 'Streak', '${appState.bestStreak}'),
-                          _shareStat('🏆', 'Victory', '${v.score}'),
-                          _shareStat('⭐', 'Level', '${ld.level}'),
-                        ]),
-                        const SizedBox(height: 14),
-                        Row(children: [
-                          _shareStat('⚡', 'Total XP', '${appState.totalXp}'),
-                          _shareStat(
-                              '✅', 'Habits', '${appState.habits.length}'),
-                          _shareStat('👑', 'Prestige', '${appState.prestige}'),
-                        ]),
-                        const SizedBox(height: 22),
-                        const Text(
-                            'Build habits. Earn XP. Level up your life.',
-                            textAlign: TextAlign.center,
-                            style:
-                                TextStyle(color: kTextTertiary, fontSize: 11)),
-                      ],
+                        borderRadius: BorderRadius.circular(HrRadius.xl),
+                        border: Border.all(color: const Color(0xFF34313D)),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x553E2B65),
+                            blurRadius: 24,
+                            spreadRadius: -10,
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: -70,
+                            right: -80,
+                            child: Container(
+                              width: 180,
+                              height: 180,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Color(0x182C87FF),
+                                    blurRadius: 70,
+                                    spreadRadius: 18,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.route_rounded,
+                                    size: 17,
+                                    color: Color(0xFF8B73FF),
+                                  ),
+                                  const SizedBox(width: 7),
+                                  Text(
+                                    'HABITRAIL',
+                                    style: HrText.caption.copyWith(
+                                      color: HrColors.text,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 2.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  Image.asset(
+                                    'assets/streaks/enamel_flame.png',
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${appState.bestStreak}',
+                                    style: const TextStyle(
+                                      color: Color(0xFFFFB547),
+                                      fontSize: 48,
+                                      height: 1,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -1.5,
+                                    ),
+                                  ),
+                                  Text(
+                                    appState.bestStreak == 1
+                                        ? 'DAY IN A ROW'
+                                        : 'DAYS IN A ROW',
+                                    style: HrText.micro.copyWith(
+                                      color: const Color(0xFFFFC979),
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _Avatar(size: 64),
+                                  const SizedBox(width: 12),
+                                  Flexible(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          appState.displayName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: HrText.title2,
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          'Level ${ld.level} · ${levelTitle(ld.level)}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: HrText.caption,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      _shareStat(
+                                        Icons.emoji_events_rounded,
+                                        HrColors.gold,
+                                        'Daily Score',
+                                        '${v.score}',
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _shareStat(
+                                        Icons.bolt_rounded,
+                                        const Color(0xFF79DCFF),
+                                        'Total XP',
+                                        '${appState.totalXp}',
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      _shareStat(
+                                        Icons.check_circle_rounded,
+                                        const Color(0xFF7FE2B0),
+                                        'Habits',
+                                        '${appState.habits.length}',
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _shareStat(
+                                        Icons.workspace_premium_rounded,
+                                        const Color(0xFFC49BFF),
+                                        'Prestige',
+                                        '${appState.prestige}',
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'Build your own streak with Habitrail.',
+                                textAlign: TextAlign.center,
+                                style: HrText.bodyS.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: HrColors.text2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              GradientButton(
+              HrButton(
                 label: _busy ? 'Preparing…' : 'Share',
                 icon: Icons.ios_share_rounded,
+                loading: _busy,
                 onPressed: _busy ? null : _share,
               ),
               const SizedBox(height: 10),
-              const Text('Share your card to show off your streak and level.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: kTextTertiary, fontSize: 12)),
+              Text(
+                'Share your card to show off your streak and level.',
+                textAlign: TextAlign.center,
+                style: HrText.caption,
+              ),
             ],
           ),
         );
@@ -3282,23 +4472,43 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
   }
 }
 
-Widget _shareStat(String emoji, String label, String value) => Expanded(
-      child: Column(children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
-        const SizedBox(height: 4),
-        Text(value,
-            style: GoogleFonts.spaceGrotesk(
-                color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
-        Text(label, style: const TextStyle(color: kTextTertiary, fontSize: 10)),
-      ]),
+Widget _shareStat(IconData icon, Color tint, String label, String value) =>
+    Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1B1A20),
+          borderRadius: BorderRadius.circular(HrRadius.md),
+          border: Border.all(color: const Color(0xFF302E37)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 17, color: tint),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.headline.copyWith(color: HrColors.text),
+            ),
+            Text(label, style: HrText.micro),
+          ],
+        ),
+      ),
     );
 
 // ── FRIENDS & LEADERBOARD ────────────────────────────────────────────────────
 
 // A ranked entry (you or a friend) for the leaderboard.
 class _Ranked {
-  _Ranked(this.name, this.totalXp, this.streak, this.borderId, this.isMe,
-      {this.friendId});
+  _Ranked(
+    this.name,
+    this.totalXp,
+    this.streak,
+    this.borderId,
+    this.isMe, {
+    this.friendId,
+  });
   final String name;
   final int totalXp;
   final int streak;
@@ -3307,8 +4517,14 @@ class _Ranked {
   final String? friendId; // null for the current user
 }
 
-class FriendsScreen extends StatelessWidget {
+class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
+  @override
+  State<FriendsScreen> createState() => _FriendsScreenState();
+}
+
+class _FriendsScreenState extends State<FriendsScreen> {
+  int _seg = 0;
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -3316,64 +4532,396 @@ class FriendsScreen extends StatelessWidget {
       builder: (context, _) {
         // Leaderboard = you + your friends, ranked by total XP.
         final board = <_Ranked>[
-          _Ranked(appState.displayName, appState.totalXp, appState.bestStreak,
-              appState.selectedBorder, true),
-          ...friends.friends.map((f) => _Ranked(
-              f.name, f.totalXp, f.streak, f.borderId, false,
-              friendId: f.id)),
+          _Ranked(
+            appState.displayName,
+            appState.totalXp,
+            appState.bestStreak,
+            appState.selectedBorder,
+            true,
+          ),
+          ...friends.friends.map(
+            (f) => _Ranked(
+              f.name,
+              f.totalXp,
+              f.streak,
+              f.borderId,
+              false,
+              friendId: f.id,
+            ),
+          ),
         ]..sort((a, b) => b.totalXp.compareTo(a.totalXp));
-        final myRank = board.indexWhere((e) => e.isMe) + 1;
-        final suggestions = friends.suggestions();
         return Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: _titleBar('Friends'),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
-            children: [
-              _friendsRankHero(myRank, board.length),
-              const _AddFriendField(),
-              _sectionLabel('LEADERBOARD'),
-              for (int i = 0; i < board.length; i++)
-                _leaderRow(context, i + 1, board[i]),
-              _sectionLabel('YOUR FRIENDS'),
-              if (friends.friends.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: _EmptyState(
-                      emoji: '🧑‍🤝‍🧑',
-                      title: 'No friends yet',
-                      subtitle:
-                          'Add a friend by username to compare progress.'),
-                )
-              else
-                ...friends.friends.map((f) => _friendCard(context, f)),
-              if (suggestions.isNotEmpty) ...[
-                _sectionLabel('SUGGESTED'),
-                ...suggestions.map((f) => _suggestionCard(context, f)),
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    HrSpace.gutter,
+                    4,
+                    HrSpace.gutter,
+                    0,
+                  ),
+                  child: Row(
+                    children: [
+                      Text('Friends', style: HrText.display),
+                      const Spacer(),
+                      Tooltip(
+                        message: 'Add a friend',
+                        child: Material(
+                          color: HrColors.surface2,
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => setState(() => _seg = 1),
+                            child: const SizedBox(
+                              width: 38,
+                              height: 38,
+                              child: Icon(
+                                Icons.person_add_alt_1_rounded,
+                                color: HrColors.text,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    HrSpace.gutter,
+                    10,
+                    HrSpace.gutter,
+                    10,
+                  ),
+                  child: HrSegmented(
+                    items: const ['Leaderboard', 'Friends'],
+                    index: _seg,
+                    onChanged: (i) => setState(() => _seg = i),
+                  ),
+                ),
+                Expanded(
+                  child: _seg == 0
+                      ? _leaderboardTab(context, board)
+                      : _friendsTab(context),
+                ),
               ],
-            ],
+            ),
           ),
         );
       },
+    );
+  }
+
+  Widget _leaderboardTab(BuildContext context, List<_Ranked> board) {
+    final myXp = appState.totalXp;
+    final myIndex = board.indexWhere((entry) => entry.isMe);
+    final rank = myIndex >= 0 ? myIndex + 1 : board.length + 1;
+    final isLeading = rank == 1;
+    final opponent = isLeading
+        ? (board.length > 1 ? board[1] : null)
+        : (board.isNotEmpty ? board.first : null);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        HrSpace.gutter,
+        4,
+        HrSpace.gutter,
+        100,
+      ),
+      children: [
+        _podium(context, board),
+        const SizedBox(height: 16),
+        _leaderboardStatusCard(
+          rank: rank,
+          myXp: myXp,
+          opponent: opponent,
+          isLeading: isLeading,
+        ),
+        const SizedBox(height: 22),
+        for (int i = 0; i < board.length; i++)
+          _leaderRow(context, i + 1, board[i]),
+      ],
+    );
+  }
+
+  Widget _leaderboardStatusCard({
+    required int rank,
+    required int myXp,
+    required _Ranked? opponent,
+    required bool isLeading,
+  }) {
+    final gap = opponent == null ? 0 : (opponent.totalXp - myXp).abs();
+    final targetXp = opponent?.totalXp ?? myXp;
+    final progress = isLeading || targetXp <= 0
+        ? 1.0
+        : (myXp / targetXp).clamp(0.0, 1.0).toDouble();
+    final lead = opponent == null
+        ? (isLeading ? "You're leading—" : 'Keep climbing—')
+        : isLeading
+        ? "You're ${_groupedNum(gap)} XP ahead of ${opponent.name}—"
+        : '${opponent.name} is ${_groupedNum(gap)} XP ahead—';
+    final nudge = isLeading ? 'keep it going!' : 'catch up!';
+    final comparison = opponent == null
+        ? 'You: ${_groupedNum(myXp)} XP'
+        : isLeading
+        ? 'You: ${_groupedNum(myXp)} XP · Next: ${opponent.name} ${_groupedNum(opponent.totalXp)} XP'
+        : 'You: ${_groupedNum(myXp)} XP · ${opponent.name}: ${_groupedNum(opponent.totalXp)} XP';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 11),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18171B),
+        borderRadius: BorderRadius.circular(HrRadius.lg),
+        border: Border.all(color: const Color(0xFF302D38), width: 0.8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 38,
+            height: 38,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.star_rounded,
+                  size: 38,
+                  color: HrColors.gold,
+                  shadows: [
+                    Shadow(
+                      color: HrColors.gold.withValues(alpha: 0.28),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Text(
+                    '#$rank',
+                    style: const TextStyle(
+                      color: Color(0xFF302400),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '#$rank IN THE RACE',
+                  style: HrText.micro.copyWith(
+                    color: HrColors.gold.withValues(alpha: 0.88),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: lead,
+                        style: HrText.body.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      TextSpan(
+                        text: nudge,
+                        style: HrText.body.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          fontStyle: FontStyle.italic,
+                          color: const Color(0xFFC08BFF),
+                        ),
+                      ),
+                    ],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(HrRadius.full),
+                  child: SizedBox(
+                    height: 6,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => Stack(
+                        children: [
+                          const Positioned.fill(
+                            child: ColoredBox(color: HrColors.surface3),
+                          ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              width: constraints.maxWidth * progress,
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFFA44DFF),
+                                    Color(0xFF36C9F4),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  comparison,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.micro.copyWith(color: HrColors.text2),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _groupedNum(int value) => value.toString().replaceAllMapped(
+    RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+    (match) => '${match[1]},',
+  );
+
+  Widget _friendsTab(BuildContext context) {
+    final list = friends.friends;
+    final suggestions = friends.suggestions();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        HrSpace.gutter,
+        4,
+        HrSpace.gutter,
+        100,
+      ),
+      children: [
+        const _AddFriendField(),
+        const SizedBox(height: 16),
+        if (list.isEmpty)
+          _friendsEmpty(context)
+        else ...[
+          HrLabel('Your friends · ${list.length}'),
+          ...list.map((f) => _friendCard(context, f)),
+        ],
+        if (suggestions.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          const HrLabel('Suggested'),
+          ...suggestions.map((f) => _suggestionCard(context, f)),
+        ],
+      ],
+    );
+  }
+
+  Widget _friendsEmpty(BuildContext context) {
+    final comp = companionByType(appState.activeCompanion);
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(
+        children: [
+          CompanionSticker(
+            icon: comp.icon,
+            color: comp.color,
+            size: 72,
+            semanticLabel: comp.name,
+            imageAsset: comp.imageAsset,
+          ),
+          const SizedBox(height: 14),
+          const SpeechBubble(
+            'Habits are easier with witnesses.',
+            maxWidth: 240,
+          ),
+          const SizedBox(height: 20),
+          Text('No friends yet', style: HrText.title2),
+          const SizedBox(height: 6),
+          Text(
+            'Add a friend by username to compare XP and streaks.',
+            textAlign: TextAlign.center,
+            style: HrText.bodyS,
+          ),
+        ],
+      ),
     );
   }
 }
 
 // Avatar for an arbitrary name + border (friends have no photo of their own).
 class _FriendAvatar extends StatelessWidget {
-  const _FriendAvatar({required this.name, required this.borderId, this.size = 44});
+  const _FriendAvatar({
+    required this.name,
+    required this.borderId,
+    this.size = 44,
+    this.showBorder = true,
+  });
   final String name;
   final String borderId;
   final double size;
+  final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
     final b = borderById(borderId);
-    final hasBorder = b.id != 'none';
-    final ringW =
-        hasBorder ? (size * 0.1).clamp(3.0, 6.0) : (size * 0.06).clamp(2.0, 4.0);
-    final inner = size - ringW * 2;
+    final hasBorder = showBorder && b.id != 'none';
+    final ringW = hasBorder
+        ? (size * 0.1).clamp(3.0, 6.0)
+        : (size * 0.06).clamp(2.0, 4.0);
+    final frameAsset = showBorder ? b.frameAsset : null;
+    final inner = frameAsset != null
+        ? size * 0.72
+        : (showBorder ? size - ringW * 2 : size);
     final letter = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final avatar = ClipOval(
+      child: Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [kPlasma, kBlue]),
+        ),
+        child: Text(
+          letter,
+          style: GoogleFonts.spaceGrotesk(
+            color: Colors.white,
+            fontSize: inner * 0.42,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+    if (!showBorder) {
+      return SizedBox(width: size, height: size, child: avatar);
+    }
+    if (frameAsset != null) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(width: inner, height: inner, child: avatar),
+            Image.asset(
+              frameAsset,
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       width: size,
       height: size,
@@ -3387,286 +4935,428 @@ class _FriendAvatar extends StatelessWidget {
         boxShadow: b.glow
             ? [
                 BoxShadow(
-                    color: b.colors.first.withValues(alpha: 0.6),
-                    blurRadius: size * 0.22)
+                  color: b.colors.first.withValues(alpha: 0.6),
+                  blurRadius: size * 0.22,
+      ),
               ]
             : null,
-      ),
-      child: ClipOval(
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(gradient: LinearGradient(colors: [kPlasma, kBlue])),
-          child: Text(letter,
-              style: GoogleFonts.spaceGrotesk(
-                  color: Colors.white,
-                  fontSize: inner * 0.42,
-                  fontWeight: FontWeight.w800)),
-        ),
-      ),
+          ),
+      child: avatar,
     );
   }
 }
 
 Widget _youTag() => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-          color: kPlasma.withValues(alpha: 0.25),
-          borderRadius: BorderRadius.circular(8)),
-      child: Text('YOU',
-          style: TextStyle(
-              color: kPlasmaGlow,
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5)),
-    );
-
-Widget _friendsRankHero(int rank, int total) {
-  final medal = rank == 1
-      ? '🥇'
-      : rank == 2
-          ? '🥈'
-          : rank == 3
-              ? '🥉'
-              : '#$rank';
-  return Container(
-    margin: const EdgeInsets.fromLTRB(0, 6, 0, 4),
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(20),
-      gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF301C62), Color(0xFF1A0F38)]),
-      border: Border.all(color: kBorder),
-      boxShadow: [
-        BoxShadow(
-            color: kPlasma.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 8)),
-      ],
+  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+  decoration: BoxDecoration(
+    color: HrColors.accent.withValues(alpha: 0.22),
+    borderRadius: BorderRadius.circular(HrRadius.xs),
+  ),
+  child: Text(
+    'YOU',
+    style: HrText.micro.copyWith(
+      color: HrColors.accent,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.5,
     ),
-    child: Row(children: [
-      _Avatar(size: 54),
-      const SizedBox(width: 16),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('YOUR RANK',
-                style: TextStyle(
-                    color: kTextTertiary,
-                    fontSize: 11,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 3),
-            Text(rank == 1 ? 'Top of the board! 🎉' : "You're #$rank of $total",
-                style: GoogleFonts.spaceGrotesk(
-                    color: kTextPrimary,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800)),
-          ],
+  ),
+);
+
+// Top-three leaderboard profiles, shown without a podium backdrop.
+Widget _podium(BuildContext context, List<_Ranked> board) {
+  final top = board.take(3).toList();
+  _Ranked? at(int r) => top.length >= r ? top[r - 1] : null;
+  const order = [2, 1, 3];
+  void openProfile(_Ranked? entry) {
+    if (entry?.friendId == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FriendProfileScreen(friendId: entry!.friendId!),
+      ),
+    );
+  }
+
+  Widget avatarFor(int rank, double size) {
+    final entry = at(rank);
+    if (entry == null) return SizedBox(width: size, height: size);
+    final avatar = entry.isMe
+        ? _Avatar(size: size, showBorder: false)
+        : _FriendAvatar(
+            name: entry.name,
+            borderId: entry.borderId,
+            size: size,
+            showBorder: false,
+          );
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => openProfile(entry),
+      child: avatar,
+    );
+  }
+
+  Color rankColor(int rank) => switch (rank) {
+    1 => HrColors.gold,
+    2 => HrColors.text2,
+    _ => const Color(0xFFD98A5A),
+  };
+
+  Widget rankSummary(int rank) {
+    final entry = at(rank);
+    if (entry == null) return const Expanded(child: SizedBox.shrink());
+    final label = switch (rank) {
+      1 => '1ST',
+      2 => '2ND',
+      _ => '3RD',
+    };
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => openProfile(entry),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: HrText.micro.copyWith(
+                  fontSize: 12,
+                  height: 16 / 12,
+                  color: rankColor(rank),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                entry.isMe ? 'You' : entry.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: HrText.caption.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+              ),
+              ),
+              Text(
+                '${entry.totalXp} XP',
+                style: HrText.micro.copyWith(
+                  fontSize: 12,
+                  height: 16 / 12,
+                  color: HrColors.text2,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      Text(medal,
-          style: GoogleFonts.spaceGrotesk(
-              color: kGold, fontSize: 24, fontWeight: FontWeight.w800)),
-    ]),
+    );
+  }
+
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final height = width * 2 / 3;
+          // podium_stands.png is 1536x1024 (3:2) — same aspect as this box, so
+          // BoxFit.contain adds no letterbox and these image-fraction centres
+          // land in each ring frame's dark hole. Avatars scale with the width.
+          final d1 = width * 0.164;
+          final d2 = width * 0.148;
+          final d3 = width * 0.136;
+          return SizedBox(
+            width: width,
+            height: height,
+            child: Stack(
+              children: [
+                Image.asset(
+                  'assets/leaderboard/podium_stands.png',
+                  width: width,
+                  height: height,
+                  fit: BoxFit.contain,
+                  semanticLabel: 'Three 3D leaderboard podium stands',
+                ),
+                Positioned(
+                  left: width * 0.4991 - d1 / 2,
+                  top: height * 0.305 - d1 / 2,
+                  child: avatarFor(1, d1),
+                ),
+                Positioned(
+                  left: width * 0.2247 - d2 / 2,
+                  top: height * 0.5447 - d2 / 2,
+                  child: avatarFor(2, d2),
+                ),
+                Positioned(
+                  left: width * 0.8015 - d3 / 2,
+                  top: height * 0.5635 - d3 / 2,
+                  child: avatarFor(3, d3),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      const SizedBox(height: 4),
+      Row(children: [for (final rank in order) rankSummary(rank)]),
+    ],
   );
 }
 
 Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
   final ld = levelFromXp(e.totalXp);
-  final label = rank == 1
-      ? '🥇'
-      : rank == 2
-          ? '🥈'
-          : rank == 3
-              ? '🥉'
-              : '$rank';
+  final rankColor = switch (rank) {
+    1 => HrColors.gold,
+    2 => HrColors.text2,
+    3 => const Color(0xFFD98A5A),
+    _ => HrColors.text3,
+  };
+  final topThree = rank <= 3;
   final row = Container(
-    margin: const EdgeInsets.symmetric(vertical: 4),
+    margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     decoration: BoxDecoration(
-      gradient: _kGlassSheen,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(
-          color: e.isMe ? kPlasma : kBorder, width: e.isMe ? 1.5 : 1),
-    ),
-    child: Row(children: [
-      SizedBox(
-        width: 26,
-        child: Text(label,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.spaceGrotesk(
-                color: rank <= 3 ? kGold : kTextTertiary,
-                fontSize: rank <= 3 ? 18 : 14,
-                fontWeight: FontWeight.w800)),
+      color: e.isMe ? HrColors.accentSurface : HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: Border(
+        top: BorderSide(
+          color: e.isMe
+              ? HrColors.accent
+              : topThree
+              ? rankColor.withValues(alpha: rank == 1 ? 0.36 : 0.2)
+              : HrColors.hairline,
+          width: e.isMe ? 2 : 1,
       ),
-      const SizedBox(width: 8),
-      e.isMe
-          ? _Avatar(size: 40)
-          : _FriendAvatar(name: e.name, borderId: e.borderId, size: 40),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Flexible(
-                child: Text(e.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: kTextPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14)),
+      ),
+      boxShadow: !e.isMe && rank == 1
+          ? [
+              BoxShadow(
+                color: rankColor.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
-              if (e.isMe) ...[const SizedBox(width: 6), _youTag()],
-            ]),
-            const SizedBox(height: 2),
-            Text('Lv.${ld.level} · ${levelTitle(ld.level)}',
+            ]
+          : null,
+    ),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 28,
+          height: 30,
+          child: topThree
+              ? Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.hexagon_rounded,
+                      size: 27,
+                      color: rankColor.withValues(alpha: 0.16),
+                    ),
+                    Icon(
+                      Icons.hexagon_outlined,
+                      size: 27,
+                      color: rankColor.withValues(alpha: 0.55),
+                    ),
+                    Text(
+                      '$rank',
+                      style: HrText.caption.copyWith(
+                        color: rankColor,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                )
+              : Center(
+          child: Text(
+            '$rank',
+            textAlign: TextAlign.center,
+                    style: HrText.body.copyWith(
+                      color: HrColors.text3,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        e.isMe
+            ? _Avatar(size: 40)
+            : _FriendAvatar(name: e.name, borderId: e.borderId, size: 40),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      e.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  if (e.isMe) ...[const SizedBox(width: 6), _youTag()],
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Lv ${ld.level} · ${levelTitle(ld.level)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: kTextTertiary, fontSize: 11)),
+                style: HrText.caption,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        if (e.streak > 0) ...[
+          StreakPill(count: e.streak, quiet: true, leaderboard: true),
+          const SizedBox(width: 10),
+        ],
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '${e.totalXp}',
+              style: HrText.body.copyWith(
+                color: topThree ? rankColor : HrColors.text,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text('XP', style: HrText.micro),
           ],
         ),
-      ),
-      const SizedBox(width: 8),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text('${e.totalXp}',
-              style: GoogleFonts.spaceGrotesk(
-                  color: kGold, fontSize: 15, fontWeight: FontWeight.w800)),
-          const Text('XP', style: TextStyle(color: kTextTertiary, fontSize: 9)),
-        ],
-      ),
-    ]),
+      ],
+    ),
   );
   return e.friendId == null
       ? row
       : GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => FriendProfileScreen(friendId: e.friendId!))),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => FriendProfileScreen(friendId: e.friendId!),
+            ),
+          ),
           child: row,
         );
 }
 
 Widget _friendCard(BuildContext context, Friend f) {
   final ld = levelFromXp(f.totalXp);
-  return GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: f.id))),
-    child: Container(
-    margin: const EdgeInsets.symmetric(vertical: 4),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      gradient: _kGlassSheen,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: kBorder),
-    ),
-    child: Row(children: [
-      _FriendAvatar(name: f.name, borderId: f.borderId, size: 46),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Flexible(
-                child: Text(f.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: kTextPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15)),
-              ),
-              if (f.prestige > 0) ...[
-                const SizedBox(width: 6),
-                Text('★${f.prestige}',
-                    style: const TextStyle(
-                        color: kGold,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: HrCard(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: f.id)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+      child: Row(
+        children: [
+          _FriendAvatar(name: f.name, borderId: f.borderId, size: 46),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        f.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: HrText.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (f.prestige > 0) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '★${f.prestige}',
+                        style: HrText.caption.copyWith(
+                          color: HrColors.gold,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '@${f.username} · Lv ${ld.level}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.caption,
+                ),
               ],
-            ]),
-            const SizedBox(height: 2),
-            Text('@${f.username}',
-                style: TextStyle(
-                    color: kPlasmaBright,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Row(children: [
-              Text('Lv.${ld.level}',
-                  style: const TextStyle(color: kTextSecondary, fontSize: 11)),
-              const SizedBox(width: 10),
-              const Text('🔥', style: TextStyle(fontSize: 11)),
-              const SizedBox(width: 3),
-              Text('${f.streak}',
-                  style: const TextStyle(color: kTextSecondary, fontSize: 11)),
-            ]),
-          ],
-        ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (f.streak > 0) StreakPill(count: f.streak, quiet: true),
+          IconButton(
+            icon: const Icon(
+              Icons.more_horiz_rounded,
+              color: HrColors.text3,
+              size: 20,
+            ),
+            tooltip: 'Remove',
+            onPressed: () => _confirmRemoveFriend(context, f),
+          ),
+        ],
       ),
-      IconButton(
-        icon: const Icon(Icons.person_remove_rounded,
-            color: kTextTertiary, size: 20),
-        tooltip: 'Remove',
-        onPressed: () => _confirmRemoveFriend(context, f),
-      ),
-    ]),
     ),
   );
 }
 
 Widget _suggestionCard(BuildContext context, Friend f) {
   final ld = levelFromXp(f.totalXp);
-  return Container(
-    margin: const EdgeInsets.symmetric(vertical: 4),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      gradient: _kGlassSheen,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: kBorder),
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: HrCard(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          _FriendAvatar(name: f.name, borderId: f.borderId, size: 42),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  f.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '@${f.username} · Lv ${ld.level}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.caption,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          HrButton(
+            label: 'Add',
+            icon: Icons.add_rounded,
+            kind: HrButtonKind.secondary,
+            small: true,
+            expand: false,
+            onPressed: () async {
+              final err = await friends.addByUsername(f.username);
+              if (!context.mounted) return;
+              _toast(context, err ?? 'Added @${f.username}');
+            },
+          ),
+        ],
+      ),
     ),
-    child: Row(children: [
-      _FriendAvatar(name: f.name, borderId: f.borderId, size: 42),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(f.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: kTextPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14)),
-            const SizedBox(height: 2),
-            Text('@${f.username} · Lv.${ld.level}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: kTextTertiary, fontSize: 11)),
-          ],
-        ),
-      ),
-      const SizedBox(width: 8),
-      GradientButton(
-        label: 'Add',
-        expand: false,
-        height: 40,
-        onPressed: () async {
-          final err = await friends.addByUsername(f.username);
-          if (!context.mounted) return;
-          _toast(context, err ?? 'Added @${f.username}');
-        },
-      ),
-    ]),
   );
 }
 
@@ -3675,13 +5365,19 @@ void _confirmRemoveFriend(BuildContext context, Friend f) {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: kElevated,
-      title: Text('Remove ${f.name}?',
-          style: const TextStyle(color: kTextPrimary)),
-      content: Text('You can add @${f.username} again any time.',
-          style: const TextStyle(color: kTextSecondary)),
+      title: Text(
+        'Remove ${f.name}?',
+        style: const TextStyle(color: kTextPrimary),
+      ),
+      content: Text(
+        'You can add @${f.username} again any time.',
+        style: const TextStyle(color: kTextSecondary),
+      ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kRed),
           onPressed: () {
@@ -3725,26 +5421,118 @@ class _AddFriendFieldState extends State<_AddFriendField> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Row(children: [
+    return Row(
+      children: [
         Expanded(
           child: TextField(
             controller: _c,
             onSubmitted: (_) => _add(),
             textInputAction: TextInputAction.done,
-            style: const TextStyle(color: kTextPrimary),
-            decoration: const InputDecoration(
-              hintText: 'Add a friend by username',
-              prefixIcon: Icon(Icons.alternate_email_rounded, size: 18),
+            style: HrText.body,
+            decoration: InputDecoration(
+              hintText: 'Add by username',
+              hintStyle: HrText.body.copyWith(color: HrColors.text3),
+              filled: true,
+              fillColor: HrColors.surface,
+              prefixIcon: const Icon(
+                Icons.alternate_email_rounded,
+                size: 18,
+                color: HrColors.text3,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 14,
+                horizontal: 8,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HrRadius.md),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HrRadius.md),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HrRadius.md),
+                borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+              ),
             ),
           ),
         ),
         const SizedBox(width: 10),
-        GradientButton(label: 'Add', expand: false, onPressed: _add),
-      ]),
+        SizedBox(
+          width: 76,
+          child: HrButton(label: 'Add', small: true, onPressed: _add),
+        ),
+      ],
     );
   }
+}
+
+Widget _profileStat(String value, String label, Color color) => Container(
+  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+  decoration: BoxDecoration(
+    color: HrColors.surface,
+    borderRadius: BorderRadius.circular(HrRadius.md),
+    border: const Border(top: BorderSide(color: HrColors.hairline)),
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: HrText.stat.copyWith(color: color),
+      ),
+      const SizedBox(height: 2),
+      Text(label, style: HrText.caption),
+    ],
+  ),
+);
+
+Widget _compareBar(double frac, Color color) => ClipRRect(
+  borderRadius: BorderRadius.circular(HrRadius.full),
+  child: LinearProgressIndicator(
+    value: frac.clamp(0.0, 1.0),
+    minHeight: 6,
+    backgroundColor: HrColors.surface2,
+    valueColor: AlwaysStoppedAnimation(color),
+  ),
+);
+
+// Friend value (grey) over your value (accent), scaled to the larger of the two.
+Widget _compareRow(String label, int friendVal, int myVal) {
+  final peak = friendVal > myVal ? friendVal : myVal;
+  final denom = peak <= 0 ? 1.0 : peak.toDouble();
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Expanded(child: Text(label, style: HrText.caption)),
+          Text(
+            '$friendVal',
+            style: HrText.caption.copyWith(
+              color: HrColors.text2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text('  vs  ', style: HrText.caption),
+          Text(
+            '$myVal',
+            style: HrText.caption.copyWith(
+              color: HrColors.accent,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 6),
+      _compareBar(friendVal / denom, HrColors.text3),
+      const SizedBox(height: 5),
+      _compareBar(myVal / denom, HrColors.accent),
+    ],
+  );
 }
 
 // Full profile / stat card for a friend (opened by tapping a friend).
@@ -3763,11 +5551,15 @@ class FriendProfileScreen extends StatelessWidget {
           return Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
-                backgroundColor: Colors.transparent,
-                foregroundColor: kTextPrimary),
+              backgroundColor: Colors.transparent,
+              foregroundColor: kTextPrimary,
+            ),
             body: const Center(
-                child: Text('This friend was removed.',
-                    style: TextStyle(color: kTextTertiary))),
+              child: Text(
+                'This friend was removed.',
+                style: TextStyle(color: kTextTertiary),
+              ),
+            ),
           );
         }
         final ld = levelFromXp(f.totalXp);
@@ -3779,115 +5571,119 @@ class FriendProfileScreen extends StatelessWidget {
         final cmp = diff == 0
             ? "You're dead even — go break the tie!"
             : diff > 0
-                ? '${f.name} leads you by $diff XP.'
-                : 'You lead ${f.name} by ${-diff} XP.';
+            ? '${f.name} leads you by $diff XP.'
+            : 'You lead ${f.name} by ${-diff} XP.';
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
-            foregroundColor: kTextPrimary,
-            title: Text(f.name,
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text(f.name, style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              32,
+            ),
             children: [
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF2A1458), Color(0xFF160B2E)]),
-                  border: Border.all(color: kBorder),
-                ),
-                child: Column(children: [
+              Column(
+                children: [
                   _FriendAvatar(name: f.name, borderId: f.borderId, size: 96),
                   const SizedBox(height: 14),
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Flexible(
-                      child: Text(f.name,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          f.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800)),
-                    ),
-                    if (f.prestige > 0) ...[
-                      const SizedBox(width: 8),
-                      Text('★${f.prestige}',
-                          style: const TextStyle(
-                              color: kGold,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold)),
+                          style: HrText.title1,
+                        ),
+                      ),
+                      if (f.prestige > 0) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '★${f.prestige}',
+                          style: HrText.title2.copyWith(color: HrColors.gold),
+                        ),
+                      ],
                     ],
-                  ]),
-                  const SizedBox(height: 3),
-                  Text('@${f.username}',
-                      style: TextStyle(
-                          color: kPlasmaBright,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                  Text('Level ${ld.level} · ${levelTitle(ld.level)}',
-                      style:
-                          const TextStyle(color: kTextTertiary, fontSize: 13)),
-                  const SizedBox(height: 20),
-                  Row(children: [
-                    _shareStat('⭐', 'Level', '${ld.level}'),
-                    _shareStat('⚡', 'Total XP', '${f.totalXp}'),
-                    _shareStat('🔥', 'Streak', '${f.streak}'),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    _shareStat('👑', 'Prestige', '${f.prestige}'),
-                    _shareStat('🏅', 'Rank', '#$rank'),
-                  ]),
-                ]),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '@${f.username} · Lv ${ld.level} · ${levelTitle(ld.level)}',
+                    style: HrText.caption,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _profileStat('${ld.level}', 'Level', HrColors.text),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _profileStat(
+                      '${f.streak}',
+                      'Streak',
+                      HrColors.streak,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _profileStat('#$rank', 'Rank', HrColors.accent),
+                  ),
+                ],
               ),
               const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: _kGlassSheen,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: kBorder),
-                ),
+              HrCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('COMPARED TO YOU',
-                        style: TextStyle(
-                            color: kTextTertiary,
-                            fontSize: 11,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text(cmp,
-                        style: const TextStyle(
-                            color: kTextSecondary, fontSize: 13, height: 1.3)),
+                    const HrLabel('Compared to you'),
+                    _compareRow('Total XP', f.totalXp, myXp),
+                    const SizedBox(height: 12),
+                    _compareRow('Streak', f.streak, appState.bestStreak),
+                    const SizedBox(height: 12),
+                    _compareRow('Level', ld.level, levelFromXp(myXp).level),
+                    const SizedBox(height: 14),
+                    Text(cmp, style: HrText.bodyS),
                   ],
                 ),
               ),
               const SizedBox(height: 18),
-              TextButton.icon(
+              HrButton(
+                label: 'Send a nudge',
+                icon: Icons.bolt_rounded,
+                onPressed: () => _toast(context, 'Nudged ${f.name}!'),
+              ),
+              const SizedBox(height: 10),
+              HrButton(
+                label: 'Remove friend',
+                kind: HrButtonKind.danger,
                 onPressed: () => showDialog<void>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    backgroundColor: kElevated,
-                    title: Text('Remove ${f.name}?',
-                        style: const TextStyle(color: kTextPrimary)),
-                    content: Text('You can add @${f.username} again any time.',
-                        style: const TextStyle(color: kTextSecondary)),
+                    backgroundColor: HrColors.surface,
+                    title: Text('Remove ${f.name}?', style: HrText.title2),
+                    content: Text(
+                      'You can add @${f.username} again any time.',
+                      style: HrText.bodyS,
+                    ),
                     actions: [
                       TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel')),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel'),
+                      ),
                       FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: kRed),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: HrColors.danger,
+                        ),
                         onPressed: () {
                           friends.remove(f.id);
                           Navigator.pop(ctx);
@@ -3898,10 +5694,6 @@ class FriendProfileScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                icon: const Icon(Icons.person_remove_rounded,
-                    size: 18, color: kRed),
-                label:
-                    const Text('Remove friend', style: TextStyle(color: kRed)),
               ),
             ],
           ),
@@ -3913,101 +5705,74 @@ class FriendProfileScreen extends StatelessWidget {
 
 // ── AWARDS (achievements) ────────────────────────────────────────────────────
 class AwardsScreen extends StatelessWidget {
-  const AwardsScreen({super.key});
+  const AwardsScreen({this.embedded = false, super.key});
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
-    final unlocked =
-        kAchievements.where((a) => appState.isAchievementEarned(a)).length;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: _titleBar('Awards'),
-      body: Column(
-        children: [
-          _awardsHero(unlocked, kAchievements.length),
-          Expanded(
-            child: GridView.count(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.95,
-              children:
-                  kAchievements.map((a) => _AchievementCard(a)).toList(),
-            ),
-          ),
-        ],
+    final unlocked = kAchievements
+        .where((a) => appState.isAchievementEarned(a))
+        .length;
+    final total = kAchievements.length;
+    final allDone = unlocked >= total;
+    final next = kAchievements.firstWhere(
+      (a) => !appState.isAchievementEarned(a),
+      orElse: () => kAchievements.last,
+    );
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        HrSpace.gutter,
+        4,
+        HrSpace.gutter,
+        100,
       ),
+      children: [
+        HrCard(
+          child: Row(
+            children: [
+              SegmentedRing(
+                size: 64,
+                segments: 1,
+                value: total == 0 ? 0 : unlocked / total,
+                stroke: 7,
+                color: HrColors.gold,
+                center: Text('$unlocked', style: HrText.title2),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$unlocked of $total unlocked',
+                      style: HrText.headline,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      allDone ? 'Every award earned.' : 'Next: ${next.title}',
+                      style: HrText.caption,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.95,
+          children: kAchievements.map((a) => _AchievementCard(a)).toList(),
+        ),
+      ],
     );
   }
-}
-
-// Awards progress hero: gold ring + unlocked count.
-Widget _awardsHero(int unlocked, int total) {
-  final pct = total == 0 ? 0.0 : unlocked / total;
-  return Container(
-    margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(18),
-      gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2E1A5C), Color(0xFF1A0F38)]),
-      border: Border.all(color: kGold.withValues(alpha: 0.25)),
-      boxShadow: [
-        BoxShadow(
-            color: kGold.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 8)),
-      ],
-    ),
-    child: Row(children: [
-      SizedBox(
-        width: 70,
-        height: 70,
-        child: Stack(alignment: Alignment.center, children: [
-          GlowRing(
-              value: pct,
-              size: 70,
-              stroke: 7,
-              colors: [kGold, const Color(0xFFFFE08A)]),
-          Text('$unlocked',
-              style: GoogleFonts.spaceGrotesk(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800)),
-        ]),
-      ),
-      const SizedBox(width: 16),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('ACHIEVEMENTS',
-                style: TextStyle(
-                    color: kTextTertiary,
-                    fontSize: 11,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text('$unlocked of $total unlocked',
-                style: GoogleFonts.spaceGrotesk(
-                    color: kTextPrimary,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 3),
-            Text(
-                unlocked >= total
-                    ? 'Legend — every award earned!'
-                    : 'Keep building habits to unlock them all.',
-                style: const TextStyle(
-                    color: kTextSecondary, fontSize: 12.5, height: 1.3)),
-          ],
-        ),
-      ),
-    ]),
-  );
 }
 
 class _AchievementCard extends StatelessWidget {
@@ -4017,87 +5782,94 @@ class _AchievementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final on = appState.isAchievementEarned(a);
-    final cfg = rarityConfig[a.rarity];
-    final color = cfg?.color ?? kTextTertiary;
-    final rarity = (cfg?.label ?? a.rarity).toUpperCase();
+    final color = HrColors.rarity[a.rarity] ?? HrColors.text3;
+    final rarity = '${a.rarity[0].toUpperCase()}${a.rarity.substring(1)}';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: on ? color.withValues(alpha: 0.7) : kBorder,
-            width: on ? 1.5 : 1),
-        boxShadow: on
-            ? [
-                BoxShadow(
-                    color: color.withValues(alpha: 0.22),
-                    blurRadius: 18,
-                    spreadRadius: -2)
-              ]
-            : null,
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.lg),
+        border: Border(
+          top: BorderSide(
+            color: on ? color : HrColors.hairline,
+            width: on ? 2 : 1,
+          ),
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: on
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        color.withValues(alpha: 0.4),
-                        color.withValues(alpha: 0.12)
-                      ])
-                  : null,
-              color: on ? null : const Color(0x14FFFFFF),
-              border: Border.all(
-                  color: on ? color.withValues(alpha: 0.5) : kBorder),
-              boxShadow: on
-                  ? [
-                      BoxShadow(
-                          color: color.withValues(alpha: 0.4), blurRadius: 14)
-                    ]
-                  : null,
+          SizedBox(
+            width: 64,
+            height: 64,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: on ? 1 : 0.45,
+                    child: Image.asset(a.imageAsset, fit: BoxFit.contain),
+                  ),
+                ),
+                if (!on)
+                  Positioned(
+                    right: -1,
+                    bottom: -1,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: HrColors.surface2,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: HrColors.hairline),
+                      ),
+                      child: const Icon(
+                        Icons.lock_rounded,
+                        size: 12,
+                        color: HrColors.text2,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            child: Icon(on ? a.icon : Icons.lock_outline_rounded,
-                size: 26, color: on ? color : kTextTertiary),
           ),
-          const SizedBox(height: 10),
-          Text(a.title,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: on ? Colors.white : kTextSecondary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13.5)),
+          const SizedBox(height: 12),
+          Text(
+            a.title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: HrText.bodyS.copyWith(
+              color: on ? HrColors.text : HrColors.text2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 6),
           on
               ? Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(8)),
-                  child: Text(rarity,
-                      style: TextStyle(
-                          color: color,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8)),
+                    color: color.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(HrRadius.xs),
+                  ),
+                  child: Text(
+                    rarity.toUpperCase(),
+                    style: HrText.micro.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
                 )
-              : Text(a.description,
+              : Text(
+                  a.description,
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style:
-                      const TextStyle(color: kTextTertiary, fontSize: 10.5)),
+                  style: HrText.micro,
+                ),
         ],
       ),
     );
@@ -4105,57 +5877,113 @@ class _AchievementCard extends StatelessWidget {
 }
 
 // ── JOURNAL ─────────────────────────────────────────────────────────────────
+String _journalDate(String key) {
+  final d = DateTime.tryParse(key);
+  if (d == null) return key;
+  return '${_kWeekdays[d.weekday - 1].substring(0, 3)} · ${_kMonths[d.month - 1]} ${d.day}';
+}
+
 class JournalScreen extends StatelessWidget {
-  const JournalScreen({super.key});
+  const JournalScreen({this.embedded = false, super.key});
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final items = appState.reflections;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: _titleBar('Journal'),
-      body: items.isEmpty
-          ? const _EmptyState(
-              emoji: '📓',
-              title: 'No reflections yet',
-              subtitle: 'Tap “Reflect” to write one (+20 XP).')
-          : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-              itemCount: items.length,
-              itemBuilder: (ctx, i) {
-                final r = items[i];
-                return Container(
-                  margin: const EdgeInsets.symmetric(vertical: 5),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: kBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(r.date,
-                          style: const TextStyle(
-                              color: kCyan,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
-                      Text(r.text,
-                          style: const TextStyle(color: kTextPrimary)),
-                    ],
-                  ),
-                );
-              },
+    final reflectedToday = items.any((r) => r.date == dateKey(DateTime.now()));
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        HrSpace.gutter,
+        4,
+        HrSpace.gutter,
+        100,
+      ),
+      children: [
+        HrButton(
+          label: reflectedToday
+              ? 'Add another reflection · +20 XP'
+              : 'Reflect on today · +20 XP',
+          icon: Icons.edit_rounded,
+          kind: HrButtonKind.accent,
+          onPressed: () => showAddReflection(context),
+        ),
+        const SizedBox(height: 14),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 48),
+            child: Column(
+              children: [
+                const Text('📓', style: TextStyle(fontSize: 40)),
+                const SizedBox(height: 12),
+                Text('No reflections yet', style: HrText.title2),
+                const SizedBox(height: 6),
+                Text(
+                  'Write your first one to earn +20 XP.',
+                  textAlign: TextAlign.center,
+                  style: HrText.bodyS,
+                ),
+              ],
             ),
+          )
+        else
+          ...items.map((r) {
+            final score = appState.dailyScore[r.date];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: HrCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          _journalDate(r.date).toUpperCase(),
+                          style: HrText.labelCaps,
+                        ),
+                        const Spacer(),
+                        if (score != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: HrColors.victory(score)
+                                  .withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(HrRadius.xs),
+                            ),
+                            child: Text(
+                              'Score $score',
+                              style: HrText.micro.copyWith(
+                                color: HrColors.victory(score),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      r.text,
+                      style: HrText.body.copyWith(color: HrColors.text2),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
     );
   }
 }
 
 // ── Shared bits ─────────────────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
-  const _EmptyState(
-      {required this.emoji, required this.title, required this.subtitle});
+  const _EmptyState({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+  });
   final String emoji;
   final String title;
   final String subtitle;
@@ -4179,25 +6007,34 @@ class _EmptyState extends StatelessWidget {
                 gradient: const LinearGradient(colors: _kAccentGradient),
                 boxShadow: [
                   BoxShadow(
-                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
-                      blurRadius: 22,
-                      spreadRadius: 1),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
+                    blurRadius: 22,
+                    spreadRadius: 1,
+                  ),
                 ],
               ),
               child: Text(emoji, style: const TextStyle(fontSize: 36)),
             ),
             const SizedBox(height: 16),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.spaceGrotesk(
-                    color: kTextPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700)),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.spaceGrotesk(
+                color: kTextPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 6),
-            Text(subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: kTextTertiary, fontSize: 13, height: 1.4)),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: kTextTertiary,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
           ],
         ),
       ),
@@ -4206,140 +6043,47 @@ class _EmptyState extends StatelessWidget {
 }
 
 void _showLevelUp(BuildContext context, int level) {
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2A1458), Color(0xFF160B2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: kPlasmaBright),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('⚡ LEVEL UP',
-                style: TextStyle(
-                    color: kPlasmaGlow,
-                    fontSize: 13,
-                    letterSpacing: 3,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Text('$level',
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 56,
-                    fontWeight: FontWeight.w800)),
-            Text(levelTitle(level).toUpperCase(),
-                style: const TextStyle(
-                    color: kCyan,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Text(companionLine(appState.activeCompanion, 'level_up'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: kTextSecondary,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12)),
-            const SizedBox(height: 18),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: kPlasma),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Continue'),
-            ),
-          ],
-        ),
-      ),
+  _showMoment(
+    context,
+    label: 'Level up',
+    labelColor: HrColors.accent,
+    emblem: SegmentedRing(
+      size: 136,
+      segments: 1,
+      value: 1,
+      stroke: 9,
+      color: HrColors.accent,
+      center: Text('$level', style: HrText.numeralXl),
     ),
+    title: 'Level $level.\n${levelTitle(level)}.',
+    bubble: companionLine(appState.activeCompanion, 'level_up'),
+    buttonLabel: 'Continue',
   );
 }
 
 void _showAchievementUnlocked(BuildContext context, List<Achievement> items) {
   if (items.isEmpty) return;
   final a = items.first;
-  final color = rarityConfig[a.rarity]?.color ?? kGold;
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2A1458), Color(0xFF160B2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: color),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('🏆 ACHIEVEMENT UNLOCKED',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            Container(
-              width: 84,
-              height: 84,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      color.withValues(alpha: 0.4),
-                      color.withValues(alpha: 0.12)
-                    ]),
-                border: Border.all(color: color.withValues(alpha: 0.6)),
-                boxShadow: [
-                  BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 24)
-                ],
-              ),
-              child: Icon(a.icon, color: color, size: 42),
-            ),
-            const SizedBox(height: 16),
-            Text(a.title,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(a.description,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: kTextSecondary, fontSize: 12)),
-            if (items.length > 1) ...[
-              const SizedBox(height: 8),
-              Text('+${items.length - 1} more unlocked',
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold)),
-            ],
-            const SizedBox(height: 20),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: kPlasma),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Nice!'),
-            ),
-          ],
-        ),
+  final color = HrColors.rarity[a.rarity] ?? HrColors.gold;
+  _showMoment(
+    context,
+    label: 'Achievement unlocked',
+    labelColor: color,
+    emblem: Container(
+      width: 112,
+      height: 112,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: color, width: 3),
       ),
+      child: Image.asset(a.imageAsset, fit: BoxFit.cover),
     ),
+    title: a.title,
+    subtitle: items.length > 1
+        ? '${a.description}\n+${items.length - 1} more unlocked'
+        : a.description,
+    buttonLabel: 'Nice',
   );
 }
 
@@ -4357,8 +6101,11 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
   // The current difficulty decision — the AI (or heuristic) owns this; the user
   // no longer picks it. It's frozen onto the habit when they tap Add/Save.
   DifficultyVerdict verdict = existing != null
-      ? DifficultyVerdict(existing.rarity, existing.difficultyReason,
-          fromAi: existing.aiRated)
+      ? DifficultyVerdict(
+          existing.rarity,
+          existing.difficultyReason,
+          fromAi: existing.aiRated,
+        )
       : heuristicVerdict(controller.text);
   bool analyzing = false;
   Timer? debounce;
@@ -4366,15 +6113,30 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
   String icon = existing?.icon ?? '';
   int? reminderMinutes = existing?.reminderMinutes; // daily reminder time
   const emojis = [
-    '💧', '📖', '🏋️', '😴', '🧘', '🏃', '🥗', '💻',
-    '🎯', '✍️', '🎸', '☀️', '🧠', '💰', '🌱', '🚭'
+    '💧',
+    '📖',
+    '🏋️',
+    '😴',
+    '🧘',
+    '🏃',
+    '🥗',
+    '💻',
+    '🎯',
+    '✍️',
+    '🎸',
+    '☀️',
+    '🧠',
+    '💰',
+    '🌱',
+    '🚭',
   ];
   await showModalBottomSheet<void>(
     context: context,
-    backgroundColor: kCard,
+    backgroundColor: HrColors.surface,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl)),
+    ),
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setLocal) {
         // Re-rate the habit: show the instant heuristic now, then let the local
@@ -4395,10 +6157,12 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
             analyzing = true;
           });
           debounce = Timer(const Duration(milliseconds: 650), () async {
-            final v = await classifyDifficulty(name,
-                enabled: appState.aiEnabled,
-                baseUrl: appState.aiBaseUrl,
-                model: appState.aiModel);
+            final v = await classifyDifficulty(
+              name,
+              enabled: appState.aiEnabled,
+              baseUrl: appState.aiBaseUrl,
+              model: appState.aiModel,
+            );
             if (!ctx.mounted || seq != reqSeq) return;
             setLocal(() {
               verdict = v;
@@ -4409,30 +6173,65 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
 
         return Padding(
           padding: EdgeInsets.fromLTRB(
-              20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+            20,
+            20,
+            20,
+            20 + MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(existing == null ? 'New habit' : 'Edit habit',
-                  style: GoogleFonts.spaceGrotesk(
-                      color: kTextPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold)),
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: HrColors.surface3,
+                    borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ),
+              Text(
+                existing == null ? 'New habit' : 'Edit habit',
+                style: HrText.title2,
+              ),
               const SizedBox(height: 14),
               TextField(
                 controller: controller,
                 autofocus: existing == null,
-                style: const TextStyle(color: kTextPrimary),
+                style: HrText.body,
                 textCapitalization: TextCapitalization.sentences,
-                decoration:
-                    const InputDecoration(hintText: 'e.g. Meditate 10 min'),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Meditate 10 min',
+                  hintStyle: HrText.body.copyWith(color: HrColors.text3),
+                  filled: true,
+                  fillColor: HrColors.surface2,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                    borderSide: BorderSide.none,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                    borderSide: const BorderSide(
+                      color: HrColors.text,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
                 onChanged: analyze,
               ),
-              const SizedBox(height: 14),
-              const Text('Icon',
-                  style: TextStyle(color: kTextTertiary, fontSize: 12)),
-              const SizedBox(height: 6),
+              const SizedBox(height: 16),
+              const HrLabel('Icon'),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -4441,14 +6240,22 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                   return GestureDetector(
                     onTap: () => setLocal(() => icon = sel ? '' : e),
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: 42,
+                      height: 42,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                          color: sel ? kPlasma : kElevated,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: sel ? kPlasma : kBorder)),
-                      child: Text(e, style: const TextStyle(fontSize: 20)),
+                        color: sel ? HrColors.accent : HrColors.surface2,
+                        borderRadius: BorderRadius.circular(HrRadius.sm),
+                      ),
+                      child: e == '💰'
+                          ? Image.asset(
+                              'assets/shop/coin_stack.png',
+                              width: 27,
+                              height: 27,
+                              fit: BoxFit.contain,
+                              semanticLabel: 'Coins',
+                            )
+                          : Text(e, style: const TextStyle(fontSize: 20)),
                     ),
                   );
                 }).toList(),
@@ -4459,91 +6266,124 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 2, 6, 2),
                 decoration: BoxDecoration(
-                    color: kElevated,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: kBorder)),
-                child: Row(children: [
-                  Icon(Icons.notifications_active_rounded,
+                  color: HrColors.surface2,
+                  borderRadius: BorderRadius.circular(HrRadius.md),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.notifications_active_rounded,
                       size: 18,
                       color: reminderMinutes != null
-                          ? kPlasmaBright
-                          : kTextTertiary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
+                          ? HrColors.accent
+                          : HrColors.text3,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
                         reminderMinutes == null
                             ? 'No daily reminder'
                             : 'Remind me at ${_fmtReminder(reminderMinutes!)}',
-                        style: const TextStyle(
-                            color: kTextSecondary, fontSize: 13)),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      final init = reminderMinutes != null
-                          ? TimeOfDay(
-                              hour: reminderMinutes! ~/ 60,
-                              minute: reminderMinutes! % 60)
-                          : const TimeOfDay(hour: 20, minute: 0);
-                      final picked = await showTimePicker(
-                          context: ctx, initialTime: init);
-                      if (picked != null) {
-                        setLocal(() => reminderMinutes =
-                            picked.hour * 60 + picked.minute);
-                      }
-                    },
-                    child: Text(reminderMinutes == null ? 'Set' : 'Change'),
-                  ),
-                  if (reminderMinutes != null)
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => setLocal(() => reminderMinutes = null),
-                      icon: const Icon(Icons.close,
-                          size: 18, color: kTextTertiary),
+                        style: HrText.bodyS.copyWith(color: HrColors.text),
+                      ),
                     ),
-                ]),
+                    TextButton(
+                      onPressed: () async {
+                        final init = reminderMinutes != null
+                            ? TimeOfDay(
+                                hour: reminderMinutes! ~/ 60,
+                                minute: reminderMinutes! % 60,
+                              )
+                            : const TimeOfDay(hour: 20, minute: 0);
+                        final picked = await showTimePicker(
+                          context: ctx,
+                          initialTime: init,
+                        );
+                        if (picked != null) {
+                          setLocal(
+                            () => reminderMinutes =
+                                picked.hour * 60 + picked.minute,
+                          );
+                        }
+                      },
+                      child: Text(
+                        reminderMinutes == null ? 'Set' : 'Change',
+                        style: HrText.bodyS.copyWith(
+                          color: HrColors.text,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (reminderMinutes != null)
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => setLocal(() => reminderMinutes = null),
+                        icon: const Icon(
+                          Icons.close,
+                          size: 18,
+                          color: HrColors.text3,
+                        ),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 18),
-              Row(children: [
-                if (existing != null)
-                  TextButton.icon(
+              Row(
+                children: [
+                  if (existing != null)
+                    TextButton.icon(
                       onPressed: () {
                         appState.deleteHabit(existing);
                         Navigator.pop(ctx);
                       },
-                      icon: const Icon(Icons.delete_outline, color: kRed),
-                      label: const Text('Delete',
-                          style: TextStyle(color: kRed))),
-                const Spacer(),
-                FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: kPlasma),
-                  onPressed: () {
-                    final name = controller.text.trim();
-                    if (name.isEmpty) {
-                      Navigator.pop(ctx);
-                      return;
-                    }
-                    debounce?.cancel();
-                    final v = verdict;
-                    if (existing == null) {
-                      appState.addHabit(name, v.rarity,
-                          icon: icon,
-                          aiRated: v.fromAi,
-                          reason: v.reason,
-                          reminderMinutes: reminderMinutes);
-                    } else {
-                      appState.editHabit(existing,
-                          name: name,
-                          rarity: v.rarity,
-                          icon: icon,
-                          aiRated: v.fromAi,
-                          reason: v.reason);
-                      appState.setHabitReminder(existing, reminderMinutes);
-                    }
-                    Navigator.pop(ctx);
-                  },
-                  child: Text(existing == null ? 'Add' : 'Save'),
-                ),
-              ]),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: HrColors.dangerText,
+                      ),
+                      label: Text(
+                        'Delete',
+                        style: HrText.body.copyWith(color: HrColors.dangerText),
+                      ),
+                    ),
+                  const Spacer(),
+                  SizedBox(
+                    width: 130,
+                    child: HrButton(
+                      label: existing == null ? 'Add' : 'Save',
+                      onPressed: () {
+                        final name = controller.text.trim();
+                        if (name.isEmpty) {
+                          Navigator.pop(ctx);
+                          return;
+                        }
+                        debounce?.cancel();
+                        final v = verdict;
+                        if (existing == null) {
+                          appState.addHabit(
+                            name,
+                            v.rarity,
+                            icon: icon,
+                            aiRated: v.fromAi,
+                            reason: v.reason,
+                            reminderMinutes: reminderMinutes,
+                          );
+                        } else {
+                          appState.editHabit(
+                            existing,
+                            name: name,
+                            rarity: v.rarity,
+                            icon: icon,
+                            aiRated: v.fromAi,
+                            reason: v.reason,
+                          );
+                          appState.setHabitReminder(existing, reminderMinutes);
+                        }
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         );
@@ -4555,63 +6395,74 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
 
 /// Shows the AI/heuristic difficulty verdict — the user can't change it.
 Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
-  final color = rarityConfig[v.rarity]?.color ?? kTextTertiary;
+  final color = HrColors.rarity[v.rarity] ?? HrColors.text3;
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-        color: kElevated,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorder)),
-    child: Row(children: [
-      Icon(Icons.auto_awesome_rounded, size: 18, color: color),
-      const SizedBox(width: 10),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Flexible(
-                child: Text('${v.label} · ×${v.multiplier} · ~${estimatedXp(v.rarity)} XP',
-                    style: TextStyle(
+      color: HrColors.surface2,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.auto_awesome_rounded, size: 18, color: color),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      '${v.label} · ×${v.multiplier} · ~${estimatedXp(v.rarity)} XP',
+                      style: HrText.bodyS.copyWith(
                         color: color,
                         fontWeight: FontWeight.w700,
-                        fontSize: 13)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _ratingChip(v, analyzing),
+                ],
               ),
-              const SizedBox(width: 8),
-              _ratingChip(v, analyzing),
-            ]),
-            const SizedBox(height: 3),
-            Text(
+              const SizedBox(height: 3),
+              Text(
                 analyzing
                     ? 'Reading your habit…'
-                    : (v.reason.isEmpty ? 'Difficulty set automatically' : v.reason),
-                style: const TextStyle(color: kTextSecondary, fontSize: 11)),
-          ],
+                    : (v.reason.isEmpty
+                          ? 'Difficulty set automatically'
+                          : v.reason),
+                style: HrText.caption,
+              ),
+            ],
+          ),
         ),
-      ),
-    ]),
+      ],
+    ),
   );
 }
 
 Widget _ratingChip(DifficultyVerdict v, bool analyzing) {
   if (analyzing) {
-    return SizedBox(
+    return const SizedBox(
       width: 13,
       height: 13,
-      child: CircularProgressIndicator(strokeWidth: 2, color: kPlasmaBright),
+      child: CircularProgressIndicator(strokeWidth: 2),
     );
   }
   final ai = v.fromAi;
   final label = ai ? '🤖 AI' : '✨ Auto';
-  final c = ai ? kCyan : kTextTertiary;
+  final c = ai ? HrColors.info : HrColors.text3;
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
     decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: c.withValues(alpha: 0.4))),
-    child: Text(label,
-        style: TextStyle(color: c, fontSize: 10, fontWeight: FontWeight.w700)),
+      color: c.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(HrRadius.xs),
+    ),
+    child: Text(
+      label,
+      style: HrText.micro.copyWith(color: c, fontWeight: FontWeight.w700),
+    ),
   );
 }
 
@@ -4628,12 +6479,13 @@ Future<void> showAddReflection(BuildContext context) async {
         maxLines: 4,
         style: const TextStyle(color: kTextPrimary),
         textCapitalization: TextCapitalization.sentences,
-        decoration:
-            const InputDecoration(hintText: 'How did today go?'),
+        decoration: const InputDecoration(hintText: 'How did today go?'),
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kPlasma),
           onPressed: () => Navigator.pop(ctx, controller.text.trim()),
@@ -4653,49 +6505,38 @@ class _NutritionCard extends StatelessWidget {
     final n = appState.todayNutrition();
     final t = appState.targets();
     final score = appState.nutritionScore();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NutritionScreen())),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: _kGlassSheen,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: kBorder),
-            ),
-            child: Row(children: [
-              const Icon(Icons.restaurant_rounded, color: kGreen, size: 22),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('NUTRITION',
-                        style: TextStyle(
-                            color: kTextTertiary,
-                            fontSize: 11,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 3),
-                    Text(
-                        '${n.calories.round()} / ${t.calories.round()} kcal · ${n.protein.round()}g protein',
-                        style: const TextStyle(
-                            color: kTextSecondary, fontSize: 12)),
-                  ],
-                ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
+      child: HrCard(
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const NutritionScreen())),
+        child: Row(
+          children: [
+            Icon(Icons.restaurant_rounded, color: HrColors.accent, size: 22),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('NUTRITION', style: HrText.labelCaps),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${n.calories.round()} / ${t.calories.round()} kcal · ${n.protein.round()}g protein',
+                    style: HrText.caption,
+                  ),
+                ],
               ),
-              Text('$score',
-                  style: GoogleFonts.spaceGrotesk(
-                      color: kGreen, fontSize: 20, fontWeight: FontWeight.w800)),
-              const Icon(Icons.chevron_right, color: kTextTertiary),
-            ]),
-          ),
+            ),
+            Text(
+              '$score',
+              style: HrText.stat.copyWith(
+                fontSize: 20,
+                color: HrColors.victory(score),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+          ],
         ),
       ),
     );
@@ -4711,92 +6552,121 @@ class NutritionScreen extends StatelessWidget {
       builder: (context, _) {
         final n = appState.todayNutrition();
         final today = dateKey(DateTime.now());
-        final todays =
-            appState.foodLog.where((e) => e.date == today).toList();
+        final todays = appState.foodLog.where((e) => e.date == today).toList();
         final score = appState.nutritionScore();
         final t = appState.targets();
         final p = appState.bodyProfile;
         return Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
-            title: Text('Nutrition',
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Nutrition', style: HrText.title2),
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => showAddFood(context),
-            backgroundColor: kPlasma,
+            backgroundColor: HrColors.accent,
+            foregroundColor: HrColors.onAccent,
             icon: const Icon(Icons.add),
             label: const Text('Log food'),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              96,
+            ),
             children: [
-              Container(
+              HrCard(
                 padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: kBorder)),
-                child: Column(children: [
-                  Row(children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('NUTRITION SCORE',
-                              style: TextStyle(
-                                  color: kTextTertiary,
-                                  fontSize: 11,
-                                  letterSpacing: 1.5,
-                                  fontWeight: FontWeight.bold)),
-                          Text('$score / 100',
-                              style: GoogleFonts.spaceGrotesk(
-                                  color: kGreen,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w800)),
-                        ],
-                      ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('NUTRITION SCORE', style: HrText.labelCaps),
+                              Text(
+                                '$score / 100',
+                                style: HrText.stat.copyWith(
+                                  color: HrColors.victory(score),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.restaurant_rounded,
+                          color: HrColors.victory(score),
+                          size: 32,
+                        ),
+                      ],
                     ),
-                    const Icon(Icons.restaurant_rounded,
-                        color: kGreen, size: 32),
-                  ]),
-                  const SizedBox(height: 14),
-                  _macroBar('Calories', n.calories, t.calories, 'kcal', kGold),
-                  _macroBar('Protein', n.protein, t.protein, 'g', kRed),
-                  _macroBar('Carbs', n.carbs, t.carbs, 'g', kCyan),
-                  _macroBar('Fat', n.fat, t.fat, 'g', kPlasmaBright),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                      child: Text(
-                          p == null
-                              ? 'Targets: defaults'
-                              : 'TDEE ${computeTDEE(p).round()} kcal · ${p.goal}',
-                          style: const TextStyle(
-                              color: kTextTertiary, fontSize: 11)),
+                    const SizedBox(height: 14),
+                    _macroBar(
+                      'Calories',
+                      n.calories,
+                      t.calories,
+                      'kcal',
+                      HrColors.gold,
                     ),
-                    TextButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const BodyProfileScreen())),
-                      icon: Icon(Icons.person_rounded,
-                          size: 16, color: kPlasmaBright),
-                      label: Text(
-                          p == null ? 'Set body profile' : 'Edit profile',
-                          style: TextStyle(color: kPlasmaBright)),
+                    _macroBar(
+                      'Protein',
+                      n.protein,
+                      t.protein,
+                      'g',
+                      HrColors.danger,
                     ),
-                  ]),
-                ]),
+                    _macroBar('Carbs', n.carbs, t.carbs, 'g', HrColors.info),
+                    _macroBar('Fat', n.fat, t.fat, 'g', HrColors.accent),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            p == null
+                                ? 'Targets: defaults'
+                                : 'TDEE ${computeTDEE(p).round()} kcal · ${p.goal}',
+                            style: HrText.caption,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const BodyProfileScreen(),
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.person_rounded,
+                            size: 16,
+                            color: HrColors.text2,
+                          ),
+                          label: Text(
+                            p == null ? 'Set body profile' : 'Edit profile',
+                            style: HrText.bodyS.copyWith(
+                              color: HrColors.text,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
               if (todays.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(24),
                   child: _EmptyState(
-                      emoji: '🍎',
-                      title: 'No food logged today',
-                      subtitle: 'Tap “Log food” to add a meal.'),
+                    emoji: '🍎',
+                    title: 'No food logged today',
+                    subtitle: 'Tap "Log food" to add a meal.',
+                  ),
                 )
               else
                 ...todays.map((e) => _FoodTile(e)),
@@ -4809,7 +6679,12 @@ class NutritionScreen extends StatelessWidget {
 }
 
 Widget _macroBar(
-    String label, double value, double target, String unit, Color color) {
+  String label,
+  double value,
+  double target,
+  String unit,
+  Color color,
+) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 5),
     child: Column(
@@ -4818,18 +6693,25 @@ Widget _macroBar(
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label,
-                style: const TextStyle(color: kTextSecondary, fontSize: 12)),
-            Text('${value.round()} / ${target.round()} $unit',
-                style: const TextStyle(color: kTextTertiary, fontSize: 12)),
+            Text(label, style: HrText.caption.copyWith(color: HrColors.text2)),
+            Text(
+              '${value.round()} / ${target.round()} $unit',
+              style: HrText.caption,
+            ),
           ],
         ),
-        const SizedBox(height: 4),
-        GlowBar(
-            value:
-                (target <= 0 ? 0.0 : value / target).clamp(0.0, 1.0).toDouble(),
-            height: 7,
-            colors: [color, color]),
+        const SizedBox(height: 5),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(HrRadius.full),
+          child: LinearProgressIndicator(
+            value: (target <= 0 ? 0.0 : value / target)
+                .clamp(0.0, 1.0)
+                .toDouble(),
+            minHeight: 7,
+            backgroundColor: HrColors.surface3,
+            valueColor: AlwaysStoppedAnimation(color),
+          ),
+        ),
       ],
     ),
   );
@@ -4840,50 +6722,73 @@ class _FoodTile extends StatelessWidget {
   final FoodEntry e;
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 5),
-      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
-      decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder)),
-      child: Row(children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(e.name,
-                  style: const TextStyle(
-                      color: kTextPrimary, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 2),
-              Text(
-                  '${e.calories.round()} kcal · P${e.protein.round()} C${e.carbs.round()} F${e.fat.round()}',
-                  style: const TextStyle(color: kTextTertiary, fontSize: 12)),
-            ],
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: HrCard(
+        padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    e.name,
+                    style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${e.calories.round()} kcal · P${e.protein.round()} C${e.carbs.round()} F${e.fat.round()}',
+                    style: HrText.caption,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: HrColors.text3, size: 18),
+              onPressed: () => appState.deleteFood(e),
+            ),
+          ],
         ),
-        IconButton(
-            icon: const Icon(Icons.close, color: kTextTertiary, size: 18),
-            onPressed: () => appState.deleteFood(e)),
-      ]),
+      ),
     );
   }
 }
 
 double _parseNum(String s) => double.tryParse(s.trim()) ?? 0;
 
-Widget _numField(TextEditingController c, String label, TextInputType kb,
-        {ValueChanged<String>? onChanged}) =>
-    Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: TextField(
-        controller: c,
-        keyboardType: kb,
-        style: const TextStyle(color: kTextPrimary),
-        decoration: InputDecoration(labelText: label),
-        onChanged: onChanged,
+Widget _numField(
+  TextEditingController c,
+  String label,
+  TextInputType kb, {
+  ValueChanged<String>? onChanged,
+}) => Padding(
+  padding: const EdgeInsets.symmetric(vertical: 6),
+  child: TextField(
+    controller: c,
+    keyboardType: kb,
+    style: HrText.body,
+    decoration: InputDecoration(
+      labelText: label,
+      labelStyle: HrText.caption,
+      filled: true,
+      fillColor: HrColors.surface,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: BorderSide.none,
       ),
-    );
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+      ),
+    ),
+    onChanged: onChanged,
+  ),
+);
 
 Future<void> showAddFood(BuildContext context) async {
   final meal = TextEditingController(); // free-text description for the AI
@@ -4904,18 +6809,24 @@ Future<void> showAddFood(BuildContext context) async {
           final desc = meal.text.trim();
           if (desc.isEmpty) return;
           setLocal(() => busy = true);
-          final est = await estimateNutrition(desc,
-              enabled: appState.aiEnabled,
-              baseUrl: appState.aiBaseUrl,
-              model: appState.aiModel);
+          final est = await estimateNutrition(
+            desc,
+            enabled: appState.aiEnabled,
+            baseUrl: appState.aiBaseUrl,
+            model: appState.aiModel,
+          );
           if (!ctx.mounted) return;
           setLocal(() => busy = false);
           if (est == null) {
-            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-              content: Text(appState.aiEnabled
-                  ? "Couldn't reach the AI — is Ollama running? You can enter the macros manually."
-                  : 'Turn on AI in Settings → AI difficulty, or enter the macros manually.'),
-            ));
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              SnackBar(
+                content: Text(
+                  appState.aiEnabled
+                      ? "Couldn't reach the AI — is Ollama running? You can enter the macros manually."
+                      : 'Turn on AI in Settings → AI difficulty, or enter the macros manually.',
+                ),
+              ),
+            );
             return;
           }
           if (name.text.trim().isEmpty) name.text = est.name;
@@ -4928,8 +6839,7 @@ Future<void> showAddFood(BuildContext context) async {
 
         return AlertDialog(
           backgroundColor: kCard,
-          title:
-              const Text('Log food', style: TextStyle(color: kTextPrimary)),
+          title: const Text('Log food', style: TextStyle(color: kTextPrimary)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -4938,22 +6848,31 @@ Future<void> showAddFood(BuildContext context) async {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                      color: kElevated,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kBorder)),
+                    color: kElevated,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: kBorder),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(children: [
-                        Icon(Icons.auto_awesome_rounded,
-                            size: 15, color: kCyan),
-                        const SizedBox(width: 6),
-                        const Text('Describe your meal',
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 15,
+                            color: kCyan,
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Describe your meal',
                             style: TextStyle(
-                                color: kTextSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600)),
-                      ]),
+                              color: kTextSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: meal,
@@ -4962,8 +6881,9 @@ Future<void> showAddFood(BuildContext context) async {
                         minLines: 1,
                         maxLines: 3,
                         decoration: const InputDecoration(
-                            hintText:
-                                'e.g. 2 eggs, toast with butter, black coffee'),
+                          hintText:
+                              'e.g. 2 eggs, toast with butter, black coffee',
+                        ),
                         onSubmitted: (_) => runAi(),
                       ),
                       const SizedBox(height: 8),
@@ -4971,19 +6891,26 @@ Future<void> showAddFood(BuildContext context) async {
                         width: double.infinity,
                         child: FilledButton.icon(
                           style: FilledButton.styleFrom(
-                              backgroundColor: kPlasma,
-                              minimumSize: const Size.fromHeight(40)),
+                            backgroundColor: kPlasma,
+                            minimumSize: const Size.fromHeight(40),
+                          ),
                           onPressed: busy ? null : runAi,
                           icon: busy
                               ? const SizedBox(
                                   width: 15,
                                   height: 15,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.auto_awesome_rounded,
-                                  size: 16),
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.auto_awesome_rounded,
+                                  size: 16,
+                                ),
                           label: Text(
-                              busy ? 'Calculating…' : 'Calculate macros with AI'),
+                            busy ? 'Calculating…' : 'Calculate macros with AI',
+                          ),
                         ),
                       ),
                     ],
@@ -4993,8 +6920,10 @@ Future<void> showAddFood(BuildContext context) async {
                 if (aiFilled)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 2),
-                    child: Text('🤖 AI estimate — adjust anything below',
-                        style: TextStyle(color: kCyan, fontSize: 11)),
+                    child: Text(
+                      '🤖 AI estimate — adjust anything below',
+                      style: TextStyle(color: kCyan, fontSize: 11),
+                    ),
                   ),
                 _numField(name, 'Food name', TextInputType.text),
                 _numField(cal, 'Calories (kcal)', TextInputType.number),
@@ -5006,8 +6935,9 @@ Future<void> showAddFood(BuildContext context) async {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: kPlasma),
               onPressed: () => Navigator.pop(ctx, true),
@@ -5020,18 +6950,28 @@ Future<void> showAddFood(BuildContext context) async {
   );
   if (ok == true) {
     final nm = name.text.trim().isEmpty ? 'Food' : name.text.trim();
-    appState.addFood(nm, _parseNum(cal.text), _parseNum(p.text),
-        _parseNum(c.text), _parseNum(f.text));
+    appState.addFood(
+      nm,
+      _parseNum(cal.text),
+      _parseNum(p.text),
+      _parseNum(c.text),
+      _parseNum(f.text),
+    );
   }
 }
 
 // ── COMPANIONS ───────────────────────────────────────────────────────────────
 class _CompanionOrb extends StatelessWidget {
-  const _CompanionOrb(
-      {required this.color, required this.icon, required this.size});
+  const _CompanionOrb({
+    required this.color,
+    required this.icon,
+    required this.size,
+    this.imageAsset,
+  });
   final Color color;
   final IconData icon;
   final double size;
+  final String? imageAsset;
 
   @override
   Widget build(BuildContext context) {
@@ -5041,16 +6981,24 @@ class _CompanionOrb extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-            colors: [color, color.withValues(alpha: 0.25)]),
-        boxShadow: [
-          BoxShadow(
-              color: color.withValues(alpha: 0.5),
-              blurRadius: 16,
-              spreadRadius: 1),
-        ],
+        color: imageAsset == null ? null : Colors.black,
+        gradient: imageAsset == null
+            ? RadialGradient(colors: [color, color.withValues(alpha: 0.25)])
+            : null,
+        boxShadow: imageAsset == null
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.5),
+                  blurRadius: 16,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
       ),
-      child: Icon(icon, color: Colors.white, size: size * 0.5),
+      clipBehavior: Clip.antiAlias,
+      child: imageAsset == null
+          ? Icon(icon, color: Colors.white, size: size * 0.5)
+          : Image.asset(imageAsset!, fit: BoxFit.cover),
     );
   }
 }
@@ -5064,61 +7012,68 @@ class _CompanionCard extends StatelessWidget {
     final line = appState.lastCompanionLine.isEmpty
         ? c.tagline
         : appState.lastCompanionLine;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CompanionsScreen())),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-                gradient: _kGlassSheen,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kBorder)),
-            child: Row(children: [
-              _CompanionOrb(color: c.color, icon: c.icon, size: 46),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Text(c.name,
-                          style: const TextStyle(
-                              color: kTextPrimary,
-                              fontWeight: FontWeight.bold)),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
+      child: HrCard(
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const CompanionsScreen())),
+        child: Row(
+          children: [
+            _CompanionOrb(
+              color: c.color,
+              icon: c.icon,
+              size: 46,
+              imageAsset: c.imageAsset,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          c.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: HrText.body.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                            color: const Color(0x268B5CF6),
-                            borderRadius: BorderRadius.circular(10)),
-                        child: Text('Stage $stage',
-                            style: TextStyle(
-                                color: kPlasmaGlow,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold)),
+                          color: HrColors.accentSurface,
+                          borderRadius: BorderRadius.circular(HrRadius.xs),
+                        ),
+                        child: Text(
+                          'Stage $stage',
+                          style: HrText.micro.copyWith(
+                            color: HrColors.accent,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
-                    ]),
-                    const SizedBox(height: 3),
-                    Text('"$line"',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: kTextSecondary,
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic)),
-                  ],
-                ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '"$line"',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: HrText.caption.copyWith(fontStyle: FontStyle.italic),
+                  ),
+                ],
               ),
-              const Icon(Icons.chevron_right, color: kTextTertiary),
-            ]),
-          ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+          ],
         ),
       ),
     );
@@ -5133,14 +7088,20 @@ class CompanionsScreen extends StatelessWidget {
       listenable: appState,
       builder: (context, _) {
         return Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
-            title: Text('Companions',
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Companions', style: HrText.title2),
           ),
           body: GridView.count(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              24,
+            ),
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
@@ -5153,43 +7114,79 @@ class CompanionsScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                        color: active ? c.color : kBorder,
-                        width: active ? 2 : 1),
+                    color: HrColors.surface,
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                    border: Border(
+                      top: BorderSide(
+                        color: active ? HrColors.accent : HrColors.hairline,
+                        width: active ? 2 : 1,
+                      ),
+                    ),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Opacity(
-                        opacity: unlocked ? 1 : 0.35,
-                        child: _CompanionOrb(
-                            color: c.color,
-                            icon: unlocked
-                                ? c.icon
-                                : Icons.lock_outline_rounded,
-                            size: 54),
+                      SizedBox(
+                        width: 54,
+                        height: 54,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned.fill(
+                              child: Opacity(
+                                opacity: unlocked ? 1 : 0.48,
+                                child: _CompanionOrb(
+                                  color: c.color,
+                                  icon: c.icon,
+                                  size: 54,
+                                  imageAsset: c.imageAsset,
+                                ),
+                              ),
+                            ),
+                            if (!unlocked)
+                              Positioned(
+                                right: -2,
+                                bottom: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: HrColors.surface2,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.lock_rounded,
+                                    size: 12,
+                                    color: HrColors.text3,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 10),
-                      Text(c.name,
-                          style: TextStyle(
-                              color:
-                                  unlocked ? kTextPrimary : kTextTertiary,
-                              fontWeight: FontWeight.bold)),
+                      Text(
+                        c.name,
+                        style: HrText.body.copyWith(
+                          color: unlocked ? HrColors.text : HrColors.text3,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(unlocked ? c.tagline : 'Unlock at Lv ${c.unlockLevel}',
-                          textAlign: TextAlign.center,
-                          style:
-                              const TextStyle(color: kTextTertiary, fontSize: 11)),
+                      Text(
+                        unlocked ? c.tagline : 'Unlock at Lv ${c.unlockLevel}',
+                        textAlign: TextAlign.center,
+                        style: HrText.caption,
+                      ),
                       if (active) ...[
                         const SizedBox(height: 6),
-                        const Text('ACTIVE',
-                            style: TextStyle(
-                                color: kCyan,
-                                fontSize: 10,
-                                letterSpacing: 1.5,
-                                fontWeight: FontWeight.bold)),
+                        Text(
+                          'ACTIVE',
+                          style: HrText.micro.copyWith(
+                            color: HrColors.accent,
+                            letterSpacing: 1.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -5210,47 +7207,62 @@ class _PrestigeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final can = appState.canPrestige;
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      margin: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       padding: const EdgeInsets.all(16),
-      decoration: glassDecoration(
-          radius: 16, border: appState.prestige > 0 ? kGold : kBorder),
-      child: Row(children: [
-        const Icon(Icons.auto_awesome_rounded, color: kGold, size: 22),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                const Text('PRESTIGE',
-                    style: TextStyle(
-                        color: kTextTertiary,
-                        fontSize: 11,
-                        letterSpacing: 1.5,
-                        fontWeight: FontWeight.bold)),
-                if (appState.prestige > 0) ...[
-                  const SizedBox(width: 8),
-                  Text('★' * appState.prestige,
-                      style: const TextStyle(color: kGold, fontSize: 13)),
-                ],
-              ]),
-              const SizedBox(height: 3),
-              Text(
+      decoration: BoxDecoration(
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: Border(
+          top: BorderSide(
+            color: appState.prestige > 0 ? HrColors.gold : HrColors.hairline,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.auto_awesome_rounded,
+            color: HrColors.gold,
+            size: 22,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('PRESTIGE', style: HrText.labelCaps),
+                    if (appState.prestige > 0) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '★' * appState.prestige,
+                        style: HrText.caption.copyWith(color: HrColors.gold),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
                   can
                       ? 'Rebirth to Lv 1 for a permanent ★ (+5% XP each)'
                       : 'Unlocks at Level $kPrestigeMinLevel',
-                  style: const TextStyle(color: kTextSecondary, fontSize: 12)),
-            ],
+                  style: HrText.caption,
+                ),
+              ],
+            ),
           ),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-              backgroundColor: can ? kGold : kElevated,
-              foregroundColor: can ? Colors.black : kTextTertiary),
-          onPressed: can ? () => _confirmPrestige(context) : null,
-          child: const Text('Prestige'),
-        ),
-      ]),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 110,
+            child: HrButton(
+              label: 'Prestige',
+              small: true,
+              onPressed: can ? () => _confirmPrestige(context) : null,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -5259,18 +7271,25 @@ Future<void> _confirmPrestige(BuildContext context) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: kCard,
-      title: const Text('Prestige?', style: TextStyle(color: kTextPrimary)),
-      content: const Text(
-          'This rebirths you to Level 1 and resets your XP, but grants a permanent ★ and +5% XP per star. Your habits, streaks, and coins are kept.',
-          style: TextStyle(color: kTextSecondary)),
+      backgroundColor: HrColors.surface,
+      title: Text(
+        'Prestige to ★${appState.prestige + 1}?',
+        style: HrText.title2,
+      ),
+      content: Text(
+        'You go back to Level 1 and your XP resets. You keep a permanent ★ and +5% XP per star. Habits, streaks and coins stay.',
+        style: HrText.bodyS,
+      ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Not yet'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(
-              backgroundColor: kGold, foregroundColor: Colors.black),
+            backgroundColor: HrColors.btnPrimary,
+            foregroundColor: HrColors.onBtnPrimary,
+          ),
           onPressed: () => Navigator.pop(ctx, true),
           child: const Text('Prestige'),
         ),
@@ -5278,140 +7297,97 @@ Future<void> _confirmPrestige(BuildContext context) async {
     ),
   );
   if (ok == true && context.mounted) {
-    appState
-        .setCompanionLine(companionLine(appState.activeCompanion, 'prestige'));
+    appState.setCompanionLine(
+      companionLine(appState.activeCompanion, 'prestige'),
+    );
     appState.doPrestige();
     if (context.mounted) _showPrestige(context, appState.prestige);
   }
 }
 
 void _showPrestige(BuildContext context, int prestige) {
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF3A2A08), Color(0xFF160B2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: kGold),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.auto_awesome_rounded, color: kGold, size: 46),
-            const SizedBox(height: 10),
-            const Text('PRESTIGE',
-                style: TextStyle(
-                    color: kGold,
-                    fontSize: 18,
-                    letterSpacing: 3,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('★' * prestige,
-                style: const TextStyle(color: kGold, fontSize: 26)),
-            const SizedBox(height: 8),
-            const Text('Reborn as Initiate — stronger than before.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: kTextSecondary)),
-            const SizedBox(height: 10),
-            Text(companionLine(appState.activeCompanion, 'prestige'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: kTextSecondary,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12)),
-            const SizedBox(height: 18),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: kGold, foregroundColor: Colors.black),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Rise'),
-            ),
-          ],
-        ),
-      ),
+  final comp = companionByType(appState.activeCompanion);
+  _showMoment(
+    context,
+    label: 'Prestige',
+    labelColor: HrColors.gold,
+    emblem: CompanionSticker(
+      icon: comp.icon,
+      color: comp.color,
+      size: 104,
+      semanticLabel: comp.name,
     ),
+    title: 'Reborn.  ${'★' * prestige}',
+    subtitle: 'Reborn as Initiate — stronger than before. +5% XP per star.',
+    bubble: companionLine(appState.activeCompanion, 'prestige'),
+    buttonLabel: 'Rise',
   );
 }
 
 void _showSeasonIntro(BuildContext context) {
   final s = appState.currentSeason + 1;
-  showDialog<void>(
-    context: context,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0B2A4A), Color(0xFF160B2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: kCyan),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.public_rounded, color: kCyan, size: 44),
-            const SizedBox(height: 10),
-            const Text('NEW SEASON',
-                style: TextStyle(
-                    color: kCyan,
-                    fontSize: 14,
-                    letterSpacing: 3,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Season $s',
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 40,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            const Text('Four bosses fell. A new season begins.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: kTextSecondary)),
-            const SizedBox(height: 18),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: kCyan, foregroundColor: Colors.black),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Begin'),
-            ),
-          ],
-        ),
-      ),
+  _showMoment(
+    context,
+    label: 'New season',
+    labelColor: HrColors.info,
+    emblem: SegmentedRing(
+      size: 136,
+      segments: 4,
+      value: 4,
+      stroke: 9,
+      color: HrColors.info,
+      center: Text('4/4', style: HrText.stat),
     ),
+    title: 'Season $s',
+    subtitle:
+        'Four bosses fell. A new season begins — new boss, fresh leaderboard.',
+    buttonLabel: 'Begin',
   );
 }
 
 // ── BODY PROFILE ─────────────────────────────────────────────────────────────
-Widget _dropdown(String label, String value, Map<String, String> opts,
-        ValueChanged<String> onChanged) =>
-    Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: DropdownButtonFormField<String>(
-        initialValue: value,
-        dropdownColor: kElevated,
-        decoration: InputDecoration(labelText: label),
-        items: opts.entries
-            .map((e) => DropdownMenuItem(
-                value: e.key,
-                child: Text(e.value,
-                    style: const TextStyle(color: kTextPrimary))))
-            .toList(),
-        onChanged: (v) {
-          if (v != null) onChanged(v);
-        },
+Widget _dropdown(
+  String label,
+  String value,
+  Map<String, String> opts,
+  ValueChanged<String> onChanged,
+) => Padding(
+  padding: const EdgeInsets.symmetric(vertical: 6),
+  child: DropdownButtonFormField<String>(
+    initialValue: value,
+    dropdownColor: HrColors.surface2,
+    style: HrText.body,
+    decoration: InputDecoration(
+      labelText: label,
+      labelStyle: HrText.caption,
+      filled: true,
+      fillColor: HrColors.surface,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: BorderSide.none,
       ),
-    );
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+      ),
+    ),
+    items: opts.entries
+        .map(
+          (e) => DropdownMenuItem(
+            value: e.key,
+            child: Text(e.value, style: HrText.body),
+          ),
+        )
+        .toList(),
+    onChanged: (v) {
+      if (v != null) onChanged(v);
+    },
+  ),
+);
 
 class BodyProfileScreen extends StatefulWidget {
   const BodyProfileScreen({super.key});
@@ -5432,9 +7408,11 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
     super.initState();
     final p = appState.bodyProfile;
     _weight = TextEditingController(
-        text: p != null ? p.weight.toStringAsFixed(0) : '');
+      text: p != null ? p.weight.toStringAsFixed(0) : '',
+    );
     _height = TextEditingController(
-        text: p != null ? p.height.toStringAsFixed(0) : '');
+      text: p != null ? p.height.toStringAsFixed(0) : '',
+    );
     _age = TextEditingController(text: p != null ? p.age.toString() : '');
     if (p != null) {
       _gender = p.gender;
@@ -5456,17 +7434,21 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
     final h = double.tryParse(_height.text.trim()) ?? 0;
     final a = int.tryParse(_age.text.trim()) ?? 0;
     if (w <= 0 || h <= 0 || a <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Enter a valid weight, height, and age')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid weight, height, and age')),
+      );
       return;
     }
-    appState.setBodyProfile(BodyProfile(
+    appState.setBodyProfile(
+      BodyProfile(
         weight: w,
         height: h,
         age: a,
         gender: _gender,
         activity: _activity,
-        goal: _goal));
+        goal: _goal,
+      ),
+    );
     Navigator.of(context).pop();
   }
 
@@ -5476,88 +7458,89 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
     final h = double.tryParse(_height.text) ?? 0;
     final a = int.tryParse(_age.text) ?? 0;
     final preview = (w > 0 && h > 0 && a > 0)
-        ? computeMacroTargets(BodyProfile(
-            weight: w,
-            height: h,
-            age: a,
-            gender: _gender,
-            activity: _activity,
-            goal: _goal))
+        ? computeMacroTargets(
+            BodyProfile(
+              weight: w,
+              height: h,
+              age: a,
+              gender: _gender,
+              activity: _activity,
+              goal: _goal,
+            ),
+          )
         : null;
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('Body Profile',
-            style: GoogleFonts.spaceGrotesk(
-                fontWeight: FontWeight.bold, color: kTextPrimary)),
+        foregroundColor: HrColors.text,
+        elevation: 0,
+        title: Text('Body profile', style: HrText.title2),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(
+          HrSpace.gutter,
+          8,
+          HrSpace.gutter,
+          24,
+        ),
         children: [
-          _numField(_weight, 'Weight (kg)', TextInputType.number,
-              onChanged: (_) => setState(() {})),
-          _numField(_height, 'Height (cm)', TextInputType.number,
-              onChanged: (_) => setState(() {})),
-          _numField(_age, 'Age', TextInputType.number,
-              onChanged: (_) => setState(() {})),
-          _dropdown(
-              'Gender',
-              _gender,
-              const {'male': 'Male', 'female': 'Female', 'other': 'Other'},
-              (v) => setState(() => _gender = v)),
-          _dropdown(
-              'Activity',
-              _activity,
-              const {
-                'sedentary': 'Sedentary',
-                'light': 'Light',
-                'moderate': 'Moderate',
-                'active': 'Active',
-                'very_active': 'Very active'
-              },
-              (v) => setState(() => _activity = v)),
-          _dropdown(
-              'Goal',
-              _goal,
-              const {
-                'cut': 'Cut (lose fat)',
-                'maintain': 'Maintain',
-                'bulk': 'Bulk (gain)'
-              },
-              (v) => setState(() => _goal = v)),
+          _numField(
+            _weight,
+            'Weight (kg)',
+            TextInputType.number,
+            onChanged: (_) => setState(() {}),
+          ),
+          _numField(
+            _height,
+            'Height (cm)',
+            TextInputType.number,
+            onChanged: (_) => setState(() {}),
+          ),
+          _numField(
+            _age,
+            'Age',
+            TextInputType.number,
+            onChanged: (_) => setState(() {}),
+          ),
+          _dropdown('Gender', _gender, const {
+            'male': 'Male',
+            'female': 'Female',
+            'other': 'Other',
+          }, (v) => setState(() => _gender = v)),
+          _dropdown('Activity', _activity, const {
+            'sedentary': 'Sedentary',
+            'light': 'Light',
+            'moderate': 'Moderate',
+            'active': 'Active',
+            'very_active': 'Very active',
+          }, (v) => setState(() => _activity = v)),
+          _dropdown('Goal', _goal, const {
+            'cut': 'Cut (lose fat)',
+            'maintain': 'Maintain',
+            'bulk': 'Bulk (gain)',
+          }, (v) => setState(() => _goal = v)),
           const SizedBox(height: 16),
           if (preview != null)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                  gradient: _kGlassSheen,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: kBorder)),
+            HrCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('COMPUTED TARGETS',
-                      style: TextStyle(
-                          color: kTextTertiary,
-                          fontSize: 11,
-                          letterSpacing: 1.5,
-                          fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
+                  const HrLabel('Computed targets'),
                   Text(
-                      '${preview.calories.round()} kcal · P${preview.protein.round()} C${preview.carbs.round()} F${preview.fat.round()}',
-                      style: const TextStyle(
-                          color: kTextPrimary, fontWeight: FontWeight.w600)),
+                    '${preview.calories.round()} kcal',
+                    style: HrText.title1,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Protein ${preview.protein.round()}g · Carbs ${preview.carbs.round()}g · Fat ${preview.fat.round()}g',
+                    style: HrText.caption,
+                  ),
                 ],
               ),
             ),
           const SizedBox(height: 20),
-          FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: kPlasma,
-                padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: _save,
-            child: const Text('Save profile'),
-          ),
+          HrButton(label: 'Save profile', onPressed: _save),
         ],
       ),
     );
@@ -5584,13 +7567,13 @@ Color _milestoneColor(String type) {
   switch (type) {
     case 'boss_defeat':
     case 'prestige':
-      return kGold;
+      return HrColors.gold;
     case 'season':
-      return kCyan;
+      return HrColors.info;
     case 'streak':
-      return kRed;
+      return HrColors.streak;
     default:
-      return kPlasmaBright;
+      return HrColors.accent;
   }
 }
 
@@ -5598,8 +7581,18 @@ String _fmtDate(String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return '';
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final hh = d.hour.toString().padLeft(2, '0');
   final mm = d.minute.toString().padLeft(2, '0');
@@ -5607,23 +7600,19 @@ String _fmtDate(String iso) {
 }
 
 Widget _bestChip(String label, String value) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-          color: kElevated,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kBorder)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value,
-              style: GoogleFonts.spaceGrotesk(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800)),
-          Text(label, style: const TextStyle(color: kTextTertiary, fontSize: 11)),
-        ],
-      ),
-    );
+  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  decoration: BoxDecoration(
+    color: HrColors.surface2,
+    borderRadius: BorderRadius.circular(HrRadius.md),
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(value, style: HrText.title2),
+      Text(label, style: HrText.caption),
+    ],
+  ),
+);
 
 class LegacyScreen extends StatelessWidget {
   const LegacyScreen({super.key});
@@ -5634,38 +7623,38 @@ class LegacyScreen extends StatelessWidget {
       builder: (context, _) {
         final log = appState.milestoneLog;
         return Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
-            title: Text('Legacy',
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Legacy', style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              24,
+            ),
             children: [
-              Container(
+              HrCard(
                 padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: kBorder)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('CAREER BESTS',
-                        style: TextStyle(
-                            color: kTextTertiary,
-                            fontSize: 11,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    Wrap(spacing: 10, runSpacing: 10, children: [
-                      _bestChip('Peak level', '${appState.highestLevel}'),
-                      _bestChip('Prestige', '★${appState.prestige}'),
-                      _bestChip('Bosses', '${appState.totalBossDefeats}'),
-                      _bestChip('Season', '${appState.currentSeason + 1}'),
-                      _bestChip('Best streak', '${appState.bestStreak}'),
-                    ]),
+                    const HrLabel('Career bests'),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _bestChip('Peak level', '${appState.highestLevel}'),
+                        _bestChip('Prestige', '★${appState.prestige}'),
+                        _bestChip('Bosses', '${appState.totalBossDefeats}'),
+                        _bestChip('Season', '${appState.currentSeason + 1}'),
+                        _bestChip('Best streak', '${appState.bestStreak}'),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -5674,9 +7663,10 @@ class LegacyScreen extends StatelessWidget {
                 const Padding(
                   padding: EdgeInsets.all(24),
                   child: _EmptyState(
-                      emoji: '📜',
-                      title: 'No milestones yet',
-                      subtitle: 'Level up, defeat the boss, or hit a streak.'),
+                    emoji: '📜',
+                    title: 'No milestones yet',
+                    subtitle: 'Level up, defeat the boss, or hit a streak.',
+                  ),
                 )
               else
                 ...log.map((m) => _MilestoneTile(m)),
@@ -5695,83 +7685,99 @@ class _MilestoneTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _milestoneColor(m.type);
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 5),
+      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder)),
-      child: Row(children: [
-        Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-              shape: BoxShape.circle, color: color.withValues(alpha: 0.15)),
-          child: Icon(_milestoneIcon(m.type), color: color, size: 18),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(m.description,
-                  style: const TextStyle(
-                      color: kTextPrimary, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 2),
-              Text(_fmtDate(m.date),
-                  style: const TextStyle(color: kTextTertiary, fontSize: 11)),
-            ],
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: const Border(top: BorderSide(color: HrColors.hairline)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.15),
+            ),
+            child: Icon(_milestoneIcon(m.type), color: color, size: 18),
           ),
-        ),
-        if (m.xp > 0)
-          Text('+${m.xp}',
-              style: TextStyle(
-                  color: color, fontWeight: FontWeight.bold, fontSize: 12)),
-      ]),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  m.description,
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(_fmtDate(m.date), style: HrText.caption),
+              ],
+            ),
+          ),
+          if (m.xp > 0)
+            Text(
+              '+${m.xp}',
+              style: HrText.caption.copyWith(
+                color: color,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
 
 // ── SETTINGS & ACCOUNT ───────────────────────────────────────────────────────
-Widget _settingsTile(IconData icon, String title, String subtitle,
-    VoidCallback? onTap,
-    {bool danger = false}) {
-  return Container(
-    margin: const EdgeInsets.symmetric(vertical: 4),
+Widget _settingsTile(
+  IconData icon,
+  String title,
+  String subtitle,
+  VoidCallback? onTap, {
+  bool danger = false,
+}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
     child: Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
-        child: Container(
+        child: Padding(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-              gradient: _kGlassSheen,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kBorder)),
-          child: Row(children: [
-            Icon(icon, color: danger ? kRed : kPlasmaBright, size: 20),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: TextStyle(
-                          color: danger ? kRed : kTextPrimary,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style:
-                          const TextStyle(color: kTextTertiary, fontSize: 11)),
-                ],
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: danger ? HrColors.dangerText : HrColors.text2,
+                size: 20,
               ),
-            ),
-            if (onTap != null)
-              const Icon(Icons.chevron_right, color: kTextTertiary),
-          ]),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: HrText.body.copyWith(
+                        color: danger ? HrColors.dangerText : HrColors.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: HrText.caption),
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+            ],
+          ),
         ),
       ),
     ),
@@ -5779,178 +7785,378 @@ Widget _settingsTile(IconData icon, String title, String subtitle,
 }
 
 Widget _sectionLabel(String s) => Padding(
-      padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
-      child: Text(s,
-          style: const TextStyle(
-              color: kTextTertiary,
-              fontSize: 11,
-              letterSpacing: 1.5,
-              fontWeight: FontWeight.bold)),
-    );
+  padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+  child: Text(s.toUpperCase(), style: HrText.labelCaps),
+);
+
+// ── "You" hub rows (redesign) ────────────────────────────────────────────────
+class _YouRow {
+  const _YouRow(
+    this.icon,
+    this.title,
+    this.subtitle,
+    this.onTap, {
+    this.danger = false,
+  });
+  final IconData icon;
+  final String title, subtitle;
+  final VoidCallback? onTap;
+  final bool danger;
+}
+
+Widget _youRowWidget(_YouRow r) => Material(
+  color: Colors.transparent,
+  child: InkWell(
+    onTap: r.onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      child: Row(
+        children: [
+          Icon(
+            r.icon,
+            size: 20,
+            color: r.danger ? HrColors.dangerText : HrColors.text2,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  r.title,
+                  style: HrText.body.copyWith(
+                    color: r.danger ? HrColors.dangerText : HrColors.text,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (r.subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    r.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: HrText.caption,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (r.onTap != null && !r.danger)
+            const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+        ],
+      ),
+    ),
+  ),
+);
+
+Widget _youGroup(List<_YouRow> rows) => HrCard(
+  padding: EdgeInsets.zero,
+  child: ClipRRect(
+    borderRadius: BorderRadius.circular(HrRadius.lg),
+    child: Column(
+      children: [
+        for (int i = 0; i < rows.length; i++) ...[
+          if (i > 0)
+            const Divider(
+              height: 1,
+              thickness: 1,
+              color: HrColors.hairline,
+              indent: 48,
+            ),
+          _youRowWidget(rows[i]),
+        ],
+      ],
+    ),
+  ),
+);
+
+Widget _youQuickCard({
+  required IconData icon,
+  required Color iconColor,
+  required String title,
+  required String subtitle,
+  required VoidCallback onTap,
+  String? imageAsset,
+  double imageSize = 44,
+}) => HrCard(
+  onTap: onTap,
+  padding: const EdgeInsets.all(14),
+  child: Row(
+    children: [
+      Container(
+        width: imageAsset == null ? 36 : 44,
+        height: imageAsset == null ? 36 : 44,
+        alignment: Alignment.center,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: iconColor),
+        child: imageAsset == null
+            ? Icon(icon, size: 18, color: HrColors.bg)
+            : Image.asset(
+                imageAsset,
+                width: imageSize,
+                height: imageSize,
+                fit: BoxFit.contain,
+              ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+            ),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.caption,
+            ),
+          ],
+        ),
+      ),
+    ],
+  ),
+);
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: appState,
+      listenable: Listenable.merge([appState, auth]),
       builder: (context, _) {
         final ld = levelFromXp(appState.totalXp);
+        final authed = auth.isAuthed;
+        final u = auth.user;
+        final handle = (u != null && u.username.isNotEmpty)
+            ? '@${u.username} · '
+            : '';
+        final p = appState.bodyProfile;
+        final n = appState.todayNutrition();
+        final t = appState.targets();
+        final comp = companionByType(appState.activeCompanion);
+        final bodySub = p == null
+            ? 'Set weight, height & goal'
+            : '${p.weight.round()} kg · ${p.goal[0].toUpperCase()}${p.goal.substring(1)} · ${t.calories.round()} kcal';
         return Scaffold(
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            title: Text('Settings',
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Account header
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: kBorder)),
-                child: Row(children: [
-                  GestureDetector(
-                    onTap: () => _pickProfilePhoto(context),
-                    child: Stack(children: [
-                      _Avatar(size: 58),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: kPlasma,
-                              border: Border.all(color: kCard, width: 2)),
-                          child: const Icon(Icons.camera_alt_rounded,
-                              size: 10, color: Colors.white),
-                        ),
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            bottom: false,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter,
+                4,
+                HrSpace.gutter,
+                100,
+              ),
+              children: [
+                Row(
+                  children: [
+                    Text('You', style: HrText.display),
+                    const Spacer(),
+                    _coinChip(context),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                HrCard(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => authed
+                            ? const AccountScreen()
+                            : const LoginScreen(),
                       ),
-                    ]),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                    child: Row(
                       children: [
-                        Text(appState.displayName,
-                            style: const TextStyle(
-                                color: kTextPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold)),
-                        Text('Level ${ld.level} · ${levelTitle(ld.level)}',
-                            style: const TextStyle(
-                                color: kTextTertiary, fontSize: 12)),
-                        const SizedBox(height: 6),
                         GestureDetector(
                           onTap: () => _pickProfilePhoto(context),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(Icons.camera_alt_rounded,
-                                size: 13, color: kPlasmaBright),
-                            const SizedBox(width: 4),
-                            Text('Change photo',
-                                style: TextStyle(
-                                    color: kPlasmaBright,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600)),
-                          ]),
+                          child: _Avatar(size: 54),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                appState.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: HrText.title2,
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '${handle}Lv ${ld.level} · ${levelTitle(ld.level)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: HrText.caption,
+                              ),
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  HrRadius.full,
+                                ),
+                                child: LinearProgressIndicator(
+                                  value: ld.progress.clamp(0.0, 1.0).toDouble(),
+                                  minHeight: 6,
+                                  backgroundColor: HrColors.surface3,
+                                  valueColor: const AlwaysStoppedAnimation(
+                                    HrColors.text,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit_rounded,
+                            color: HrColors.text3,
+                            size: 18,
+                          ),
+                          tooltip: 'Edit name',
+                          onPressed: () => _editName(context),
                         ),
                       ],
                     ),
                   ),
-                  IconButton(
-                      icon: Icon(Icons.edit,
-                          color: kPlasmaBright, size: 18),
-                      onPressed: () => _editName(context)),
-                ]),
-              ),
-              _sectionLabel('ACCOUNT'),
-              ListenableBuilder(
-                listenable: auth,
-                builder: (context, _) {
-                  final authed = auth.isAuthed;
-                  final u = auth.user;
-                  return _settingsTile(
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _youQuickCard(
+                        icon: comp.icon,
+                        iconColor: comp.color,
+                        title: comp.name,
+                        subtitle: 'Companion',
+                        imageAsset: comp.imageAsset,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const CompanionsScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _youQuickCard(
+                        icon: Icons.monetization_on_rounded,
+                        iconColor: Colors.transparent,
+                        title: 'Shop',
+                        subtitle: '${appState.coins} coins',
+                        imageAsset: 'assets/shop/coin_stack.png',
+                        imageSize: 44,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const ShopScreen()),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                const HrLabel('Account'),
+                _youGroup([
+                  _YouRow(
                     authed ? Icons.person_rounded : Icons.login_rounded,
                     authed ? 'Account' : 'Sign in or create account',
                     authed
-                        ? (auth.isRemote
-                            ? 'Signed in · ${u?.email ?? ''}'
-                            : '${u?.email ?? ''} · on this device')
-                        : 'Back up your progress & sync devices',
-                    () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) =>
-                            authed ? const AccountScreen() : const LoginScreen())),
-                  );
-                },
-              ),
-              _sectionLabel('PREFERENCES'),
-              _settingsTile(
-                  Icons.palette_rounded,
-                  'Appearance',
-                  'Pick an accent theme',
-                  () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const AppearanceScreen()))),
-              _settingsTile(
-                  Icons.person_rounded,
-                  'Body profile',
-                  'Weight, height, goal → nutrition targets',
-                  () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const BodyProfileScreen()))),
-              _settingsTile(
-                  Icons.pets_rounded,
-                  'Companion',
-                  'Choose your active companion',
-                  () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const CompanionsScreen()))),
-              _settingsTile(
-                  Icons.auto_awesome_rounded,
-                  'AI difficulty',
-                  appState.aiEnabled
-                      ? 'Ollama rates new habits · ${appState.aiModel}'
-                      : 'Off — using the built-in estimate',
-                  () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const AiSettingsScreen()))),
-              _sectionLabel('DATA'),
-              _settingsTile(Icons.refresh_rounded, 'Reset all progress',
-                  'Wipe habits, XP, and history',
-                  () => _confirmReset(context),
-                  danger: true),
-              ListenableBuilder(
-                listenable: auth,
-                builder: (context, _) {
-                  if (!auth.isAuthed) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                          backgroundColor: kElevated,
-                          foregroundColor: kRed,
-                          minimumSize: const Size.fromHeight(50)),
-                      onPressed: () async {
-                        await auth.signOut();
-                        if (context.mounted) {
-                          Navigator.of(context).popUntil((r) => r.isFirst);
-                        }
-                      },
-                      icon: const Icon(Icons.logout_rounded, size: 18),
-                      label: const Text('Log out'),
+                        ? (u?.email ?? 'Manage your account')
+                        : 'Back up progress & sync devices',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => authed
+                            ? const AccountScreen()
+                            : const LoginScreen(),
+                      ),
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-              const Center(
-                child: Text('Habitrail · v1.0.0\nRebuilt from the Habitrail web app',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: kTextTertiary, fontSize: 11)),
-              ),
-            ],
+                  ),
+                  _YouRow(
+                    Icons.ios_share_rounded,
+                    'Share progress',
+                    'Level · streak · score',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ShareCardScreen(),
+                      ),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 18),
+                const HrLabel('Preferences'),
+                _youGroup([
+                  _YouRow(
+                    Icons.palette_rounded,
+                    'Appearance',
+                    'Rings, checks & progress colour',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AppearanceScreen(),
+                      ),
+                    ),
+                  ),
+                  _YouRow(
+                    Icons.monitor_heart_rounded,
+                    'Body profile',
+                    bodySub,
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const BodyProfileScreen(),
+                      ),
+                    ),
+                  ),
+                  _YouRow(
+                    Icons.restaurant_rounded,
+                    'Nutrition',
+                    '${n.calories.round()} / ${t.calories.round()} kcal today',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const NutritionScreen(),
+                      ),
+                    ),
+                  ),
+                  _YouRow(
+                    Icons.auto_awesome_rounded,
+                    'AI difficulty',
+                    appState.aiEnabled
+                        ? 'Ollama · ${appState.aiModel}'
+                        : 'Built-in estimate',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AiSettingsScreen(),
+                      ),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 18),
+                const HrLabel('Data'),
+                _youGroup([
+                  _YouRow(
+                    Icons.refresh_rounded,
+                    'Reset all progress',
+                    'Wipe habits, XP & history',
+                    () => _confirmReset(context),
+                    danger: true,
+                  ),
+                  if (authed)
+                    _YouRow(Icons.logout_rounded, 'Log out', '', () async {
+                      await auth.signOut();
+                      if (context.mounted)
+                        Navigator.of(context).popUntil((r) => r.isFirst);
+                    }, danger: true),
+                ]),
+                const SizedBox(height: 22),
+                Center(
+                  child: Text('Habitrail · v1.0.0', style: HrText.caption),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -5973,7 +8179,9 @@ Future<void> _editName(BuildContext context) async {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kPlasma),
           onPressed: () => Navigator.pop(ctx, c.text.trim()),
@@ -5989,29 +8197,31 @@ Future<void> _confirmReset(BuildContext context) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: kCard,
-      title: const Text('Reset all progress?',
-          style: TextStyle(color: kTextPrimary)),
-      content: const Text(
-          'This permanently clears your habits, XP, coins, streaks, nutrition, companions, prestige, and history. It cannot be undone.',
-          style: TextStyle(color: kTextSecondary)),
+      backgroundColor: HrColors.surface,
+      title: Text('Reset all progress?', style: HrText.title2),
+      content: Text(
+        'This permanently clears your habits, XP, coins, streaks, nutrition, companions, prestige and history on this device.',
+        style: HrText.bodyS,
+      ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(
-              backgroundColor: kRed, foregroundColor: Colors.white),
+            backgroundColor: HrColors.danger,
+            foregroundColor: Colors.white,
+          ),
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Reset'),
+          child: const Text('Reset everything'),
         ),
       ],
     ),
   );
   if (ok == true && context.mounted) {
     appState.resetAll();
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Progress reset')));
+    hrToast(context, 'Progress reset', icon: Icons.refresh_rounded);
   }
 }
 
@@ -6023,10 +8233,12 @@ class AiSettingsScreen extends StatefulWidget {
 }
 
 class _AiSettingsScreenState extends State<AiSettingsScreen> {
-  late final TextEditingController _url =
-      TextEditingController(text: appState.aiBaseUrl);
-  late final TextEditingController _model =
-      TextEditingController(text: appState.aiModel);
+  late final TextEditingController _url = TextEditingController(
+    text: appState.aiBaseUrl,
+  );
+  late final TextEditingController _model = TextEditingController(
+    text: appState.aiModel,
+  );
   bool _testing = false;
   bool _testOk = false;
   String? _testResult;
@@ -6061,112 +8273,130 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
       builder: (context, _) {
         final on = appState.aiEnabled;
         return Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
-            title: Text('AI difficulty',
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('AI difficulty', style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              24,
+            ),
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: kBorder)),
+              HrCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
-                      Icon(Icons.auto_awesome_rounded, color: kCyan, size: 20),
-                      const SizedBox(width: 8),
-                      Text('How it works',
-                          style: GoogleFonts.spaceGrotesk(
-                              color: kTextPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15)),
-                    ]),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: HrColors.text2,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text('How it works', style: HrText.headline),
+                      ],
+                    ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'When you add a habit, a local AI model reads it and picks a '
                       'difficulty — harder habits earn a bigger XP multiplier. The '
                       'rating is locked in when the habit is created, so XP stays '
                       'fair and the app still works offline (it falls back to a '
                       'built-in estimate whenever the model isn\'t running).',
-                      style: TextStyle(
-                          color: kTextSecondary, fontSize: 12, height: 1.4),
+                      style: HrText.bodyS,
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              Container(
-                decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: kBorder)),
+              HrCard(
+                padding: EdgeInsets.zero,
                 child: SwitchListTile(
                   value: on,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                  title: const Text('Use Ollama',
-                      style: TextStyle(
-                          color: kTextPrimary, fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Rate new habits with a local model',
-                      style: TextStyle(color: kTextTertiary, fontSize: 12)),
+                  activeThumbColor: HrColors.accent,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 2,
+                  ),
+                  title: Text(
+                    'Use Ollama',
+                    style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Rate new habits with a local model',
+                    style: HrText.caption,
+                  ),
                   onChanged: (v) => appState.setAiConfig(enabled: v),
                 ),
               ),
               const SizedBox(height: 16),
-              _aiField('Server URL', _url, 'http://localhost:11434',
-                  enabled: on,
-                  onChanged: (v) => appState.setAiConfig(baseUrl: v)),
+              _aiField(
+                'Server URL',
+                _url,
+                'http://localhost:11434',
+                enabled: on,
+                onChanged: (v) => appState.setAiConfig(baseUrl: v),
+              ),
               const SizedBox(height: 12),
-              _aiField('Model', _model, kDefaultAiModel,
-                  enabled: on, onChanged: (v) => appState.setAiConfig(model: v)),
+              _aiField(
+                'Model',
+                _model,
+                kDefaultAiModel,
+                enabled: on,
+                onChanged: (v) => appState.setAiConfig(model: v),
+              ),
               const SizedBox(height: 16),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                    backgroundColor: on ? kPlasma : kElevated,
-                    minimumSize: const Size.fromHeight(46)),
+              HrButton(
+                label: _testing ? 'Testing…' : 'Test connection',
+                icon: Icons.wifi_tethering_rounded,
+                kind: HrButtonKind.secondary,
+                loading: _testing,
                 onPressed: on && !_testing ? _test : null,
-                icon: _testing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.wifi_tethering_rounded, size: 18),
-                label: Text(_testing ? 'Testing…' : 'Test connection'),
               ),
               if (_testResult != null) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: (_testOk ? kGreen : kRed).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: (_testOk ? kGreen : kRed)
-                              .withValues(alpha: 0.4))),
-                  child: Row(children: [
-                    Icon(_testOk ? Icons.check_circle_rounded : Icons.error_rounded,
-                        color: _testOk ? kGreen : kRed, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(_testResult!,
-                          style: TextStyle(
-                              color: _testOk ? kGreen : kRed, fontSize: 12)),
-                    ),
-                  ]),
+                    color: (_testOk ? HrColors.accent : HrColors.danger)
+                        .withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _testOk
+                            ? Icons.check_circle_rounded
+                            : Icons.error_rounded,
+                        color: _testOk ? HrColors.accent : HrColors.dangerText,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _testResult!,
+                          style: HrText.caption.copyWith(
+                            color: _testOk
+                                ? HrColors.accent
+                                : HrColors.dangerText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
               const SizedBox(height: 20),
               _sectionLabel('SETUP'),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(4, 2, 4, 0),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
                 child: Text(
                   '1. Install Ollama from ollama.com\n'
                   '2. Run:  ollama pull llama3.2\n'
@@ -6175,8 +8405,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   'phone — set the Server URL to your computer\'s address, e.g. '
                   'http://192.168.1.20:11434, or leave AI off to use the built-in '
                   'estimate.',
-                  style: TextStyle(
-                      color: kTextTertiary, fontSize: 12, height: 1.5),
+                  style: HrText.caption.copyWith(height: 1.5),
                 ),
               ),
             ],
@@ -6187,21 +8416,46 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
   }
 }
 
-Widget _aiField(String label, TextEditingController c, String hint,
-    {required bool enabled, required ValueChanged<String> onChanged}) {
+Widget _aiField(
+  String label,
+  TextEditingController c,
+  String hint, {
+  required bool enabled,
+  required ValueChanged<String> onChanged,
+}) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 6),
-        child: Text(label,
-            style: const TextStyle(color: kTextTertiary, fontSize: 12)),
+        child: Text(label, style: HrText.caption),
       ),
       TextField(
         controller: c,
         enabled: enabled,
-        style: const TextStyle(color: kTextPrimary),
-        decoration: InputDecoration(hintText: hint),
+        style: HrText.body,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: HrText.body.copyWith(color: HrColors.text3),
+          filled: true,
+          fillColor: HrColors.surface,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            borderSide: BorderSide.none,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+          ),
+        ),
         onChanged: onChanged,
       ),
     ],
@@ -6210,15 +8464,15 @@ Widget _aiField(String label, TextEditingController c, String hint,
 
 // ── APPEARANCE (themes) ──────────────────────────────────────────────────────
 Widget _swatch(Color c) => Container(
-      width: 22,
-      height: 22,
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      decoration: BoxDecoration(shape: BoxShape.circle, color: c),
-    );
+  width: 22,
+  height: 22,
+  margin: const EdgeInsets.symmetric(horizontal: 3),
+  decoration: BoxDecoration(shape: BoxShape.circle, color: c),
+);
 
 void _toast(BuildContext context, String msg) =>
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kElevated));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg), backgroundColor: kElevated));
 
 // Gold affordability-aware buy pill. Affordable → glowing gold; otherwise a
 // muted pill that still taps through to show the "not enough coins" toast.
@@ -6235,29 +8489,40 @@ Widget _buyPill({required int cost, required VoidCallback onTap}) {
           borderRadius: BorderRadius.circular(12),
           gradient: canAfford
               ? const LinearGradient(
-                  colors: [Color(0xFFFFD873), Color(0xFFF5A623)])
+                  colors: [Color(0xFFFFD873), Color(0xFFF5A623)],
+                )
               : null,
           color: canAfford ? null : kElevated,
           border: canAfford ? null : Border.all(color: kBorder),
           boxShadow: canAfford
               ? [
                   BoxShadow(
-                      color: const Color(0xFFF5A623).withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 3))
+                    color: const Color(0xFFF5A623).withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
                 ]
               : null,
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.bolt,
-              size: 15, color: canAfford ? const Color(0xFF3A2A05) : kGold),
-          const SizedBox(width: 3),
-          Text('$cost',
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.bolt,
+              size: 15,
+              color: canAfford ? const Color(0xFF3A2A05) : kGold,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              '$cost',
               style: TextStyle(
-                  color: canAfford ? const Color(0xFF3A2A05) : kTextSecondary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13)),
-        ]),
+                color: canAfford ? const Color(0xFF3A2A05) : kTextSecondary,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -6265,153 +8530,132 @@ Widget _buyPill({required int cost, required VoidCallback onTap}) {
 
 // Small status chip for an owned/active cosmetic (check + label).
 Widget _stateChip(String label, Color color) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+  decoration: BoxDecoration(
+    color: color.withValues(alpha: 0.15),
+    borderRadius: BorderRadius.circular(HrRadius.sm),
+  ),
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.check_rounded, size: 13, color: color),
+      const SizedBox(width: 4),
+      Text(
+        label,
+        style: HrText.micro.copyWith(
+          color: color,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
+        ),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.check_rounded, size: 13, color: color),
-        const SizedBox(width: 4),
-        Text(label,
-            style: TextStyle(
-                color: color,
-                fontSize: 10.5,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.8)),
-      ]),
-    );
+    ],
+  ),
+);
 
 // Outline pill for a secondary action (Select / Apply an owned cosmetic).
 Widget _secondaryPill(String label, VoidCallback onTap) => Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kPlasma.withValues(alpha: 0.6)),
-          ),
-          child: Text(label,
-              style: TextStyle(
-                  color: kPlasmaGlow,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13)),
+  color: HrColors.surface2,
+  borderRadius: BorderRadius.circular(HrRadius.full),
+  clipBehavior: Clip.antiAlias,
+  child: InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      child: Text(
+        label,
+        style: HrText.bodyS.copyWith(
+          color: HrColors.text,
+          fontWeight: FontWeight.w700,
         ),
       ),
-    );
+    ),
+  ),
+);
 
 // Section header with an optional right-aligned owned-count ("3 / 7").
 Widget _shopSectionHeader(String title, String trailing) => Padding(
-      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-      child: Row(children: [
-        Expanded(
-            child: Text(title,
-                style: const TextStyle(
-                    color: kTextTertiary,
-                    fontSize: 11,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.bold))),
-        if (trailing.isNotEmpty)
-          Text(trailing,
-              style: const TextStyle(
-                  color: kTextTertiary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700)),
-      ]),
-    );
+  padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+  child: Row(
+    children: [
+      Expanded(child: Text(title.toUpperCase(), style: HrText.labelCaps)),
+      if (trailing.isNotEmpty) Text(trailing, style: HrText.labelCaps),
+    ],
+  ),
+);
 
 // Coins balance hero at the top of the shop.
 Widget _balanceHero() => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF2E1A5C), Color(0xFF1A0F38)]),
-        border: Border.all(color: kGold.withValues(alpha: 0.25)),
-        boxShadow: [
-          BoxShadow(
-              color: kGold.withValues(alpha: 0.12),
-              blurRadius: 28,
-              offset: const Offset(0, 8)),
-        ],
+  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+  decoration: BoxDecoration(
+    color: HrColors.surface,
+    borderRadius: BorderRadius.circular(HrRadius.lg),
+    border: const Border(top: BorderSide(color: HrColors.hairline)),
+  ),
+  child: Row(
+    children: [
+      Image.asset(
+        'assets/shop/coin_stack.png',
+        width: 64,
+        height: 64,
+        fit: BoxFit.contain,
+        semanticLabel: 'Gold coin stack',
       ),
-      child: Row(children: [
-        Container(
-          width: 58,
-          height: 58,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-                colors: [Color(0xFFFFD873), Color(0xFFF5A623)]),
-            boxShadow: [
-              BoxShadow(
-                  color: const Color(0xFFF5A623).withValues(alpha: 0.5),
-                  blurRadius: 18),
-            ],
-          ),
-          child: const Icon(Icons.bolt, color: Color(0xFF3A2A05), size: 32),
+      const SizedBox(width: 16),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('YOUR BALANCE', style: HrText.labelCaps),
+            const SizedBox(height: 3),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '${appState.coins}',
+                  style: HrText.numeralXl.copyWith(
+                    color: HrColors.gold,
+                    fontSize: 34,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text('coins', style: HrText.caption),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      if (appState.xpBoostActive)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(
+            color: HrColors.accentSurface,
+            borderRadius: BorderRadius.circular(HrRadius.sm),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('YOUR BALANCE',
-                  style: TextStyle(
-                      color: kTextTertiary,
-                      fontSize: 11,
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 3),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text('${appState.coins}',
-                      style: GoogleFonts.spaceGrotesk(
-                          color: kGold,
-                          fontSize: 34,
-                          height: 1,
-                          fontWeight: FontWeight.w800)),
-                  const SizedBox(width: 6),
-                  const Text('coins',
-                      style: TextStyle(color: kTextSecondary, fontSize: 13)),
-                ],
+              Text(
+                '2×',
+                style: HrText.bodyS.copyWith(
+                  color: HrColors.accent,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'XP',
+                style: HrText.micro.copyWith(
+                  color: HrColors.accent,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
         ),
-        if (appState.xpBoostActive)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-            decoration: BoxDecoration(
-              color: kPlasma.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: kPlasma.withValues(alpha: 0.5)),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text('2×',
-                  style: TextStyle(
-                      color: kPlasmaGlow,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14)),
-              const SizedBox(width: 4),
-              Text('XP',
-                  style: TextStyle(
-                      color: kPlasmaGlow,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11)),
-            ]),
-          ),
-      ]),
-    );
+    ],
+  ),
+);
 
 Widget _shopItem({
   required IconData icon,
@@ -6421,57 +8665,54 @@ Widget _shopItem({
   required int cost,
   required VoidCallback? onBuy,
   String? activeLabel,
+  String? imageAsset,
 }) {
   return Container(
-    margin: const EdgeInsets.symmetric(vertical: 6),
+    margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder)),
-    child: Row(children: [
-      Container(
-        width: 46,
-        height: 46,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                color.withValues(alpha: 0.28),
-                color.withValues(alpha: 0.10)
-              ]),
-          border: Border.all(color: color.withValues(alpha: 0.35)),
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: const Border(top: BorderSide(color: HrColors.hairline)),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          alignment: Alignment.center,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(HrRadius.sm),
+            color: color.withValues(alpha: 0.16),
+          ),
+          child: imageAsset == null
+              ? Icon(icon, color: color, size: 22)
+              : Image.asset(imageAsset, fit: BoxFit.cover),
         ),
-        child: Icon(icon, color: color, size: 22),
-      ),
-      const SizedBox(width: 14),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
-                style: const TextStyle(
-                    color: kTextPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15)),
-            const SizedBox(height: 3),
-            Text(desc,
-                style: const TextStyle(
-                    color: kTextTertiary, fontSize: 11.5, height: 1.3)),
-          ],
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 3),
+              Text(desc, style: HrText.caption),
+            ],
+          ),
         ),
-      ),
-      const SizedBox(width: 10),
-      if (activeLabel != null)
-        _stateChip(activeLabel, kGreen)
-      else if (onBuy != null)
-        _buyPill(cost: cost, onTap: onBuy)
-      else
-        _stateChip('OWNED', kGreen),
-    ]),
+        const SizedBox(width: 10),
+        if (activeLabel != null)
+          _stateChip(activeLabel, HrColors.accent)
+        else if (onBuy != null)
+          _buyPill(cost: cost, onTap: onBuy)
+        else
+          _stateChip('OWNED', HrColors.accent),
+      ],
+    ),
   );
 }
 
@@ -6482,32 +8723,41 @@ class ShopScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) {
-        final ownedBorders =
-            kBorders.where((b) => appState.ownsBorder(b.id)).length;
-        final ownedThemes =
-            kThemes.where((t) => appState.ownsTheme(t.id)).length;
+        final ownedBorders = kBorders
+            .where((b) => appState.ownsBorder(b.id))
+            .length;
+        final ownedThemes = kThemes
+            .where((t) => appState.ownsTheme(t.id))
+            .length;
         return Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
-            title: Text('Shop',
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Shop', style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              28,
+            ),
             children: [
               _balanceHero(),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(4, 14, 4, 0),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
                 child: Text(
-                    'Spend coins on power-ups and cosmetics to personalize your journey.',
-                    style: TextStyle(
-                        color: kTextTertiary, fontSize: 12.5, height: 1.4)),
+                  'Spend coins on power-ups and cosmetics to personalize your journey.',
+                  style: HrText.caption,
+                ),
               ),
               _shopSectionHeader('POWER-UPS', ''),
               _shopItem(
                 icon: Icons.bolt_rounded,
                 color: kGold,
+                imageAsset: 'assets/powerups/xp_booster.png',
                 title: '2× XP Booster',
                 desc: appState.xpBoostActive
                     ? 'Active for the rest of today'
@@ -6519,24 +8769,29 @@ class ShopScreen extends StatelessWidget {
                         context,
                         appState.buyXpBoost()
                             ? '2× XP active for today!'
-                            : 'Not enough coins'),
+                            : 'Not enough coins',
+                      ),
                 activeLabel: appState.xpBoostActive ? 'ACTIVE' : null,
               ),
               _shopItem(
                 icon: Icons.shield_rounded,
                 color: kCyan,
+                imageAsset: 'assets/powerups/streak_shield.png',
                 title: 'Streak Shield',
                 desc:
                     'Saves a streak from one missed day · owned: ${appState.streakShields}',
                 cost: 100,
                 onBuy: () => _toast(
-                    context,
-                    appState.buyStreakShield()
-                        ? 'Streak Shield added!'
-                        : 'Not enough coins'),
+                  context,
+                  appState.buyStreakShield()
+                      ? 'Streak Shield added!'
+                      : 'Not enough coins',
+              ),
               ),
               _shopSectionHeader(
-                  'PROFILE BORDERS', '$ownedBorders / ${kBorders.length}'),
+                'PROFILE BORDERS',
+                '$ownedBorders / ${kBorders.length}',
+              ),
               ...kBorders.map((b) => _borderShopTile(context, b)),
               _shopSectionHeader('THEMES', '$ownedThemes / ${kThemes.length}'),
               ...kThemes.map((t) => _themeShopTile(context, t)),
@@ -6552,40 +8807,47 @@ Widget _borderShopTile(BuildContext context, BorderDef b) {
   final owned = appState.ownsBorder(b.id);
   final selected = appState.selectedBorder == b.id;
   return Container(
-    margin: const EdgeInsets.symmetric(vertical: 5),
+    margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: selected ? kPlasma : kBorder, width: selected ? 1.5 : 1)),
-    child: Row(children: [
-      _borderPreview(b, size: 42),
-      const SizedBox(width: 14),
-      Expanded(
-          child: Text(b.name,
-              style: const TextStyle(
-                  color: kTextPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14.5))),
-      if (owned)
-        selected
-            ? _stateChip('SELECTED', kCyan)
-            : _secondaryPill('Select', () => appState.setBorder(b.id))
-      else
-        _buyPill(
-          cost: b.cost,
-          onTap: () {
-            if (appState.buyBorder(b.id)) {
-              appState.setBorder(b.id);
-              celebrate(context);
-              _toast(context, '${b.name} unlocked & applied!');
-            } else {
-              _toast(context, 'Not enough coins');
-            }
-          },
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: Border(
+        top: BorderSide(
+          color: selected ? HrColors.accent : HrColors.hairline,
+          width: selected ? 2 : 1,
         ),
-    ]),
+      ),
+    ),
+    child: Row(
+      children: [
+        _borderPreview(b, size: 42),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            b.name,
+            style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+        if (owned)
+          selected
+              ? _stateChip('SELECTED', HrColors.accent)
+              : _secondaryPill('Select', () => appState.setBorder(b.id))
+        else
+          _buyPill(
+            cost: b.cost,
+            onTap: () {
+              if (appState.buyBorder(b.id)) {
+                appState.setBorder(b.id);
+                celebrate(context);
+                _toast(context, '${b.name} unlocked & applied!');
+              } else {
+                _toast(context, 'Not enough coins');
+              }
+            },
+          ),
+      ],
+    ),
   );
 }
 
@@ -6593,44 +8855,50 @@ Widget _themeShopTile(BuildContext context, AppThemeDef t) {
   final owned = appState.ownsTheme(t.id);
   final active = appState.themeId == t.id;
   return Container(
-    margin: const EdgeInsets.symmetric(vertical: 5),
+    margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: active ? t.accent : kBorder, width: active ? 1.5 : 1)),
-    child: Row(children: [
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        _swatch(t.accent),
-        _swatch(t.bright),
-        _swatch(t.glow),
-      ]),
-      const SizedBox(width: 10),
-      Expanded(
-          child: Text(t.name,
-              style: const TextStyle(
-                  color: kTextPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14.5))),
-      if (owned)
-        active
-            ? _stateChip('ACTIVE', kCyan)
-            : _secondaryPill('Apply', () => appState.setTheme(t.id))
-      else
-        _buyPill(
-          cost: themeCost(t.id),
-          onTap: () {
-            if (appState.buyTheme(t.id)) {
-              appState.setTheme(t.id);
-              celebrate(context);
-              _toast(context, '${t.name} unlocked & applied!');
-            } else {
-              _toast(context, 'Not enough coins');
-            }
-          },
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: Border(
+        top: BorderSide(
+          color: active ? HrColors.accent : HrColors.hairline,
+          width: active ? 2 : 1,
         ),
-    ]),
+      ),
+    ),
+    child: Row(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [_swatch(t.accent), _swatch(t.bright), _swatch(t.glow)],
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            t.name,
+            style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+        if (owned)
+          active
+              ? _stateChip('ACTIVE', HrColors.accent)
+              : _secondaryPill('Apply', () => appState.setTheme(t.id))
+        else
+          _buyPill(
+            cost: themeCost(t.id),
+            onTap: () {
+              if (appState.buyTheme(t.id)) {
+                appState.setTheme(t.id);
+                celebrate(context);
+                _toast(context, '${t.name} unlocked & applied!');
+              } else {
+                _toast(context, 'Not enough coins');
+              }
+            },
+          ),
+      ],
+    ),
   );
 }
 
@@ -6639,9 +8907,8 @@ void celebrate(BuildContext context) {
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
   entry = OverlayEntry(
-    builder: (_) => Positioned.fill(
-      child: _Confetti(onDone: () => entry.remove()),
-    ),
+    builder: (_) =>
+        Positioned.fill(child: _Confetti(onDone: () => entry.remove())),
   );
   overlay.insert(entry);
 }
@@ -6669,21 +8936,31 @@ class _ConfettiState extends State<_Confetti>
     super.initState();
     final r = Random();
     final colors = [
-      kPlasma, kCyan, kGold, const Color(0xFFF472B6), kGreen, kBlue
+      kPlasma,
+      kCyan,
+      kGold,
+      const Color(0xFFF472B6),
+      kGreen,
+      kBlue,
     ];
     for (int i = 0; i < 80; i++) {
-      _p.add(_Confo(
-        r.nextDouble(),
-        (r.nextDouble() - 0.5) * 0.4,
-        r.nextDouble() * 0.25,
-        r.nextDouble() * 6.28,
-        (r.nextDouble() - 0.5) * 10,
-        colors[r.nextInt(colors.length)],
-        6 + r.nextDouble() * 7,
-      ));
+      _p.add(
+        _Confo(
+          r.nextDouble(),
+          (r.nextDouble() - 0.5) * 0.4,
+          r.nextDouble() * 0.25,
+          r.nextDouble() * 6.28,
+          (r.nextDouble() - 0.5) * 10,
+          colors[r.nextInt(colors.length)],
+          6 + r.nextDouble() * 7,
+        ),
+      );
     }
-    _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1900))
+    _c =
+        AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 1900),
+          )
       ..addStatusListener((s) {
         if (s == AnimationStatus.completed) widget.onDone();
       })
@@ -6702,7 +8979,9 @@ class _ConfettiState extends State<_Confetti>
       child: AnimatedBuilder(
         animation: _c,
         builder: (_, _) => CustomPaint(
-            size: Size.infinite, painter: _ConfettiPainter(_p, _c.value)),
+          size: Size.infinite,
+          painter: _ConfettiPainter(_p, _c.value),
+        ),
       ),
     );
   }
@@ -6729,9 +9008,13 @@ class _ConfettiPainter extends CustomPainter {
       canvas.rotate(c.rot + c.vr * t);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-            Rect.fromCenter(
-                center: Offset.zero, width: c.size, height: c.size * 0.6),
-            const Radius.circular(1.5)),
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: c.size,
+            height: c.size * 0.6,
+          ),
+          const Radius.circular(1.5),
+        ),
         paint,
       );
       canvas.restore();
@@ -6754,46 +9037,37 @@ class _HeatmapCard extends StatelessWidget {
       final k = dateKey(now.subtract(Duration(days: i)));
       cells.add((score: appState.dailyScore[k] ?? 0, today: k == todayK));
     }
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kBorder)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('ACTIVITY · LAST 5 WEEKS',
-              style: TextStyle(
-                  color: kTextTertiary,
-                  fontSize: 11,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 7,
-            mainAxisSpacing: 6,
-            crossAxisSpacing: 6,
-            children: cells.map((c) {
-              final on = c.score > 0;
-              return Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: on
-                      ? victoryColor(c.score)
-                          .withValues(alpha: 0.25 + c.score / 100 * 0.75)
-                      : const Color(0x14FFFFFF),
-                  border: c.today
-                      ? Border.all(color: Colors.white, width: 1)
-                      : null,
-                ),
-              );
-            }).toList(),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+      child: HrCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const HrLabel('Activity · last 5 weeks'),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 7,
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 6,
+              children: cells.map((c) {
+                final on = c.score > 0;
+                return Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(HrRadius.xs),
+                    color: on
+                        ? HrColors.victory(c.score)
+                              .withValues(alpha: 0.3 + c.score / 100 * 0.7)
+                        : HrColors.surface2,
+                    border: c.today
+                        ? Border.all(color: HrColors.text, width: 1)
+                        : null,
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -6804,63 +9078,55 @@ class _WeekTrendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = appState.weekTrend();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kBorder)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('THIS WEEK · VICTORY SCORE',
-              style: TextStyle(
-                  color: kTextTertiary,
-                  fontSize: 11,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 100,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: days.map((d) {
-                final h = 6.0 + (d.score / 100) * 60;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text('${d.score}',
-                        style: const TextStyle(
-                            color: kTextTertiary, fontSize: 9)),
-                    const SizedBox(height: 3),
-                    Container(
-                      width: 22,
-                      height: h,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        color: victoryColor(d.score)
-                            .withValues(alpha: d.today ? 1 : 0.55),
-                        border: d.today
-                            ? Border.all(color: Colors.white, width: 1)
-                            : null,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+      child: HrCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const HrLabel('This week · Victory score'),
+            SizedBox(
+              height: 104,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: days.map((d) {
+                  final h = 6.0 + (d.score / 100) * 60;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text('${d.score}', style: HrText.micro),
+                      const SizedBox(height: 3),
+                      Container(
+                        width: 24,
+                        height: h,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(HrRadius.xs),
+                          color: HrColors.victory(d.score)
+                              .withValues(alpha: d.today ? 1 : 0.5),
+                          border: d.today
+                              ? Border.all(color: HrColors.text, width: 1)
+                              : null,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(d.label,
-                        style: TextStyle(
-                            color: d.today ? kTextPrimary : kTextTertiary,
-                            fontSize: 10,
-                            fontWeight:
-                                d.today ? FontWeight.bold : FontWeight.normal)),
-                  ],
-                );
-              }).toList(),
+                      const SizedBox(height: 5),
+                      Text(
+                        d.label,
+                        style: HrText.micro.copyWith(
+                          color: d.today ? HrColors.text : HrColors.text3,
+                          fontWeight: d.today
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -6874,14 +9140,20 @@ class AppearanceScreen extends StatelessWidget {
       listenable: appState,
       builder: (context, _) {
         return Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
-            title: Text('Appearance',
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Appearance', style: HrText.title2),
           ),
           body: GridView.count(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              24,
+            ),
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
@@ -6894,11 +9166,14 @@ class AppearanceScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                        color: active ? t.accent : kBorder,
-                        width: active ? 2 : 1),
+                    color: HrColors.surface,
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                    border: Border(
+                      top: BorderSide(
+                        color: active ? HrColors.accent : HrColors.hairline,
+                        width: active ? 2 : 1,
+                      ),
+                    ),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -6915,15 +9190,16 @@ class AppearanceScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(t.name,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              color: kTextPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14.5)),
+                      Text(
+                        t.name,
+                        textAlign: TextAlign.center,
+                        style: HrText.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       if (active)
-                        _stateChip('ACTIVE', kCyan)
+                        _stateChip('ACTIVE', HrColors.accent)
                       else if (owned)
                         _secondaryPill('Apply', () => appState.setTheme(t.id))
                       else
@@ -6933,8 +9209,7 @@ class AppearanceScreen extends StatelessWidget {
                             if (appState.buyTheme(t.id)) {
                               appState.setTheme(t.id);
                               celebrate(context);
-                              _toast(
-                                  context, '${t.name} unlocked & applied!');
+                              _toast(context, '${t.name} unlocked & applied!');
                             } else {
                               _toast(context, 'Not enough coins');
                             }
@@ -6954,28 +9229,34 @@ class AppearanceScreen extends StatelessWidget {
 
 // ── DAILY BRIEFING ───────────────────────────────────────────────────────────
 Widget _briefPanel(String tag, String title, Widget body) => Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(tag,
-              style: const TextStyle(
-                  color: kCyan,
-                  letterSpacing: 3,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Text(title,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.spaceGrotesk(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800)),
-          const SizedBox(height: 28),
-          body,
-        ],
+  padding: const EdgeInsets.all(28),
+  child: Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Text(
+        tag,
+        style: const TextStyle(
+          color: kCyan,
+          letterSpacing: 3,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
       ),
-    );
+      const SizedBox(height: 10),
+      Text(
+        title,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.spaceGrotesk(
+          color: Colors.white,
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      const SizedBox(height: 28),
+      body,
+    ],
+  ),
+);
 
 class _DailyBriefing extends StatefulWidget {
   const _DailyBriefing();
@@ -7003,10 +9284,12 @@ class _DailyBriefingState extends State<_DailyBriefing> {
         'Victory score today: ${v.score}/100 (${victoryLabel(v.score)}). '
         'Habits done today: ${appState.doneTodayCount}/${appState.habits.length}. '
         'Best streak: ${appState.bestStreak} days. Coins: ${appState.coins}.';
-    final msg = await aiCoachMessage(summary,
-        enabled: appState.aiEnabled,
-        baseUrl: appState.aiBaseUrl,
-        model: appState.aiModel);
+    final msg = await aiCoachMessage(
+      summary,
+      enabled: appState.aiEnabled,
+      baseUrl: appState.aiBaseUrl,
+      model: appState.aiModel,
+    );
     if (!mounted) return;
     setState(() {
       _coach = msg;
@@ -7037,7 +9320,9 @@ class _DailyBriefingState extends State<_DailyBriefing> {
       Navigator.of(context).pop();
     } else {
       _pc.nextPage(
-          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -7050,91 +9335,133 @@ class _DailyBriefingState extends State<_DailyBriefing> {
       _briefPanel(
         'COACH',
         'Your coach',
-        Column(children: [
-          _CompanionOrb(color: who.color, icon: who.icon, size: 56),
-          const SizedBox(height: 18),
-          if (_coachLoading)
-            Column(children: [
-              SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: kPlasmaBright)),
-              const SizedBox(height: 10),
-              const Text('Reading your day…',
-                  style: TextStyle(color: kTextTertiary, fontSize: 13)),
-            ])
-          else
-            Text('"${_coach ?? _coachFallback()}"',
+        Column(
+          children: [
+            _CompanionOrb(
+              color: who.color,
+              icon: who.icon,
+              size: 56,
+              imageAsset: who.imageAsset,
+            ),
+            const SizedBox(height: 18),
+            if (_coachLoading)
+              Column(
+                children: [
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: kPlasmaBright,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Reading your day…',
+                    style: TextStyle(color: kTextTertiary, fontSize: 13),
+                  ),
+                ],
+              )
+            else
+              Text(
+                '"${_coach ?? _coachFallback()}"',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                    color: kTextSecondary,
-                    fontSize: 15,
-                    fontStyle: FontStyle.italic,
-                    height: 1.5)),
-        ]),
+                  color: kTextSecondary,
+                  fontSize: 15,
+                  fontStyle: FontStyle.italic,
+                  height: 1.5,
+                ),
+              ),
+          ],
+        ),
       ),
       _briefPanel(
         'BRIEFING',
         'Welcome back, ${appState.displayName}',
-        Column(children: [
-          Container(
-            width: 72,
-            height: 72,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
+        Column(
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(colors: [kPlasma, kBlue])),
-            child: Text('${ld.level}',
+                gradient: LinearGradient(colors: [kPlasma, kBlue]),
+              ),
+              child: Text(
+                '${ld.level}',
                 style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800)),
-          ),
-          const SizedBox(height: 12),
-          Text(levelTitle(ld.level).toUpperCase(),
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              levelTitle(ld.level).toUpperCase(),
               style: const TextStyle(
-                  color: kCyan, letterSpacing: 2, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Text('Best streak: ${appState.bestStreak} days',
-              style: const TextStyle(color: kTextSecondary)),
-        ]),
+                color: kCyan,
+                letterSpacing: 2,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Best streak: ${appState.bestStreak} days',
+              style: const TextStyle(color: kTextSecondary),
+            ),
+          ],
+        ),
       ),
       _briefPanel(
         'STATUS',
         'Today',
-        Column(children: [
-          SizedBox(
-            width: 96,
-            height: 96,
-            child: Stack(alignment: Alignment.center, children: [
-              GlowRing(
-                value: v.score / 100,
-                size: 96,
-                stroke: 8,
-                colors: [
-                  victoryColor(v.score),
-                  Color.lerp(victoryColor(v.score), Colors.white, 0.35)!,
-                ],
-              ),
-              Text('${v.score}',
-                  style: GoogleFonts.spaceGrotesk(
+        Column(
+          children: [
+            SizedBox(
+              width: 96,
+              height: 96,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  GlowRing(
+                    value: v.score / 100,
+                    size: 96,
+                    stroke: 8,
+                    colors: [
+                      victoryColor(v.score),
+                      Color.lerp(victoryColor(v.score), Colors.white, 0.35)!,
+                    ],
+                  ),
+                  Text(
+                    '${v.score}',
+                    style: GoogleFonts.spaceGrotesk(
                       color: Colors.white,
                       fontSize: 28,
-                      fontWeight: FontWeight.w800)),
-            ]),
-          ),
-          const SizedBox(height: 12),
-          Text(victoryLabel(v.score),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              victoryLabel(v.score),
               style: TextStyle(
-                  color: victoryColor(v.score),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18)),
-          const SizedBox(height: 6),
-          Text(
+                color: victoryColor(v.score),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
               '${appState.doneTodayCount}/${appState.habits.length} habits · ${appState.coins} coins',
-              style: const TextStyle(color: kTextSecondary)),
-        ]),
+              style: const TextStyle(color: kTextSecondary),
+            ),
+          ],
+        ),
       ),
       _briefPanel(
         'ORDERS',
@@ -7144,20 +9471,33 @@ class _DailyBriefingState extends State<_DailyBriefing> {
             final on = appState.questClaimedIds.contains(q.id);
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(children: [
-                Icon(on ? Icons.check_circle_rounded : Icons.circle_outlined,
-                    size: 16, color: on ? kGreen : kTextTertiary),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: Text(q.title,
-                        style: const TextStyle(
-                            color: kTextSecondary, fontSize: 13))),
-                Text('+${q.xp}',
+              child: Row(
+                children: [
+                  Icon(
+                    on ? Icons.check_circle_rounded : Icons.circle_outlined,
+                    size: 16,
+                    color: on ? kGreen : kTextTertiary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      q.title,
+                      style: const TextStyle(
+                        color: kTextSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '+${q.xp}',
                     style: TextStyle(
-                        color: kPlasmaGlow,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
-              ]),
+                      color: kPlasmaGlow,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             );
           }).toList(),
         ),
@@ -7165,56 +9505,69 @@ class _DailyBriefingState extends State<_DailyBriefing> {
       _briefPanel(
         'DEPLOY',
         who.name,
-        Column(children: [
-          _CompanionOrb(color: who.color, icon: who.icon, size: 60),
-          const SizedBox(height: 14),
-          Text(
+        Column(
+          children: [
+            _CompanionOrb(
+              color: who.color,
+              icon: who.icon,
+              size: 60,
+              imageAsset: who.imageAsset,
+            ),
+            const SizedBox(height: 14),
+            Text(
               '"${companionLine(appState.activeCompanion, v.score >= 90 ? 'elite_day' : 'level_up')}"',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                  color: kTextSecondary, fontStyle: FontStyle.italic)),
-        ]),
+                color: kTextSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
       ),
     ];
     final last = panels.length - 1;
     return Dialog.fullscreen(
       backgroundColor: kBase,
       child: SafeArea(
-        child: Column(children: [
-          Expanded(
-            child: PageView(
-              controller: _pc,
-              onPageChanged: (i) => setState(() => _page = i),
-              children: panels,
+        child: Column(
+          children: [
+            Expanded(
+              child: PageView(
+                controller: _pc,
+                onPageChanged: (i) => setState(() => _page = i),
+                children: panels,
+              ),
             ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              panels.length,
-              (i) => AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.all(4),
-                width: i == _page ? 18 : 7,
-                height: 7,
-                decoration: BoxDecoration(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                panels.length,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.all(4),
+                  width: i == _page ? 18 : 7,
+                  height: 7,
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
-                    color: i == _page ? kPlasma : const Color(0x33FFFFFF)),
+                    color: i == _page ? kPlasma : const Color(0x33FFFFFF),
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-            child: SizedBox(
-              width: double.infinity,
-              child: GradientButton(
-                label: _page >= last ? 'Start the day' : 'Next',
-                onPressed: () => _next(last),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: GradientButton(
+                  label: _page >= last ? 'Start the day' : 'Next',
+                  onPressed: () => _next(last),
+                ),
               ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }

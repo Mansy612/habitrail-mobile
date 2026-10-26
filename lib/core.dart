@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'ui/hr_tokens.dart';
 
 // ── Exact palette from the web app (tailwind.config.ts) ─────────────────────
 const kBase = Color(0xFF07040F);
@@ -56,33 +57,42 @@ void applyThemeColors(String id) {
   kPlasma = t.accent;
   kPlasmaBright = t.bright;
   kPlasmaGlow = t.glow;
+  hrApplyAccent(id); // keep the new HrColors.accent in sync during migration
 }
 
 // ── Cosmetics: profile-picture borders (bought in the Shop) ─────────────────
 class BorderDef {
-  const BorderDef(this.id, this.name, this.cost, this.colors, {this.glow = false});
+  const BorderDef(this.id, this.name, this.cost, this.colors,
+      {this.glow = false, this.frameAsset});
   final String id;
   final String name;
   final int cost;
   final List<Color> colors; // 1 color = solid ring, 2+ = gradient
   final bool glow;
+  final String? frameAsset;
 }
 
 const List<BorderDef> kBorders = [
-  BorderDef('none', 'Simple', 0, [Color(0x4DFFFFFF)]),
-  BorderDef('cyan', 'Cyan Pulse', 120, [Color(0xFF3DE7FF)], glow: true),
-  BorderDef('gold', 'Gold', 180, [Color(0xFFFFD23F)], glow: true),
-  BorderDef('violet', 'Violet', 180, [Color(0xFFC08BFF)], glow: true),
-  BorderDef('crimson', 'Crimson', 220, [Color(0xFFFF6B8A)], glow: true),
+  BorderDef('none', 'Simple', 0, [Color(0x4DFFFFFF)],
+      frameAsset: 'assets/profile_borders/graphite.png'),
+  BorderDef('cyan', 'Cyan Pulse', 120, [Color(0xFF3DE7FF)],
+      glow: true, frameAsset: 'assets/profile_borders/cyan.png'),
+  BorderDef('gold', 'Gold', 180, [Color(0xFFFFD23F)],
+      glow: true, frameAsset: 'assets/profile_borders/gold.png'),
+  BorderDef('violet', 'Violet', 180, [Color(0xFFC08BFF)],
+      glow: true, frameAsset: 'assets/profile_borders/violet.png'),
+  BorderDef('crimson', 'Crimson', 220, [Color(0xFFFF6B8A)],
+      glow: true, frameAsset: 'assets/profile_borders/crimson.png'),
   BorderDef('aurora', 'Aurora', 400,
-      [Color(0xFF3DE7FF), Color(0xFFB06BFF), Color(0xFFFF7AD1)], glow: true),
+      [Color(0xFF3DE7FF), Color(0xFFB06BFF), Color(0xFFFF7AD1)],
+      glow: true, frameAsset: 'assets/profile_borders/aurora.png'),
   BorderDef('prism', 'Prismatic', 700, [
     Color(0xFFFF6B8A),
     Color(0xFFFFD23F),
     Color(0xFF4ADE80),
     Color(0xFF3DE7FF),
     Color(0xFFB06BFF)
-  ], glow: true),
+  ], glow: true, frameAsset: 'assets/profile_borders/prism.png'),
 ];
 
 BorderDef borderById(String id) =>
@@ -451,6 +461,7 @@ const kBossDesc = 'Have 5 perfect days (all habits done) this week.';
 const kBossGoal = 5;
 const kBossXp = 1000;
 const kBossCoins = 200;
+const kBossImageAsset = 'assets/bosses/veil_regent.png';
 const kPrestigeMinLevel = 10; // mobile threshold (web gates prestige higher)
 
 // ── Shared app state ─────────────────────────────────────────────────────────
@@ -1354,6 +1365,7 @@ class Achievement {
   final IconData icon;
   final String rarity;
   final bool Function(AppState) unlocked;
+  String get imageAsset => 'assets/achievements/$id.png';
 }
 
 const List<Achievement> kAchievements = [
@@ -1451,6 +1463,7 @@ class CompanionDef {
   final Color color;
   final IconData icon;
   final int unlockLevel;
+  String get imageAsset => 'assets/companions/$type.png';
 }
 
 const List<CompanionDef> kCompanions = [

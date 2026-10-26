@@ -78,6 +78,7 @@ const hrAccentThemes = <HrAccentTheme>[
   HrAccentTheme('solar', 'Solar Gold', Color(0xFFFFD60A), Color(0xFFE6C000), Color(0xFF332B07)),
   HrAccentTheme('crimson', 'Crimson', Color(0xFFFF6961), Color(0xFFE8564F), Color(0xFF3A1715)),
   HrAccentTheme('arctic', 'Arctic', Color(0xFF64D2FF), Color(0xFF4DBBE8), Color(0xFF0F2C38)),
+  HrAccentTheme('nebula', 'Nebula', Color(0xFFE056FD), Color(0xFFC13FE0), Color(0xFF2A123A)),
 ];
 
 void hrApplyAccent(String id) {

@@ -47,6 +47,9 @@ const List<AppThemeDef> kThemes = [
       Color(0xFFFECDD3)),
   AppThemeDef('arctic', 'Arctic', Color(0xFF22D3EE), Color(0xFF67E8F9),
       Color(0xFFA5F0FC)),
+  // Exclusive premium accent — only selectable while Habitrail Premium is active.
+  AppThemeDef('nebula', 'Nebula', Color(0xFFE056FD), Color(0xFFEA80FC),
+      Color(0xFFF3B0FF)),
 ];
 
 AppThemeDef themeById(String id) =>
@@ -470,6 +473,17 @@ const kPrestigeMinLevel = 10; // mobile threshold (web gates prestige higher)
 const int kFreeCoachLimit = 3;
 const int kPremiumCoachLimit = 30;
 
+// ── Habitrail Premium ───────────────────────────────────────────────────────
+// Entitlement + a pluggable purchase scaffold. The upgrade activates instantly
+// in-app today; real App Store / Play IAP can replace PurchaseController later
+// without touching the feature gates. Prices are display-only until billing is
+// wired, and match the approved plan ($7.99/mo, $59.99/yr — annual ~$5/mo).
+const String kPremiumMonthlyPrice = r'$7.99';
+const String kPremiumAnnualPrice = r'$59.99';
+const String kPremiumAnnualPerMonth = r'$5';
+const int kPremiumAnnualSavingsPct = 37;
+const String kPremiumThemeId = 'nebula'; // exclusive premium accent theme
+
 /// Monday (as a dateKey) of the week containing [d] — the coach-allowance week.
 String _mondayKey(DateTime d) {
   final monday =
@@ -534,6 +548,14 @@ class AppState extends ChangeNotifier {
   bool isPremium = false;
   int coachUsesThisWeek = 0;
   String coachWeekKey = ''; // Monday dateKey the current count belongs to
+  // Premium entitlement. isPremium is the gate; plan/since drive the manage
+  // screen. Survives a progress reset (an entitlement, not progress).
+  String premiumPlan = 'none'; // 'none' | 'monthly' | 'annual'
+  String premiumSince = ''; // dateKey Premium was first activated
+  // Weekly AI Coach Report (premium): cached text + the Monday it covers, so it
+  // is generated at most once per week.
+  String weeklyReportText = '';
+  String weeklyReportWeekKey = '';
   // Profile / cosmetics
   String pfpBase64 = ''; // downscaled JPEG as base64; '' = show the initial
   Uint8List? pfpBytes; // decoded cache for display
@@ -668,7 +690,7 @@ class AppState extends ChangeNotifier {
   }
 
   void setTheme(String id) {
-    if (!ownedThemes.contains(id)) return; // must own it (buy in the Shop)
+    if (!canUseTheme(id)) return; // must own it (Shop) or be Premium (exclusive)
     themeId = id;
     applyThemeColors(id);
     notifyListeners();
@@ -777,12 +799,52 @@ class AppState extends ChangeNotifier {
     return true;
   }
 
-  /// Stub for the Premium Pass — flip to grant the higher coach allowance.
-  void setPremium(bool v) {
-    isPremium = v;
+  // ── Premium entitlement ───────────────────────────────────────────────────
+  /// Whether [id] can be applied: owned via the Shop, or the exclusive premium
+  /// theme while Premium is active.
+  bool canUseTheme(String id) =>
+      ownedThemes.contains(id) || (isPremium && id == kPremiumThemeId);
+
+  /// Activate Premium with the given plan ('monthly' | 'annual'). The purchase
+  /// itself is handled by the caller's PurchaseController; this records the
+  /// entitlement. Real IAP will call this on a verified purchase/restore.
+  void activatePremium(String plan) {
+    isPremium = true;
+    premiumPlan = plan;
+    if (premiumSince.isEmpty) premiumSince = dateKey(DateTime.now());
     notifyListeners();
     _save();
   }
+
+  /// Drop the Premium entitlement (cancel / lapse). Falls back off the exclusive
+  /// premium theme if it was active so the UI never shows a locked accent.
+  void cancelPremium() {
+    isPremium = false;
+    premiumPlan = 'none';
+    premiumSince = '';
+    if (themeId == kPremiumThemeId) {
+      themeId = ownedThemes.contains('violet') ? 'violet' : ownedThemes.first;
+      applyThemeColors(themeId);
+    }
+    notifyListeners();
+    _save();
+  }
+
+  /// Debug / test helper (and the kDebugMode toggle): flip Premium on or off.
+  void setPremium(bool v) => v ? activatePremium('annual') : cancelPremium();
+
+  /// Cache the week's AI Coach Report so it is generated at most once per week.
+  void saveWeeklyReport(String text) {
+    weeklyReportText = text;
+    weeklyReportWeekKey = _mondayKey(DateTime.now());
+    notifyListeners();
+    _save();
+  }
+
+  /// True when a report for the current week is already cached.
+  bool get weeklyReportIsCurrent =>
+      weeklyReportText.isNotEmpty &&
+      weeklyReportWeekKey == _mondayKey(DateTime.now());
 
   void resetAll() {
     habits
@@ -816,6 +878,8 @@ class AppState extends ChangeNotifier {
     pfpBytes = null;
     coachUsesThisWeek = 0;
     coachWeekKey = '';
+    weeklyReportText = '';
+    weeklyReportWeekKey = '';
     selectedBorder = 'none';
     ownedBorders
       ..clear()
@@ -999,6 +1063,10 @@ class AppState extends ChangeNotifier {
       isPremium = (m['isPremium'] as bool?) ?? false;
       coachUsesThisWeek = (m['coachUsesThisWeek'] as int?) ?? 0;
       coachWeekKey = (m['coachWeekKey'] as String?) ?? '';
+      premiumPlan = (m['premiumPlan'] as String?) ?? (isPremium ? 'annual' : 'none');
+      premiumSince = (m['premiumSince'] as String?) ?? '';
+      weeklyReportText = (m['weeklyReportText'] as String?) ?? '';
+      weeklyReportWeekKey = (m['weeklyReportWeekKey'] as String?) ?? '';
       earnedAchievements.addAll(
           ((m['earnedAchievements'] as List?) ?? const []).map((e) => e as String));
       pfpBase64 = (m['pfpBase64'] as String?) ?? '';
@@ -1094,6 +1162,10 @@ class AppState extends ChangeNotifier {
           'isPremium': isPremium,
           'coachUsesThisWeek': coachUsesThisWeek,
           'coachWeekKey': coachWeekKey,
+          'premiumPlan': premiumPlan,
+          'premiumSince': premiumSince,
+          'weeklyReportText': weeklyReportText,
+          'weeklyReportWeekKey': weeklyReportWeekKey,
           'earnedAchievements': earnedAchievements.toList(),
           'pfpBase64': pfpBase64,
           'selectedBorder': selectedBorder,

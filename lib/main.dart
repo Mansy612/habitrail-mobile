@@ -2749,35 +2749,289 @@ class _ProgressScreenState extends State<ProgressScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: _titleBar('Progress'),
-      floatingActionButton: _seg == 2
-          ? GradientButton(
-              label: 'Reflect',
-              icon: Icons.edit,
-              expand: false,
-              onPressed: () => showAddReflection(context))
-          : null,
-      body: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-          child: HrSegmented(
-            items: const ['Stats', 'Awards', 'Journal'],
-            index: _seg,
-            onChanged: (i) => setState(() => _seg = i),
+      body: SafeArea(
+        bottom: false,
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+            child: Row(children: [
+              Text('Progress', style: HrText.display),
+              const Spacer(),
+              IconButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const ShareCardScreen())),
+                icon: const Icon(Icons.ios_share_rounded, color: HrColors.text2),
+                tooltip: 'Share progress',
+              ),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 10),
+            child: HrSegmented(
+              items: const ['Calendar', 'Stats', 'Awards', 'Journal'],
+              index: _seg,
+              onChanged: (i) => setState(() => _seg = i),
+            ),
+          ),
+          Expanded(
+            // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
+            child: IndexedStack(index: _seg, children: <Widget>[
+              CalendarScreen(embedded: true),
+              StatsScreen(embedded: true),
+              AwardsScreen(embedded: true),
+              JournalScreen(embedded: true),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+const _kMonthsFull = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+String _compactNum(int n) {
+  if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+  if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+  return '$n';
+}
+
+// ── CALENDAR (Progress tab) ─────────────────────────────────────────────────
+// A weekly streak ring + a month grid coloured by each day's victory score.
+class CalendarScreen extends StatefulWidget {
+  const CalendarScreen({this.embedded = false, super.key});
+  final bool embedded;
+  @override
+  State<CalendarScreen> createState() => _CalendarScreenState();
+}
+
+class _CalendarScreenState extends State<CalendarScreen> {
+  late DateTime _month;
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month, 1);
+  }
+
+  void _shift(int d) =>
+      setState(() => _month = DateTime(_month.year, _month.month + d, 1));
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final week = appState.perfectDaysThisWeek();
+    final comp = companionByType(appState.activeCompanion);
+    final streak = appState.bestStreak;
+    final line = '$week of 7 this week. ${week >= 6 ? 'Close.' : 'Keep going.'}';
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 100),
+      children: [
+        SizedBox(
+          height: 150,
+          child: Center(
+            child: SizedBox(
+              width: 150,
+              height: 150,
+              child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
+                SegmentedRing(
+                  size: 140,
+                  segments: 7,
+                  value: week.toDouble(),
+                  stroke: 9,
+                  color: HrColors.accent,
+                  center: CompanionSticker(
+                      icon: comp.icon, color: comp.color, size: 86, semanticLabel: comp.name),
+                ),
+                if (streak > 0)
+                  Positioned(
+                    bottom: -6,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                        child: StreakPill(count: streak, big: true, label: '$streak DAY STREAK')),
+                  ),
+              ]),
+            ),
           ),
         ),
-        Expanded(
-          // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
-          child: IndexedStack(index: _seg, children: <Widget>[
-            StatsScreen(embedded: true),
-            AwardsScreen(embedded: true),
-            JournalScreen(embedded: true),
-          ]),
+        const SizedBox(height: 12),
+        Center(child: SpeechBubble(line, speaker: comp.name, maxWidth: 220)),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+          child: _monthCard(context, now),
+        ),
+      ],
+    );
+  }
+
+  Widget _monthCard(BuildContext context, DateTime now) {
+    final first = _month;
+    final daysInMonth = DateTime(first.year, first.month + 1, 0).day;
+    final leading = first.weekday - 1; // Monday = 0 leading cells
+    final todayK = dateKey(now);
+    final atCurrentMonth = first.year == now.year && first.month == now.month;
+    return HrCard(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
+      child: Column(children: [
+        Row(children: [
+          Text('${_kMonthsFull[first.month - 1]} ${first.year}', style: HrText.headline),
+          const Spacer(),
+          IconButton(
+            onPressed: () => _shift(-1),
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.chevron_left_rounded, color: HrColors.text2),
+          ),
+          IconButton(
+            onPressed: atCurrentMonth ? null : () => _shift(1),
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.chevron_right_rounded, color: HrColors.text2),
+          ),
+        ]),
+        const SizedBox(height: 4),
+        Row(children: [
+          for (final d in const ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'])
+            Expanded(child: Center(child: Text(d, style: HrText.micro))),
+        ]),
+        const SizedBox(height: 8),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 7,
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+          children: [
+            for (int i = 0; i < leading; i++) const SizedBox.shrink(),
+            for (int day = 1; day <= daysInMonth; day++)
+              _dayCell(context, DateTime(first.year, first.month, day), todayK, now),
+          ],
         ),
       ]),
     );
   }
+
+  Widget _dayCell(BuildContext context, DateTime date, String todayK, DateTime now) {
+    final k = dateKey(date);
+    final score = appState.dailyScore[k];
+    final perfect = appState.perfectDays.contains(k);
+    final isToday = k == todayK;
+    final isFuture = date.isAfter(DateTime(now.year, now.month, now.day));
+    final strong = perfect || (score != null && score >= 75);
+    Color bg = HrColors.surface2;
+    Widget? mark;
+    if (strong) {
+      bg = HrColors.accent;
+      mark = Icon(Icons.check_rounded, size: 15, color: HrColors.onAccent);
+    } else if (score != null && score > 0) {
+      bg = HrColors.victory(score).withValues(alpha: 0.9);
+    }
+    return GestureDetector(
+      onTap: isFuture ? null : () => _showDay(context, date, score, perfect),
+      child: Opacity(
+        opacity: isFuture ? 0.35 : 1,
+        child: Container(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(HrRadius.xs),
+            border: isToday ? Border.all(color: HrColors.text, width: 1.5) : null,
+          ),
+          alignment: Alignment.center,
+          child: mark ??
+              Text('${date.day}',
+                  style: HrText.caption.copyWith(
+                      color: strong ? HrColors.onAccent : HrColors.text2,
+                      fontWeight: isToday ? FontWeight.w800 : FontWeight.w500)),
+        ),
+      ),
+    );
+  }
+
+  void _showDay(BuildContext context, DateTime date, int? score, bool perfect) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: HrColors.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(color: HrColors.surface3, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          Text('${_kWeekdays[date.weekday - 1]}, ${_kMonthsFull[date.month - 1]} ${date.day}',
+              style: HrText.title2),
+          const SizedBox(height: 14),
+          if (score == null)
+            Text('No activity recorded for this day.', style: HrText.bodyS)
+          else
+            Row(children: [
+              CountSticker('$score', size: 30, fill: HrColors.victory(score)),
+              const SizedBox(width: 16),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(victoryLabel(score), style: HrText.headline.copyWith(color: HrColors.victory(score))),
+                const SizedBox(height: 2),
+                Text('Victory score${perfect ? ' · Perfect day' : ''}', style: HrText.caption),
+              ]),
+            ]),
+        ]),
+      ),
+    );
+  }
 }
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.label, required this.value, this.sub, required this.color});
+  final String label, value;
+  final String? sub;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: HrColors.surface,
+          borderRadius: BorderRadius.circular(HrRadius.md),
+          border: const Border(top: BorderSide(color: HrColors.hairline)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: HrText.stat.copyWith(color: color)),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
+              if (sub != null)
+                Text(sub!, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: HrText.micro.copyWith(color: HrColors.text3)),
+            ]),
+          ],
+        ),
+      );
+}
+
+Widget _legacyLink(BuildContext context) => HrCard(
+      onTap: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const LegacyScreen())),
+      child: Row(children: [
+        const Icon(Icons.history_rounded, color: HrColors.text2, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text('Legacy timeline',
+              style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+        ),
+        Text('${appState.milestoneLog.length}',
+            style: HrText.body.copyWith(color: HrColors.text3)),
+        const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+      ]),
+    );
 
 class StatsScreen extends StatelessWidget {
   const StatsScreen({this.embedded = false, super.key});
@@ -2786,128 +3040,42 @@ class StatsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ld = levelFromXp(appState.totalXp);
-    final stats = <(String, String, Color, IconData)>[
-      ('Level', '${ld.level}', kPlasmaBright, Icons.military_tech_rounded),
-      ('Title', levelTitle(ld.level), kCyan, Icons.star_rounded),
-      ('Total XP', '${appState.totalXp}', kPlasma, Icons.bolt_rounded),
-      ('Coins', '${appState.coins}', kGold, Icons.savings_rounded),
-      ('Habits', '${appState.habits.length}', kBlue, Icons.widgets_rounded),
-      ('Done today', '${appState.doneTodayCount}', kCyan,
-          Icons.check_circle_rounded),
-      ('Best streak', '${appState.bestStreak}', const Color(0xFFFB7185),
-          Icons.local_fire_department_rounded),
-      ('Reflections', '${appState.reflections.length}', kPlasmaGlow,
-          Icons.menu_book_rounded),
-      ('Perfect days', '${appState.totalPerfectDays}', kGreen,
-          Icons.verified_rounded),
-      ('Avg score 7d', '${appState.avgScoreLastDays(7).round()}',
-          kPlasmaBright, Icons.trending_up_rounded),
+    final tiles = <(String, String, String?, Color)>[
+      ('Level', '${ld.level}', levelTitle(ld.level), HrColors.text),
+      ('Total XP', _compactNum(appState.totalXp), null, HrColors.accent),
+      ('Best streak', '${appState.bestStreak}', null, HrColors.streak),
+      ('Perfect days', '${appState.totalPerfectDays}', null, HrColors.text),
+      ('Avg score 7d', '${appState.avgScoreLastDays(7).round()}', null, HrColors.text),
+      ('Coins', '${appState.coins}', null, HrColors.gold),
     ];
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: embedded ? null : _titleBar('Stats'),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 96),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const LegacyScreen())),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                      gradient: _kGlassSheen,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: kBorder)),
-                  child: Row(children: [
-                    const Icon(Icons.history_rounded, color: kCyan, size: 22),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Text('Legacy Timeline',
-                          style: TextStyle(
-                              color: kTextPrimary,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                    Text('${appState.milestoneLog.length}',
-                        style: const TextStyle(
-                            color: kCyan, fontWeight: FontWeight.bold)),
-                    const Icon(Icons.chevron_right, color: kTextTertiary),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-          const _WeekTrendCard(),
-          const _HeatmapCard(),
-          const _HabitStreaksCard(),
-          GridView.count(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
-            children: stats
-                .map((s) => _StatCard(
-                    label: s.$1, value: s.$2, color: s.$3, icon: s.$4))
-                .toList(),
-          ),
-        ],
-      ),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+      children: [
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 3,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 0.9,
+          children: tiles
+              .map((t) => _StatTile(label: t.$1, value: t.$2, sub: t.$3, color: t.$4))
+              .toList(),
+        ),
+        const SizedBox(height: 14),
+        const _WeekTrendCard(),
+        const SizedBox(height: 14),
+        const _HabitStreaksCard(),
+        const SizedBox(height: 14),
+        const _HeatmapCard(),
+        const SizedBox(height: 14),
+        _legacyLink(context),
+      ],
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard(
-      {required this.label,
-      required this.value,
-      required this.color,
-      required this.icon});
-  final String label;
-  final String value;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Icon(icon, color: color, size: 22),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800)),
-              Text(label,
-                  style: const TextStyle(color: kTextTertiary, fontSize: 12)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+// _StatCard was replaced by _StatTile (flat redesign).
 
 class _HabitStreaksCard extends StatelessWidget {
   const _HabitStreaksCard();
@@ -2916,43 +3084,28 @@ class _HabitStreaksCard extends StatelessWidget {
     final habits = [...appState.habits]
       ..sort((a, b) => b.streak.compareTo(a.streak));
     if (habits.isEmpty) return const SizedBox.shrink();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kBorder)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: const [
-            Icon(Icons.local_fire_department_rounded, color: kGold, size: 18),
-            SizedBox(width: 8),
-            Text('Habit streaks',
-                style: TextStyle(
-                    color: kTextPrimary, fontWeight: FontWeight.bold)),
-          ]),
-          const SizedBox(height: 6),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+      child: HrCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const HrLabel('Habit streaks'),
           ...habits.take(8).map((h) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                 child: Row(children: [
                   Expanded(
                     child: Text(
                         h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: kTextSecondary, fontSize: 13)),
+                        style: HrText.body.copyWith(color: HrColors.text2)),
                   ),
-                  Text(h.streak > 0 ? '🔥 ${h.streak}' : '—',
-                      style: TextStyle(
-                          color: h.streak > 0 ? kPlasmaGlow : kTextTertiary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13)),
+                  if (h.streak > 0)
+                    StreakPill(count: h.streak, quiet: true)
+                  else
+                    Text('—', style: HrText.body.copyWith(color: HrColors.text3)),
                 ]),
               )),
-        ],
+        ]),
       ),
     );
   }
@@ -3732,95 +3885,48 @@ class AwardsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final unlocked =
         kAchievements.where((a) => appState.isAchievementEarned(a)).length;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: embedded ? null : _titleBar('Awards'),
-      body: Column(
-        children: [
-          _awardsHero(unlocked, kAchievements.length),
-          Expanded(
-            child: GridView.count(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.95,
-              children:
-                  kAchievements.map((a) => _AchievementCard(a)).toList(),
+    final total = kAchievements.length;
+    final allDone = unlocked >= total;
+    final next = kAchievements.firstWhere(
+        (a) => !appState.isAchievementEarned(a),
+        orElse: () => kAchievements.last);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+      children: [
+        HrCard(
+          child: Row(children: [
+            SegmentedRing(
+              size: 64,
+              segments: 1,
+              value: total == 0 ? 0 : unlocked / total,
+              stroke: 7,
+              color: HrColors.gold,
+              center: Text('$unlocked', style: HrText.title2),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('$unlocked of $total unlocked', style: HrText.headline),
+                const SizedBox(height: 3),
+                Text(allDone ? 'Every award earned.' : 'Next: ${next.title}',
+                    style: HrText.caption, maxLines: 2, overflow: TextOverflow.ellipsis),
+              ]),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 14),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.95,
+          children: kAchievements.map((a) => _AchievementCard(a)).toList(),
+        ),
+      ],
     );
   }
-}
-
-// Awards progress hero: gold ring + unlocked count.
-Widget _awardsHero(int unlocked, int total) {
-  final pct = total == 0 ? 0.0 : unlocked / total;
-  return Container(
-    margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(18),
-      gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2E1A5C), Color(0xFF1A0F38)]),
-      border: Border.all(color: kGold.withValues(alpha: 0.25)),
-      boxShadow: [
-        BoxShadow(
-            color: kGold.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 8)),
-      ],
-    ),
-    child: Row(children: [
-      SizedBox(
-        width: 70,
-        height: 70,
-        child: Stack(alignment: Alignment.center, children: [
-          GlowRing(
-              value: pct,
-              size: 70,
-              stroke: 7,
-              colors: [kGold, const Color(0xFFFFE08A)]),
-          Text('$unlocked',
-              style: GoogleFonts.spaceGrotesk(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800)),
-        ]),
-      ),
-      const SizedBox(width: 16),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('ACHIEVEMENTS',
-                style: TextStyle(
-                    color: kTextTertiary,
-                    fontSize: 11,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text('$unlocked of $total unlocked',
-                style: GoogleFonts.spaceGrotesk(
-                    color: kTextPrimary,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 3),
-            Text(
-                unlocked >= total
-                    ? 'Legend — every award earned!'
-                    : 'Keep building habits to unlock them all.',
-                style: const TextStyle(
-                    color: kTextSecondary, fontSize: 12.5, height: 1.3)),
-          ],
-        ),
-      ),
-    ]),
-  );
 }
 
 class _AchievementCard extends StatelessWidget {
@@ -3830,25 +3936,15 @@ class _AchievementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final on = appState.isAchievementEarned(a);
-    final cfg = rarityConfig[a.rarity];
-    final color = cfg?.color ?? kTextTertiary;
-    final rarity = (cfg?.label ?? a.rarity).toUpperCase();
+    final color = HrColors.rarity[a.rarity] ?? HrColors.text3;
+    final rarity = '${a.rarity[0].toUpperCase()}${a.rarity.substring(1)}';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: _kGlassSheen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: on ? color.withValues(alpha: 0.7) : kBorder,
-            width: on ? 1.5 : 1),
-        boxShadow: on
-            ? [
-                BoxShadow(
-                    color: color.withValues(alpha: 0.22),
-                    blurRadius: 18,
-                    spreadRadius: -2)
-              ]
-            : null,
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.lg),
+        border: Border(
+            top: BorderSide(color: on ? color : HrColors.hairline, width: on ? 2 : 1)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -3859,37 +3955,19 @@ class _AchievementCard extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: on
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        color.withValues(alpha: 0.4),
-                        color.withValues(alpha: 0.12)
-                      ])
-                  : null,
-              color: on ? null : const Color(0x14FFFFFF),
-              border: Border.all(
-                  color: on ? color.withValues(alpha: 0.5) : kBorder),
-              boxShadow: on
-                  ? [
-                      BoxShadow(
-                          color: color.withValues(alpha: 0.4), blurRadius: 14)
-                    ]
-                  : null,
+              color: on ? color : HrColors.surface2,
             ),
-            child: Icon(on ? a.icon : Icons.lock_outline_rounded,
-                size: 26, color: on ? color : kTextTertiary),
+            child: Icon(on ? a.icon : Icons.lock_rounded,
+                size: 26, color: on ? HrColors.bg : HrColors.text3),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(a.title,
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: on ? Colors.white : kTextSecondary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13.5)),
+              style: HrText.bodyS.copyWith(
+                  color: on ? HrColors.text : HrColors.text2,
+                  fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           on
               ? Container(
@@ -3897,20 +3975,16 @@ class _AchievementCard extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(8)),
-                  child: Text(rarity,
-                      style: TextStyle(
-                          color: color,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8)),
+                      borderRadius: BorderRadius.circular(HrRadius.xs)),
+                  child: Text(rarity.toUpperCase(),
+                      style: HrText.micro.copyWith(
+                          color: color, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
                 )
               : Text(a.description,
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style:
-                      const TextStyle(color: kTextTertiary, fontSize: 10.5)),
+                  style: HrText.micro),
         ],
       ),
     );
@@ -3918,6 +3992,12 @@ class _AchievementCard extends StatelessWidget {
 }
 
 // ── JOURNAL ─────────────────────────────────────────────────────────────────
+String _journalDate(String key) {
+  final d = DateTime.tryParse(key);
+  if (d == null) return key;
+  return '${_kWeekdays[d.weekday - 1].substring(0, 3)} · ${_kMonths[d.month - 1]} ${d.day}';
+}
+
 class JournalScreen extends StatelessWidget {
   const JournalScreen({this.embedded = false, super.key});
   final bool embedded;
@@ -3925,43 +4005,57 @@ class JournalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = appState.reflections;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: embedded ? null : _titleBar('Journal'),
-      body: items.isEmpty
-          ? const _EmptyState(
-              emoji: '📓',
-              title: 'No reflections yet',
-              subtitle: 'Tap “Reflect” to write one (+20 XP).')
-          : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-              itemCount: items.length,
-              itemBuilder: (ctx, i) {
-                final r = items[i];
-                return Container(
-                  margin: const EdgeInsets.symmetric(vertical: 5),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: kBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(r.date,
-                          style: const TextStyle(
-                              color: kCyan,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
-                      Text(r.text,
-                          style: const TextStyle(color: kTextPrimary)),
-                    ],
-                  ),
-                );
-              },
-            ),
+    final reflectedToday = items.any((r) => r.date == dateKey(DateTime.now()));
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+      children: [
+        HrButton(
+          label: reflectedToday ? 'Add another reflection · +20 XP' : 'Reflect on today · +20 XP',
+          icon: Icons.edit_rounded,
+          kind: HrButtonKind.accent,
+          onPressed: () => showAddReflection(context),
+        ),
+        const SizedBox(height: 14),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 48),
+            child: Column(children: [
+              const Text('📓', style: TextStyle(fontSize: 40)),
+              const SizedBox(height: 12),
+              Text('No reflections yet', style: HrText.title2),
+              const SizedBox(height: 6),
+              Text('Write your first one to earn +20 XP.',
+                  textAlign: TextAlign.center, style: HrText.bodyS),
+            ]),
+          )
+        else
+          ...items.map((r) {
+            final score = appState.dailyScore[r.date];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: HrCard(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Text(_journalDate(r.date).toUpperCase(), style: HrText.labelCaps),
+                    const Spacer(),
+                    if (score != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                            color: HrColors.victory(score).withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(HrRadius.xs)),
+                        child: Text('Score $score',
+                            style: HrText.micro.copyWith(
+                                color: HrColors.victory(score), fontWeight: FontWeight.w800)),
+                      ),
+                  ]),
+                  const SizedBox(height: 8),
+                  Text(r.text, style: HrText.body.copyWith(color: HrColors.text2)),
+                ]),
+              ),
+            );
+          }),
+      ],
     );
   }
 }
@@ -6568,46 +6662,37 @@ class _HeatmapCard extends StatelessWidget {
       final k = dateKey(now.subtract(Duration(days: i)));
       cells.add((score: appState.dailyScore[k] ?? 0, today: k == todayK));
     }
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kBorder)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('ACTIVITY · LAST 5 WEEKS',
-              style: TextStyle(
-                  color: kTextTertiary,
-                  fontSize: 11,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 7,
-            mainAxisSpacing: 6,
-            crossAxisSpacing: 6,
-            children: cells.map((c) {
-              final on = c.score > 0;
-              return Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: on
-                      ? victoryColor(c.score)
-                          .withValues(alpha: 0.25 + c.score / 100 * 0.75)
-                      : const Color(0x14FFFFFF),
-                  border: c.today
-                      ? Border.all(color: Colors.white, width: 1)
-                      : null,
-                ),
-              );
-            }).toList(),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+      child: HrCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const HrLabel('Activity · last 5 weeks'),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 7,
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 6,
+              children: cells.map((c) {
+                final on = c.score > 0;
+                return Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(HrRadius.xs),
+                    color: on
+                        ? HrColors.victory(c.score)
+                            .withValues(alpha: 0.3 + c.score / 100 * 0.7)
+                        : HrColors.surface2,
+                    border: c.today
+                        ? Border.all(color: HrColors.text, width: 1)
+                        : null,
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -6618,63 +6703,51 @@ class _WeekTrendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = appState.weekTrend();
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kBorder)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('THIS WEEK · VICTORY SCORE',
-              style: TextStyle(
-                  color: kTextTertiary,
-                  fontSize: 11,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 100,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: days.map((d) {
-                final h = 6.0 + (d.score / 100) * 60;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text('${d.score}',
-                        style: const TextStyle(
-                            color: kTextTertiary, fontSize: 9)),
-                    const SizedBox(height: 3),
-                    Container(
-                      width: 22,
-                      height: h,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        color: victoryColor(d.score)
-                            .withValues(alpha: d.today ? 1 : 0.55),
-                        border: d.today
-                            ? Border.all(color: Colors.white, width: 1)
-                            : null,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+      child: HrCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const HrLabel('This week · Victory score'),
+            SizedBox(
+              height: 104,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: days.map((d) {
+                  final h = 6.0 + (d.score / 100) * 60;
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text('${d.score}', style: HrText.micro),
+                      const SizedBox(height: 3),
+                      Container(
+                        width: 24,
+                        height: h,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(HrRadius.xs),
+                          color: HrColors.victory(d.score)
+                              .withValues(alpha: d.today ? 1 : 0.5),
+                          border: d.today
+                              ? Border.all(color: HrColors.text, width: 1)
+                              : null,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(d.label,
-                        style: TextStyle(
-                            color: d.today ? kTextPrimary : kTextTertiary,
-                            fontSize: 10,
-                            fontWeight:
-                                d.today ? FontWeight.bold : FontWeight.normal)),
-                  ],
-                );
-              }).toList(),
+                      const SizedBox(height: 5),
+                      Text(d.label,
+                          style: HrText.micro.copyWith(
+                              color: d.today ? HrColors.text : HrColors.text3,
+                              fontWeight:
+                                  d.today ? FontWeight.w800 : FontWeight.w600)),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

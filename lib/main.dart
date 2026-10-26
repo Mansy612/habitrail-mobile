@@ -1491,41 +1491,7 @@ Widget _photoActions(BuildContext context) => Row(
       ],
     );
 
-// Coins pill (→ Shop).
-Widget _coinsPill(BuildContext context) => GestureDetector(
-      onTap: () => Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: kElevated,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kBorder),
-        ),
-        child: Row(children: [
-          if (appState.xpBoostActive) ...[
-            Text('2×',
-                style: TextStyle(
-                    color: kPlasmaGlow,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12)),
-            const SizedBox(width: 6),
-          ],
-          const Icon(Icons.bolt, size: 16, color: kGold),
-          const SizedBox(width: 5),
-          Text('${appState.coins}',
-              style: const TextStyle(color: kGold, fontWeight: FontWeight.bold)),
-        ]),
-      ),
-    );
-
-Widget _shopButton(BuildContext context) => IconButton(
-      icon:
-          const Icon(Icons.storefront_rounded, color: kTextTertiary, size: 20),
-      tooltip: 'Shop',
-      onPressed: () => Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
-    );
+// _coinsPill and _shopButton were replaced by _coinChip and per-screen headers.
 
 // ── Glass phase-2 helpers ───────────────────────────────────────────────────
 
@@ -1731,34 +1697,7 @@ class _RingPainter extends CustomPainter {
 // _dashboardBar was replaced by the Today header (see _todayHeader).
 
 // Standard app bar for the other tabs: title left; coins + shop + avatar right.
-PreferredSizeWidget _titleBar(String title) {
-  return AppBar(
-    backgroundColor: Colors.transparent,
-    title: title.isEmpty
-        ? null
-        : Text(title,
-            style: GoogleFonts.spaceGrotesk(
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.5,
-                color: kTextPrimary)),
-    actions: [
-      Builder(builder: (context) => _coinsPill(context)),
-      Builder(builder: (context) => _shopButton(context)),
-      Builder(
-        builder: (context) => Padding(
-          padding: const EdgeInsets.only(right: 12, left: 2),
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen())),
-            child: ListenableBuilder(
-                listenable: appState,
-                builder: (_, _) => _Avatar(size: 34)),
-          ),
-        ),
-      ),
-    ],
-  );
-}
+// _titleBar was replaced by flat per-screen headers in the redesign.
 
 // ── HOME ────────────────────────────────────────────────────────────────────
 class HomeScreen extends StatelessWidget {
@@ -3061,9 +3000,14 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
         final v = appState.victory();
         return Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: _titleBar('Share progress'),
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Share progress', style: HrText.title2),
+          ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 32),
             children: [
               Center(
                 child: RepaintBoundary(
@@ -3072,12 +3016,9 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                     width: 340,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF2A1458), Color(0xFF130A2A)]),
-                      border: Border.all(color: kBorder),
+                      color: HrColors.surface,
+                      borderRadius: BorderRadius.circular(HrRadius.xl),
+                      border: Border.all(color: HrColors.surface3),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -3087,11 +3028,7 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                           children: [
                             const Text('🔥', style: TextStyle(fontSize: 22)),
                             const SizedBox(width: 8),
-                            Text('Habitrail',
-                                style: GoogleFonts.spaceGrotesk(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800)),
+                            Text('Habitrail', style: HrText.title2),
                           ],
                         ),
                         const SizedBox(height: 22),
@@ -3100,14 +3037,10 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                         Text(appState.displayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.spaceGrotesk(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800)),
+                            style: HrText.title1),
                         const SizedBox(height: 3),
                         Text('Level ${ld.level} · ${levelTitle(ld.level)}',
-                            style: const TextStyle(
-                                color: kTextTertiary, fontSize: 13)),
+                            style: HrText.caption),
                         const SizedBox(height: 22),
                         Row(children: [
                           _shareStat('🔥', 'Streak', '${appState.bestStreak}'),
@@ -3122,26 +3055,23 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                           _shareStat('👑', 'Prestige', '${appState.prestige}'),
                         ]),
                         const SizedBox(height: 22),
-                        const Text(
-                            'Build habits. Earn XP. Level up your life.',
-                            textAlign: TextAlign.center,
-                            style:
-                                TextStyle(color: kTextTertiary, fontSize: 11)),
+                        Text('Build habits. Earn XP. Level up your life.',
+                            textAlign: TextAlign.center, style: HrText.micro),
                       ],
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              GradientButton(
+              HrButton(
                 label: _busy ? 'Preparing…' : 'Share',
                 icon: Icons.ios_share_rounded,
+                loading: _busy,
                 onPressed: _busy ? null : _share,
               ),
               const SizedBox(height: 10),
-              const Text('Share your card to show off your streak and level.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: kTextTertiary, fontSize: 12)),
+              Text('Share your card to show off your streak and level.',
+                  textAlign: TextAlign.center, style: HrText.caption),
             ],
           ),
         );
@@ -3154,10 +3084,8 @@ Widget _shareStat(String emoji, String label, String value) => Expanded(
       child: Column(children: [
         Text(emoji, style: const TextStyle(fontSize: 18)),
         const SizedBox(height: 4),
-        Text(value,
-            style: GoogleFonts.spaceGrotesk(
-                color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
-        Text(label, style: const TextStyle(color: kTextTertiary, fontSize: 10)),
+        Text(value, style: HrText.headline),
+        Text(label, style: HrText.micro),
       ]),
     );
 
@@ -5303,13 +5231,13 @@ Color _milestoneColor(String type) {
   switch (type) {
     case 'boss_defeat':
     case 'prestige':
-      return kGold;
+      return HrColors.gold;
     case 'season':
-      return kCyan;
+      return HrColors.info;
     case 'streak':
-      return kRed;
+      return HrColors.streak;
     default:
-      return kPlasmaBright;
+      return HrColors.accent;
   }
 }
 
@@ -5328,18 +5256,12 @@ String _fmtDate(String iso) {
 Widget _bestChip(String label, String value) => Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-          color: kElevated,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kBorder)),
+          color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value,
-              style: GoogleFonts.spaceGrotesk(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800)),
-          Text(label, style: const TextStyle(color: kTextTertiary, fontSize: 11)),
+          Text(value, style: HrText.title2),
+          Text(label, style: HrText.caption),
         ],
       ),
     );
@@ -5353,31 +5275,22 @@ class LegacyScreen extends StatelessWidget {
       builder: (context, _) {
         final log = appState.milestoneLog;
         return Scaffold(
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
-            title: Text('Legacy',
-                style: GoogleFonts.spaceGrotesk(
-                    fontWeight: FontWeight.bold, color: kTextPrimary)),
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Legacy', style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
             children: [
-              Container(
+              HrCard(
                 padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                    gradient: _kGlassSheen,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: kBorder)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('CAREER BESTS',
-                        style: TextStyle(
-                            color: kTextTertiary,
-                            fontSize: 11,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
+                    const HrLabel('Career bests'),
                     Wrap(spacing: 10, runSpacing: 10, children: [
                       _bestChip('Peak level', '${appState.highestLevel}'),
                       _bestChip('Prestige', '★${appState.prestige}'),
@@ -5414,12 +5327,12 @@ class _MilestoneTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _milestoneColor(m.type);
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 5),
+      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-          gradient: _kGlassSheen,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder)),
+          color: HrColors.surface,
+          borderRadius: BorderRadius.circular(HrRadius.md),
+          border: const Border(top: BorderSide(color: HrColors.hairline))),
       child: Row(children: [
         Container(
           width: 36,
@@ -5435,18 +5348,15 @@ class _MilestoneTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(m.description,
-                  style: const TextStyle(
-                      color: kTextPrimary, fontWeight: FontWeight.w600)),
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 2),
-              Text(_fmtDate(m.date),
-                  style: const TextStyle(color: kTextTertiary, fontSize: 11)),
+              Text(_fmtDate(m.date), style: HrText.caption),
             ],
           ),
         ),
         if (m.xp > 0)
           Text('+${m.xp}',
-              style: TextStyle(
-                  color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+              style: HrText.caption.copyWith(color: color, fontWeight: FontWeight.w800)),
       ]),
     );
   }

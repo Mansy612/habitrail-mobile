@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' show MaskFilter, BlurStyle, ImageByteFormat;
-import 'package:flutter/foundation.dart'
-    show kIsWeb, defaultTargetPlatform, TargetPlatform;
+
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+
 import 'core.dart';
 import 'ai.dart';
 import 'auth.dart';
@@ -41,12 +42,7 @@ void main() async {
           defaultTargetPlatform == TargetPlatform.linux ||
           defaultTargetPlatform == TargetPlatform.macOS)) {
     await windowManager.ensureInitialized();
-    const opts = WindowOptions(
-      size: Size(400, 860),
-      minimumSize: Size(340, 640),
-      center: true,
-      title: 'Habitrail',
-    );
+    const opts = WindowOptions(size: Size(400, 860), minimumSize: Size(340, 640), center: true, title: 'Habitrail');
     await windowManager.waitUntilReadyToShow(opts, () async {
       await windowManager.show();
       await windowManager.focus();
@@ -66,12 +62,12 @@ void main() async {
 // and reload friends after a sign-in so the leaderboard reflects real data.
 void _startBackendSync() {
   void push() => pushProfileStats(
-        totalXp: appState.totalXp,
-        streak: appState.bestStreak,
-        prestige: appState.prestige,
-        borderId: appState.selectedBorder,
-        name: appState.displayName,
-      );
+    totalXp: appState.totalXp,
+    streak: appState.bestStreak,
+    prestige: appState.prestige,
+    borderId: appState.selectedBorder,
+    name: appState.displayName,
+  );
   push();
   Timer? debounce;
   appState.addListener(() {
@@ -96,17 +92,18 @@ class HabitrailApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: hrTheme().copyWith(
         // Keep the fade + 3.5% slide page transition from the old theme.
-        pageTransitionsTheme: const PageTransitionsTheme(builders: {
-          TargetPlatform.android: _FadeSlidePageTransitionsBuilder(),
-          TargetPlatform.iOS: _FadeSlidePageTransitionsBuilder(),
-          TargetPlatform.macOS: _FadeSlidePageTransitionsBuilder(),
-          TargetPlatform.windows: _FadeSlidePageTransitionsBuilder(),
-          TargetPlatform.linux: _FadeSlidePageTransitionsBuilder(),
-        }),
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.iOS: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.macOS: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.windows: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.linux: _FadeSlidePageTransitionsBuilder(),
+          },
+        ),
       ),
       // Static black ground (the animated particle background was removed).
-      builder: (context, child) =>
-          ColoredBox(color: HrColors.bg, child: child),
+      builder: (context, child) => ColoredBox(color: HrColors.bg, child: child),
       home: const AuthGate(),
     );
   }
@@ -123,16 +120,11 @@ class _FadeSlidePageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final eased = CurvedAnimation(
-      parent: animation,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
+    final eased = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
     return FadeTransition(
       opacity: eased,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0.035, 0), end: Offset.zero)
-            .animate(eased),
+        position: Tween<Offset>(begin: const Offset(0.035, 0), end: Offset.zero).animate(eased),
         child: child,
       ),
     );
@@ -160,8 +152,7 @@ class _AuthGateState extends State<AuthGate> {
       builder: (context, _) {
         if (auth.status == AuthStatus.unknown) {
           return Scaffold(
-            body: Center(
-                child: CircularProgressIndicator(color: kPlasmaBright)),
+            body: Center(child: CircularProgressIndicator(color: kPlasmaBright)),
           );
         }
         final enter = auth.status == AuthStatus.signedIn || auth.guest;
@@ -192,19 +183,22 @@ class WelcomeScreen extends StatelessWidget {
                       const SizedBox(height: 36),
                       Center(
                         child: CompanionSticker(
-                            icon: comp.icon, color: comp.color, size: 104, semanticLabel: comp.name,
-                            imageAsset: comp.imageAsset),
+                          icon: comp.icon,
+                          color: comp.color,
+                          size: 104,
+                          semanticLabel: comp.name,
+                          imageAsset: comp.imageAsset,
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      const Center(
-                        child: SpeechBubble("Five habits. Every day. I'm watching.", maxWidth: 260),
-                      ),
+                      const Center(child: SpeechBubble("Five habits. Every day. I'm watching.", maxWidth: 260)),
                       const SizedBox(height: 36),
                       Text('Build habits.\nEarn XP.\nLevel up your life.', style: HrText.displayXl),
                       const SizedBox(height: 12),
                       Text(
-                          'Check off up to five habits a day, keep the streak alive, and let your companion keep you honest.',
-                          style: HrText.bodyS),
+                        'Check off up to five habits a day, keep the streak alive, and let your companion keep you honest.',
+                        style: HrText.bodyS,
+                      ),
                       const SizedBox(height: 28),
                     ],
                   ),
@@ -212,15 +206,13 @@ class WelcomeScreen extends StatelessWidget {
               ),
               HrButton(
                 label: 'Create account',
-                onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SignUpScreen())),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SignUpScreen())),
               ),
               const SizedBox(height: 10),
               HrButton(
                 label: 'Log in',
                 kind: HrButtonKind.secondary,
-                onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const LoginScreen())),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen())),
               ),
               const SizedBox(height: 6),
               TextButton(
@@ -291,20 +283,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final u = _username.text.trim();
     if (u.isEmpty) return const SizedBox.shrink();
     if (!isValidUsername(u)) {
-      return _unameStatusLine(HrColors.text3, Icons.info_outline_rounded,
-          '3–20 letters, numbers, or underscores');
+      return _unameStatusLine(HrColors.text3, Icons.info_outline_rounded, '3–20 letters, numbers, or underscores');
     }
     if (_unameChecking) {
       return Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 10),
-        child: Row(children: [
-          const SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(strokeWidth: 2)),
-          const SizedBox(width: 8),
-          Text('Checking…', style: HrText.caption),
-        ]),
+        child: Row(
+          children: [
+            const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(width: 8),
+            Text('Checking…', style: HrText.caption),
+          ],
+        ),
       );
     }
     if (_unameAvailable == true) {
@@ -317,13 +307,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Widget _unameStatusLine(Color c, IconData icon, String text) => Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 10),
-        child: Row(children: [
-          Icon(icon, size: 14, color: c),
-          const SizedBox(width: 6),
-          Text(text, style: HrText.caption.copyWith(color: c)),
-        ]),
-      );
+    padding: const EdgeInsets.only(left: 4, bottom: 10),
+    child: Row(
+      children: [
+        Icon(icon, size: 14, color: c),
+        const SizedBox(width: 6),
+        Text(text, style: HrText.caption.copyWith(color: c)),
+      ],
+    ),
+  );
 
   Future<void> _submit() async {
     setState(() {
@@ -337,8 +329,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // New account → wipe any guest/previous progress and start at Level 1,
       // then introduce the app with the onboarding flow.
       appState.startFreshForAccount(auth.user?.name ?? '');
-      Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const OnboardingQuizScreen()));
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const OnboardingQuizScreen()));
     } else {
       setState(() => _error = err);
     }
@@ -351,13 +342,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       title: 'Create account',
       subtitle: 'Start earning XP for your habits.',
       children: [
-        _authField(_username, 'Username',
-            hint: 'e.g. sam_92', onChanged: _onUsernameChanged),
+        _authField(_username, 'Username', hint: 'e.g. sam_92', onChanged: _onUsernameChanged),
         _usernameStatus(),
-        _authField(_email, 'Email',
-            keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
-        _authField(_pw, 'Password',
-            obscure: true, hint: 'At least 6 characters'),
+        _authField(_email, 'Email', keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
+        _authField(_pw, 'Password', obscure: true, hint: 'At least 6 characters'),
         if (_error != null) _authError(_error!),
         const SizedBox(height: 4),
         _authSubmit('Create account', _busy, _submit),
@@ -368,10 +356,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const SizedBox(height: 16),
         Center(
           child: TextButton(
-            onPressed: () => Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (_) => const LoginScreen())),
-            child: Text('Already have an account? Log in',
-                style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600)),
+            onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+            child: Text(
+              'Already have an account? Log in',
+              style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600),
+            ),
           ),
         ),
         _authNote(),
@@ -424,8 +413,7 @@ class _LoginScreenState extends State<LoginScreen> {
       title: 'Welcome back',
       subtitle: 'Log in to pick up where you left off.',
       children: [
-        _authField(_email, 'Email',
-            keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
+        _authField(_email, 'Email', keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
         _authField(_pw, 'Password', obscure: true, hint: 'Your password'),
         if (_error != null) _authError(_error!),
         const SizedBox(height: 4),
@@ -437,10 +425,12 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 16),
         Center(
           child: TextButton(
-            onPressed: () => Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (_) => const SignUpScreen())),
-            child: Text('New here? Create an account',
-                style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600)),
+            onPressed: () =>
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SignUpScreen())),
+            child: Text(
+              'New here? Create an account',
+              style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600),
+            ),
           ),
         ),
         _authNote(),
@@ -469,29 +459,32 @@ class AccountScreen extends StatelessWidget {
             title: Text('Account', style: HrText.title2),
           ),
           body: ListView(
-              padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
-              children: [
-                HrCard(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(children: [
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
+            children: [
+              HrCard(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  children: [
                     GestureDetector(
                       onTap: () => _pickProfilePhoto(context),
-                      child: Stack(children: [
-                        _Avatar(size: 76),
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
+                      child: Stack(
+                        children: [
+                          _Avatar(size: 76),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: HrColors.accent,
-                                border: Border.all(color: HrColors.surface, width: 2)),
-                            child: const Icon(Icons.camera_alt_rounded,
-                                size: 12, color: HrColors.bg),
+                                border: Border.all(color: HrColors.surface, width: 2),
+                              ),
+                              child: const Icon(Icons.camera_alt_rounded, size: 12, color: HrColors.bg),
+                            ),
                           ),
-                        ),
-                      ]),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 10),
                     _photoActions(context),
@@ -501,48 +494,55 @@ class AccountScreen extends StatelessWidget {
                     Text(u.email, style: HrText.caption),
                     if (u.username.isNotEmpty) ...[
                       const SizedBox(height: 4),
-                      Text('@${u.username}',
-                          style: HrText.caption.copyWith(
-                              color: HrColors.text2, fontWeight: FontWeight.w600)),
+                      Text(
+                        '@${u.username}',
+                        style: HrText.caption.copyWith(color: HrColors.text2, fontWeight: FontWeight.w600),
+                      ),
                     ],
                     if (_memberSince(u.createdAt).isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(_memberSince(u.createdAt), style: HrText.micro),
                     ],
-                  ]),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                _sectionLabel('LIFETIME'),
-                Wrap(spacing: 10, runSpacing: 10, children: [
+              ),
+              const SizedBox(height: 4),
+              _sectionLabel('LIFETIME'),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
                   _statChip('Level', '${ld.level}'),
                   _statChip('Total XP', '${appState.totalXp}'),
                   _statChip('Best streak', '${appState.bestStreak}'),
                   _statChip('Habits', '${appState.habits.length}'),
                   _statChip('Prestige', '${appState.prestige}'),
-                ]),
-                const SizedBox(height: 16),
-                HrButton(
-                  label: 'Share my progress',
-                  icon: Icons.ios_share_rounded,
-                  onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ShareCardScreen())),
+                ],
+              ),
+              const SizedBox(height: 16),
+              HrButton(
+                label: 'Share my progress',
+                icon: Icons.ios_share_rounded,
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShareCardScreen())),
+              ),
+              const SizedBox(height: 4),
+              _sectionLabel('ACCOUNT'),
+              _settingsTile(Icons.edit_rounded, 'Edit name', u.name, () => _editAccountName(context)),
+              if (!auth.isRemote)
+                _settingsTile(
+                  Icons.cloud_off_rounded,
+                  'Cloud sync',
+                  'On this device for now — Supabase wires in later',
+                  null,
                 ),
-                const SizedBox(height: 4),
-                _sectionLabel('ACCOUNT'),
-                _settingsTile(Icons.edit_rounded, 'Edit name', u.name,
-                    () => _editAccountName(context)),
-                if (!auth.isRemote)
-                  _settingsTile(Icons.cloud_off_rounded, 'Cloud sync',
-                      'On this device for now — Supabase wires in later', null),
-                const SizedBox(height: 10),
-                TextButton.icon(
-                  onPressed: () => _confirmDeleteAccount(context),
-                  icon: const Icon(Icons.delete_forever_rounded,
-                      size: 18, color: HrColors.dangerText),
-                  label: Text('Delete account',
-                      style: HrText.body.copyWith(color: HrColors.dangerText)),
-                ),
-              ]),
+              const SizedBox(height: 10),
+              TextButton.icon(
+                onPressed: () => _confirmDeleteAccount(context),
+                icon: const Icon(Icons.delete_forever_rounded, size: 18, color: HrColors.dangerText),
+                label: Text('Delete account', style: HrText.body.copyWith(color: HrColors.dangerText)),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -560,25 +560,29 @@ class _OnbSlide {
 
 const _onbSlides = [
   _OnbSlide(
-      'assets/onboarding/welcome.png',
-      'Welcome to Habitrail',
-      'Turn your daily habits into a game you actually want to play.',
-      Color(0xFFFF8A4C)),
+    'assets/onboarding/welcome.png',
+    'Welcome to Habitrail',
+    'Turn your daily habits into a game you actually want to play.',
+    Color(0xFFFF8A4C),
+  ),
   _OnbSlide(
-      'assets/onboarding/xp.png',
-      'Earn XP, level up',
-      'Every habit you check off earns XP. Build streaks and combos for big multipliers, and climb from Level 1 to God-Tier.',
-      Color(0xFF3DE7FF)),
+    'assets/onboarding/xp.png',
+    'Earn XP, level up',
+    'Every habit you check off earns XP. Build streaks and combos for big multipliers, and climb from Level 1 to God-Tier.',
+    Color(0xFF3DE7FF),
+  ),
   _OnbSlide(
-      'assets/onboarding/quests.png',
-      'Quests, bosses & Victory Score',
-      'Take on daily quests, defeat the weekly boss, and track each day with a 4-pillar Victory Score.',
-      Color(0xFFFFD23F)),
+    'assets/onboarding/quests.png',
+    'Quests, bosses & Victory Score',
+    'Take on daily quests, defeat the weekly boss, and track each day with a 4-pillar Victory Score.',
+    Color(0xFFFFD23F),
+  ),
   _OnbSlide(
-      'assets/onboarding/companions.png',
-      'Companions & more',
-      'Adopt a companion, log nutrition, prestige, and make every single day count.',
-      Color(0xFF4ADE80)),
+    'assets/onboarding/companions.png',
+    'Companions & more',
+    'Adopt a companion, log nutrition, prestige, and make every single day count.',
+    Color(0xFF4ADE80),
+  ),
 ];
 
 class OnboardingScreen extends StatefulWidget {
@@ -603,8 +607,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_page >= _onbSlides.length - 1) {
       _finish();
     } else {
-      _pc.nextPage(
-          duration: const Duration(milliseconds: 280), curve: Curves.easeOut);
+      _pc.nextPage(duration: const Duration(milliseconds: 280), curve: Curves.easeOut);
     }
   }
 
@@ -614,71 +617,71 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
-        child: Column(children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: _finish,
-              child: Text('Skip', style: HrText.caption),
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _finish,
+                child: Text('Skip', style: HrText.caption),
+              ),
             ),
-          ),
-          Expanded(
-            child: PageView.builder(
-              controller: _pc,
-              itemCount: _onbSlides.length,
-              onPageChanged: (i) => setState(() => _page = i),
-              itemBuilder: (_, i) {
-                final s = _onbSlides[i];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 128,
-                        height: 128,
-                        alignment: Alignment.center,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: HrColors.surface,
-                          border: Border.all(color: HrColors.accent, width: 2),
+            Expanded(
+              child: PageView.builder(
+                controller: _pc,
+                itemCount: _onbSlides.length,
+                onPageChanged: (i) => setState(() => _page = i),
+                itemBuilder: (_, i) {
+                  final s = _onbSlides[i];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 128,
+                          height: 128,
+                          alignment: Alignment.center,
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: HrColors.surface,
+                            border: Border.all(color: HrColors.accent, width: 2),
+                          ),
+                          child: Image.asset(s.imageAsset, fit: BoxFit.cover, semanticLabel: s.title),
                         ),
-                        child: Image.asset(s.imageAsset,
-                            fit: BoxFit.cover, semanticLabel: s.title),
-                      ),
-                      const SizedBox(height: 32),
-                      Text(s.title, textAlign: TextAlign.center, style: HrText.display),
-                      const SizedBox(height: 14),
-                      Text(s.body,
-                          textAlign: TextAlign.center,
-                          style: HrText.bodyS.copyWith(height: 1.5)),
-                    ],
+                        const SizedBox(height: 32),
+                        Text(s.title, textAlign: TextAlign.center, style: HrText.display),
+                        const SizedBox(height: 14),
+                        Text(s.body, textAlign: TextAlign.center, style: HrText.bodyS.copyWith(height: 1.5)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_onbSlides.length, (i) {
+                final on = i == _page;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: on ? 22 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: on ? HrColors.accent : HrColors.surface3,
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 );
-              },
+              }),
             ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(_onbSlides.length, (i) {
-              final on = i == _page;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: on ? 22 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                    color: on ? HrColors.accent : HrColors.surface3,
-                    borderRadius: BorderRadius.circular(4)),
-              );
-            }),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(28),
-            child: HrButton(label: last ? 'Get started' : 'Next', onPressed: _next),
-          ),
-        ]),
+            Padding(
+              padding: const EdgeInsets.all(28),
+              child: HrButton(label: last ? 'Get started' : 'Next', onPressed: _next),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -694,8 +697,7 @@ const List<(String, String, String)> _kAreas = [
   ('productivity', 'Productivity', '💻'),
 ];
 
-String _areaLabel(String id) =>
-    _kAreas.firstWhere((a) => a.$1 == id, orElse: () => (id, id, '')).$2;
+String _areaLabel(String id) => _kAreas.firstWhere((a) => a.$1 == id, orElse: () => (id, id, '')).$2;
 
 class OnboardingQuizScreen extends StatefulWidget {
   const OnboardingQuizScreen({super.key});
@@ -732,8 +734,7 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
       case 2:
         return (int.tryParse(_age.text.trim()) ?? 0) > 0;
       case 3:
-        return (double.tryParse(_height.text.trim()) ?? 0) > 0 &&
-            (double.tryParse(_weight.text.trim()) ?? 0) > 0;
+        return (double.tryParse(_height.text.trim()) ?? 0) > 0 && (double.tryParse(_weight.text.trim()) ?? 0) > 0;
       default:
         return true;
     }
@@ -746,13 +747,9 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     final h = double.tryParse(_height.text.trim()) ?? 0;
     final w = double.tryParse(_weight.text.trim()) ?? 0;
     if (a > 0 && h > 0 && w > 0) {
-      appState.setBodyProfile(BodyProfile(
-          weight: w,
-          height: h,
-          age: a,
-          gender: _gender,
-          activity: _activity,
-          goal: _goal));
+      appState.setBodyProfile(
+        BodyProfile(weight: w, height: h, age: a, gender: _gender, activity: _activity, goal: _goal),
+      );
     }
     appState.seedHabitsForAreas(_areas);
     Navigator.of(context).popUntil((r) => r.isFirst);
@@ -762,8 +759,7 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     if (_page >= _last) {
       _finish();
     } else {
-      _pc.nextPage(
-          duration: const Duration(milliseconds: 260), curve: Curves.easeOut);
+      _pc.nextPage(duration: const Duration(milliseconds: 260), curve: Curves.easeOut);
     }
   }
 
@@ -772,89 +768,86 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     final last = _page == _last;
     return Scaffold(
       body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-            child: Row(children: [
-              SizedBox(
-                width: 44,
-                child: _page > 0
-                    ? IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded, color: HrColors.text2),
-                        onPressed: () => _pc.previousPage(
-                            duration: const Duration(milliseconds: 240),
-                            curve: Curves.easeOut))
-                    : null,
-              ),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(HrRadius.full),
-                  child: LinearProgressIndicator(
-                    value: (_page + 1) / (_last + 1),
-                    minHeight: 6,
-                    backgroundColor: HrColors.surface3,
-                    valueColor: const AlwaysStoppedAnimation(HrColors.text),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 44,
+                    child: _page > 0
+                        ? IconButton(
+                            icon: const Icon(Icons.arrow_back_rounded, color: HrColors.text2),
+                            onPressed: () =>
+                                _pc.previousPage(duration: const Duration(milliseconds: 240), curve: Curves.easeOut),
+                          )
+                        : null,
                   ),
-                ),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(HrRadius.full),
+                      child: LinearProgressIndicator(
+                        value: (_page + 1) / (_last + 1),
+                        minHeight: 6,
+                        backgroundColor: HrColors.surface3,
+                        valueColor: const AlwaysStoppedAnimation(HrColors.text),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 54,
+                    child: last
+                        ? null
+                        : TextButton(
+                            onPressed: _skip,
+                            child: Text('Skip', style: HrText.caption),
+                          ),
+                  ),
+                ],
               ),
-              SizedBox(
-                width: 54,
-                child: last
-                    ? null
-                    : TextButton(onPressed: _skip, child: Text('Skip', style: HrText.caption)),
+            ),
+            Expanded(
+              child: PageView(
+                controller: _pc,
+                physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: (i) => setState(() => _page = i),
+                children: [
+                  _areasPage(),
+                  _genderPage(),
+                  _agePage(),
+                  _bodyPage(),
+                  _activityPage(),
+                  _goalPage(),
+                  _summaryPage(),
+                ],
               ),
-            ]),
-          ),
-          Expanded(
-            child: PageView(
-              controller: _pc,
-              physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (i) => setState(() => _page = i),
-              children: [
-                _areasPage(),
-                _genderPage(),
-                _agePage(),
-                _bodyPage(),
-                _activityPage(),
-                _goalPage(),
-                _summaryPage(),
-              ],
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: HrButton(
-              label: last ? "Let's go" : 'Continue',
-              onPressed: _canAdvance ? _next : null,
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: HrButton(label: last ? "Let's go" : 'Continue', onPressed: _canAdvance ? _next : null),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
 
   Widget _quizPage(String title, String? subtitle, Widget content) => ListView(
-        padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 12, HrSpace.gutter, 16),
-        children: [
-          Text(title, style: HrText.display.copyWith(height: 1.1)),
-          if (subtitle != null) ...[
-            const SizedBox(height: 8),
-            Text(subtitle, style: HrText.bodyS),
-          ],
-          const SizedBox(height: 24),
-          content,
-        ],
-      );
+    padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 12, HrSpace.gutter, 16),
+    children: [
+      Text(title, style: HrText.display.copyWith(height: 1.1)),
+      if (subtitle != null) ...[const SizedBox(height: 8), Text(subtitle, style: HrText.bodyS)],
+      const SizedBox(height: 24),
+      content,
+    ],
+  );
 
   Widget _areasPage() => _quizPage(
-        'What do you want to work on?',
-        "Pick a few — we'll set up starter habits for each.",
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [for (final a in _kAreas) _areaChip(a.$1, a.$2, a.$3)],
-        ),
-      );
+    'What do you want to work on?',
+    "Pick a few — we'll set up starter habits for each.",
+    Wrap(spacing: 10, runSpacing: 10, children: [for (final a in _kAreas) _areaChip(a.$1, a.$2, a.$3)]),
+  );
 
   Widget _areaChip(String id, String label, String emoji) {
     final on = _areas.contains(id);
@@ -866,72 +859,78 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
           borderRadius: BorderRadius.circular(HrRadius.full),
           color: on ? HrColors.text : HrColors.surface,
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
-          const SizedBox(width: 8),
-          Text(label,
-              style: HrText.body.copyWith(
-                  color: on ? HrColors.bg : HrColors.text, fontWeight: FontWeight.w700)),
-        ]),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: HrText.body.copyWith(color: on ? HrColors.bg : HrColors.text, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _genderPage() => _quizPage(
-        'How do you identify?',
-        'Used only to personalize your nutrition targets.',
-        Column(children: [
-          _choiceRow(
-              'male', 'Male', '♂️', _gender, (v) => setState(() => _gender = v)),
-          _choiceRow('female', 'Female', '♀️', _gender,
-              (v) => setState(() => _gender = v)),
-          _choiceRow('other', 'Other / prefer not to say', '⚧️', _gender,
-              (v) => setState(() => _gender = v)),
-        ]),
-      );
+    'How do you identify?',
+    'Used only to personalize your nutrition targets.',
+    Column(
+      children: [
+        _choiceRow('male', 'Male', '♂️', _gender, (v) => setState(() => _gender = v)),
+        _choiceRow('female', 'Female', '♀️', _gender, (v) => setState(() => _gender = v)),
+        _choiceRow('other', 'Other / prefer not to say', '⚧️', _gender, (v) => setState(() => _gender = v)),
+      ],
+    ),
+  );
 
-  Widget _agePage() =>
-      _quizPage('How old are you?', null, _numberField(_age, 'Age', 'years'));
+  Widget _agePage() => _quizPage('How old are you?', null, _numberField(_age, 'Age', 'years'));
 
   Widget _bodyPage() => _quizPage(
-        'Your height & weight',
-        'We use these for your calorie & macro targets.',
-        Column(children: [
-          _numberField(_height, 'Height', 'cm'),
-          const SizedBox(height: 14),
-          _numberField(_weight, 'Weight', 'kg'),
-        ]),
-      );
+    'Your height & weight',
+    'We use these for your calorie & macro targets.',
+    Column(
+      children: [
+        _numberField(_height, 'Height', 'cm'),
+        const SizedBox(height: 14),
+        _numberField(_weight, 'Weight', 'kg'),
+      ],
+    ),
+  );
 
   Widget _activityPage() => _quizPage(
-        'How active are you?',
-        null,
-        Column(children: [
-          _choiceRow('sedentary', 'Sedentary — little exercise', '🪑',
-              _activity, (v) => setState(() => _activity = v)),
-          _choiceRow('light', 'Lightly active — 1–3 days/wk', '🚶', _activity,
-              (v) => setState(() => _activity = v)),
-          _choiceRow('moderate', 'Moderately active — 3–5 days/wk', '🏃',
-              _activity, (v) => setState(() => _activity = v)),
-          _choiceRow('active', 'Very active — 6–7 days/wk', '🏋️', _activity,
-              (v) => setState(() => _activity = v)),
-          _choiceRow('very_active', 'Athlete — intense daily', '🔥', _activity,
-              (v) => setState(() => _activity = v)),
-        ]),
-      );
+    'How active are you?',
+    null,
+    Column(
+      children: [
+        _choiceRow('sedentary', 'Sedentary — little exercise', '🪑', _activity, (v) => setState(() => _activity = v)),
+        _choiceRow('light', 'Lightly active — 1–3 days/wk', '🚶', _activity, (v) => setState(() => _activity = v)),
+        _choiceRow(
+          'moderate',
+          'Moderately active — 3–5 days/wk',
+          '🏃',
+          _activity,
+          (v) => setState(() => _activity = v),
+        ),
+        _choiceRow('active', 'Very active — 6–7 days/wk', '🏋️', _activity, (v) => setState(() => _activity = v)),
+        _choiceRow('very_active', 'Athlete — intense daily', '🔥', _activity, (v) => setState(() => _activity = v)),
+      ],
+    ),
+  );
 
   Widget _goalPage() => _quizPage(
-        "What's your goal?",
-        'This sets your daily calorie target.',
-        Column(children: [
-          _choiceRow('cut', 'Lose weight', '📉', _goal,
-              (v) => setState(() => _goal = v)),
-          _choiceRow('maintain', 'Maintain', '⚖️', _goal,
-              (v) => setState(() => _goal = v)),
-          _choiceRow('bulk', 'Build muscle', '📈', _goal,
-              (v) => setState(() => _goal = v)),
-        ]),
-      );
+    "What's your goal?",
+    'This sets your daily calorie target.',
+    Column(
+      children: [
+        _choiceRow('cut', 'Lose weight', '📉', _goal, (v) => setState(() => _goal = v)),
+        _choiceRow('maintain', 'Maintain', '⚖️', _goal, (v) => setState(() => _goal = v)),
+        _choiceRow('bulk', 'Build muscle', '📈', _goal, (v) => setState(() => _goal = v)),
+      ],
+    ),
+  );
 
   Widget _summaryPage() {
     final a = int.tryParse(_age.text.trim()) ?? 0;
@@ -939,100 +938,103 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     final w = double.tryParse(_weight.text.trim()) ?? 0;
     final hasBody = a > 0 && h > 0 && w > 0;
     final cals = hasBody
-        ? computeMacroTargets(BodyProfile(
-                weight: w,
-                height: h,
-                age: a,
-                gender: _gender,
-                activity: _activity,
-                goal: _goal))
-            .calories
-            .round()
+        ? computeMacroTargets(
+            BodyProfile(weight: w, height: h, age: a, gender: _gender, activity: _activity, goal: _goal),
+          ).calories.round()
         : null;
     final comp = companionByType(appState.activeCompanion);
     return _quizPage(
       "You're all set.",
       'Your plan is personalized.',
-      Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _summaryTile(Icons.local_fire_department_rounded, 'Daily calorie target',
-            hasBody ? '$cals kcal' : 'Add body stats later'),
-        const SizedBox(height: 12),
-        _summaryTile(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _summaryTile(
+            Icons.local_fire_department_rounded,
+            'Daily calorie target',
+            hasBody ? '$cals kcal' : 'Add body stats later',
+          ),
+          const SizedBox(height: 12),
+          _summaryTile(
             Icons.checklist_rounded,
             'Starter habits',
-            _areas.isEmpty
-                ? 'Default starter habits'
-                : _areas.map(_areaLabel).join(' · ')),
-        const SizedBox(height: 28),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            CompanionSticker(icon: comp.icon, color: comp.color, size: 64, semanticLabel: comp.name,
-                imageAsset: comp.imageAsset),
-            const SizedBox(width: 10),
-            const Flexible(child: SpeechBubble("Let's see if you last a week.", maxWidth: 200)),
-          ],
-        ),
-      ]),
+            _areas.isEmpty ? 'Default starter habits' : _areas.map(_areaLabel).join(' · '),
+          ),
+          const SizedBox(height: 28),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              CompanionSticker(
+                icon: comp.icon,
+                color: comp.color,
+                size: 64,
+                semanticLabel: comp.name,
+                imageAsset: comp.imageAsset,
+              ),
+              const SizedBox(width: 10),
+              const Flexible(child: SpeechBubble("Let's see if you last a week.", maxWidth: 200)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _summaryTile(IconData icon, String title, String value) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: HrColors.surface,
-          borderRadius: BorderRadius.circular(HrRadius.md),
-          border: const Border(top: BorderSide(color: HrColors.hairline)),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: const Border(top: BorderSide(color: HrColors.hairline)),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: HrColors.accent),
+          child: Icon(icon, color: HrColors.bg, size: 18),
         ),
-        child: Row(children: [
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: HrColors.accent),
-            child: Icon(icon, color: HrColors.bg, size: 18),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: HrText.caption),
+              const SizedBox(height: 2),
+              Text(value, style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: HrText.caption),
-                const SizedBox(height: 2),
-                Text(value, style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
-              ],
-            ),
-          ),
-        ]),
-      );
-
-  Widget _numberField(TextEditingController c, String hint, String suffix) =>
-      TextField(
-        controller: c,
-        keyboardType: TextInputType.number,
-        onChanged: (_) => setState(() {}),
-        style: HrText.title2,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: HrText.title2.copyWith(color: HrColors.text3),
-          suffixText: suffix,
-          suffixStyle: HrText.caption,
-          filled: true,
-          fillColor: HrColors.surface,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md),
-              borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
         ),
-      );
+      ],
+    ),
+  );
 
-  Widget _choiceRow(String id, String label, String emoji, String group,
-      ValueChanged<String> onTap) {
+  Widget _numberField(TextEditingController c, String hint, String suffix) => TextField(
+    controller: c,
+    keyboardType: TextInputType.number,
+    onChanged: (_) => setState(() {}),
+    style: HrText.title2,
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: HrText.title2.copyWith(color: HrColors.text3),
+      suffixText: suffix,
+      suffixStyle: HrText.caption,
+      filled: true,
+      fillColor: HrColors.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+      ),
+    ),
+  );
+
+  Widget _choiceRow(String id, String label, String emoji, String group, ValueChanged<String> onTap) {
     final on = group == id;
     return GestureDetector(
       onTap: () => onTap(id),
@@ -1043,30 +1045,34 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
           borderRadius: BorderRadius.circular(HrRadius.md),
           color: HrColors.surface,
           border: Border(
-              top: BorderSide(color: on ? HrColors.accent : HrColors.hairline, width: on ? 2 : 1)),
-        ),
-        child: Row(children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(label, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+            top: BorderSide(color: on ? HrColors.accent : HrColors.hairline, width: on ? 2 : 1),
           ),
-          if (on) Icon(Icons.check_circle_rounded, color: HrColors.accent, size: 22),
-        ]),
+        ),
+        child: Row(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(label, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            if (on) Icon(Icons.check_circle_rounded, color: HrColors.accent, size: 22),
+          ],
+        ),
       ),
     );
   }
 }
 
 // ── Auth UI helpers ──────────────────────────────────────────────────────────
-Widget _authScaffold(BuildContext context,
-    {required String title,
-    required String subtitle,
-    required List<Widget> children}) {
+Widget _authScaffold(
+  BuildContext context, {
+  required String title,
+  required String subtitle,
+  required List<Widget> children,
+}) {
   return Scaffold(
     backgroundColor: Colors.transparent,
-    appBar: AppBar(
-        backgroundColor: Colors.transparent, foregroundColor: HrColors.text, elevation: 0),
+    appBar: AppBar(backgroundColor: Colors.transparent, foregroundColor: HrColors.text, elevation: 0),
     body: SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
@@ -1082,11 +1088,14 @@ Widget _authScaffold(BuildContext context,
   );
 }
 
-Widget _authField(TextEditingController c, String label,
-    {bool obscure = false,
-    TextInputType? keyboard,
-    String? hint,
-    ValueChanged<String>? onChanged}) {
+Widget _authField(
+  TextEditingController c,
+  String label, {
+  bool obscure = false,
+  TextInputType? keyboard,
+  String? hint,
+  ValueChanged<String>? onChanged,
+}) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 14),
     child: Column(
@@ -1109,12 +1118,14 @@ Widget _authField(TextEditingController c, String label,
             fillColor: HrColors.surface,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
             enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+              borderRadius: BorderRadius.circular(HrRadius.md),
+              borderSide: BorderSide.none,
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
             focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(HrRadius.md),
-                borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
+              borderRadius: BorderRadius.circular(HrRadius.md),
+              borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+            ),
           ),
         ),
       ],
@@ -1126,36 +1137,38 @@ Widget _authSubmit(String label, bool busy, VoidCallback onTap) =>
     HrButton(label: label, loading: busy, onPressed: busy ? null : onTap);
 
 Widget _authError(String msg) => Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-          color: HrColors.dangerSurface,
-          borderRadius: BorderRadius.circular(HrRadius.sm)),
-      child: Row(children: [
-        const Icon(Icons.error_outline_rounded, color: HrColors.dangerText, size: 17),
-        const SizedBox(width: 8),
-        Expanded(
-            child: Text(msg, style: HrText.caption.copyWith(color: HrColors.dangerText))),
-      ]),
-    );
+  margin: const EdgeInsets.only(bottom: 12),
+  padding: const EdgeInsets.all(11),
+  decoration: BoxDecoration(color: HrColors.dangerSurface, borderRadius: BorderRadius.circular(HrRadius.sm)),
+  child: Row(
+    children: [
+      const Icon(Icons.error_outline_rounded, color: HrColors.dangerText, size: 17),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(msg, style: HrText.caption.copyWith(color: HrColors.dangerText)),
+      ),
+    ],
+  ),
+);
 
-Widget _authDivider() => Row(children: [
-      const Expanded(child: Divider(color: HrColors.hairline, thickness: 1)),
-      Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text('or', style: HrText.caption)),
-      const Expanded(child: Divider(color: HrColors.hairline, thickness: 1)),
-    ]);
+Widget _authDivider() => Row(
+  children: [
+    const Expanded(child: Divider(color: HrColors.hairline, thickness: 1)),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Text('or', style: HrText.caption),
+    ),
+    const Expanded(child: Divider(color: HrColors.hairline, thickness: 1)),
+  ],
+);
 
-Widget _appleButton() => Column(children: [
-      const HrButton(
-          label: 'Continue with Apple',
-          icon: Icons.apple,
-          kind: HrButtonKind.secondary,
-          onPressed: null),
-      const SizedBox(height: 6),
-      Text('Available on iOS', style: HrText.micro),
-    ]);
+Widget _appleButton() => Column(
+  children: [
+    const HrButton(label: 'Continue with Apple', icon: Icons.apple, kind: HrButtonKind.secondary, onPressed: null),
+    const SizedBox(height: 6),
+    Text('Available on iOS', style: HrText.micro),
+  ],
+);
 
 Widget _authNote() {
   if (auth.isRemote) return const SizedBox.shrink();
@@ -1170,26 +1183,26 @@ Widget _authNote() {
 }
 
 Widget _statChip(String label, String value) => Container(
-      width: 104,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(
-          color: HrColors.surface,
-          borderRadius: BorderRadius.circular(HrRadius.md),
-          border: const Border(top: BorderSide(color: HrColors.hairline))),
-      child: Column(children: [
-        Text(value, style: HrText.stat),
-        const SizedBox(height: 2),
-        Text(label, textAlign: TextAlign.center, style: HrText.caption),
-      ]),
-    );
+  width: 104,
+  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+  decoration: BoxDecoration(
+    color: HrColors.surface,
+    borderRadius: BorderRadius.circular(HrRadius.md),
+    border: const Border(top: BorderSide(color: HrColors.hairline)),
+  ),
+  child: Column(
+    children: [
+      Text(value, style: HrText.stat),
+      const SizedBox(height: 2),
+      Text(label, textAlign: TextAlign.center, style: HrText.caption),
+    ],
+  ),
+);
 
 String _memberSince(String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return '';
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return 'Member since ${months[d.month - 1]} ${d.year}';
 }
 
@@ -1207,8 +1220,7 @@ Future<void> _editAccountName(BuildContext context) async {
         decoration: const InputDecoration(hintText: 'Display name'),
       ),
       actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kPlasma),
           onPressed: () => Navigator.pop(ctx, c.text.trim()),
@@ -1228,18 +1240,15 @@ Future<void> _confirmDeleteAccount(BuildContext context) async {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: kCard,
-      title:
-          const Text('Delete account?', style: TextStyle(color: kTextPrimary)),
+      title: const Text('Delete account?', style: TextStyle(color: kTextPrimary)),
       content: const Text(
-          'This removes your account and signs you out. Your habits and progress stay on this device — use "Reset all progress" to clear those. This cannot be undone.',
-          style: TextStyle(color: kTextSecondary)),
+        'This removes your account and signs you out. Your habits and progress stay on this device — use "Reset all progress" to clear those. This cannot be undone.',
+        style: TextStyle(color: kTextSecondary),
+      ),
       actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
         FilledButton(
-          style: FilledButton.styleFrom(
-              backgroundColor: kRed, foregroundColor: Colors.white),
+          style: FilledButton.styleFrom(backgroundColor: kRed, foregroundColor: Colors.white),
           onPressed: () => Navigator.pop(ctx, true),
           child: const Text('Delete'),
         ),
@@ -1272,8 +1281,7 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     shellTab.addListener(_onShellTab);
-    _reminderTimer =
-        Timer.periodic(const Duration(seconds: 30), (_) => _checkReminders());
+    _reminderTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkReminders());
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkReminders());
   }
 
@@ -1304,15 +1312,18 @@ class _HomeShellState extends State<HomeShell> {
       final key = '$day|${h.id}';
       if (_firedReminders.contains(key)) continue;
       _firedReminders.add(key);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('⏰ Time for: ${h.name}'),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⏰ Time for: ${h.name}'),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
             label: 'Done',
             onPressed: () {
               if (!appState.doneToday(h)) appState.toggle(h);
-            }),
-      ));
+            },
+          ),
+        ),
+      );
     }
   }
 
@@ -1325,18 +1336,13 @@ class _HomeShellState extends State<HomeShell> {
       listenable: appState,
       builder: (context, _) {
         if (appState.loading) {
-          return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         if (!_briefingChecked && appState.needsBriefing) {
           _briefingChecked = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            showDialog<void>(
-              context: context,
-              barrierDismissible: false,
-              builder: (_) => const _DailyBriefing(),
-            );
+            showDialog<void>(context: context, barrierDismissible: false, builder: (_) => const _DailyBriefing());
           });
         }
         // Build fresh instances each time so the screens reflect state changes.
@@ -1347,10 +1353,7 @@ class _HomeShellState extends State<HomeShell> {
         return Scaffold(
           body: IndexedStack(index: _index, children: screens),
           floatingActionButton: _fab(),
-          bottomNavigationBar: HrTabBar(
-            index: _index,
-            onTap: (i) => shellTab.value = i,
-          ),
+          bottomNavigationBar: HrTabBar(index: _index, onTap: (i) => shellTab.value = i),
         );
       },
     );
@@ -1372,33 +1375,27 @@ class _Avatar extends StatelessWidget {
     final hasBorder = b.id != 'none';
     // Thicker, glowing ring with a thin dark gap so the colour reads as a
     // distinct border against both the avatar and the cosmic background.
-    final ringW = hasBorder
-        ? (size * 0.11).clamp(3.0, 7.0)
-        : (size * 0.06).clamp(2.0, 4.0);
+    final ringW = hasBorder ? (size * 0.11).clamp(3.0, 7.0) : (size * 0.06).clamp(2.0, 4.0);
     final gapW = hasBorder ? (size * 0.03).clamp(1.5, 3.0) : 0.0;
     final inner = size - (ringW + gapW) * 2;
     final name = appState.displayName;
     final Widget pic = appState.pfpBytes != null
-        ? Image.memory(appState.pfpBytes!,
-            width: inner, height: inner, fit: BoxFit.cover, gaplessPlayback: true)
+        ? Image.memory(appState.pfpBytes!, width: inner, height: inner, fit: BoxFit.cover, gaplessPlayback: true)
         : Container(
             width: inner,
             height: inner,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [kPlasma, kBlue])),
-            child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: inner * 0.42,
-                    fontWeight: FontWeight.w800)),
+            decoration: BoxDecoration(gradient: LinearGradient(colors: [kPlasma, kBlue])),
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: inner * 0.42, fontWeight: FontWeight.w800),
+            ),
           );
     Widget avatar = ClipOval(child: pic);
     // Dark separator ring between the colour and the avatar.
     if (gapW > 0) {
       avatar = Container(
-        decoration: const BoxDecoration(
-            shape: BoxShape.circle, color: Color(0xFF140B2B)),
+        decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF140B2B)),
         padding: EdgeInsets.all(gapW),
         child: avatar,
       );
@@ -1410,16 +1407,9 @@ class _Avatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: b.colors.length == 1 ? b.colors.first : null,
-        gradient: b.colors.length > 1
-            ? SweepGradient(colors: [...b.colors, b.colors.first])
-            : null,
+        gradient: b.colors.length > 1 ? SweepGradient(colors: [...b.colors, b.colors.first]) : null,
         boxShadow: b.glow
-            ? [
-                BoxShadow(
-                    color: b.colors.first.withValues(alpha: 0.75),
-                    blurRadius: size * 0.3,
-                    spreadRadius: 1.0)
-              ]
+            ? [BoxShadow(color: b.colors.first.withValues(alpha: 0.75), blurRadius: size * 0.3, spreadRadius: 1.0)]
             : null,
       ),
       child: avatar,
@@ -1438,23 +1428,19 @@ Widget _borderPreview(BorderDef b, {double size = 42}) {
     decoration: BoxDecoration(
       shape: BoxShape.circle,
       color: b.colors.length == 1 ? b.colors.first : null,
-      gradient: b.colors.length > 1
-          ? SweepGradient(colors: [...b.colors, b.colors.first])
-          : null,
-      boxShadow: b.glow
-          ? [BoxShadow(color: b.colors.first.withValues(alpha: 0.5), blurRadius: 8)]
-          : null,
+      gradient: b.colors.length > 1 ? SweepGradient(colors: [...b.colors, b.colors.first]) : null,
+      boxShadow: b.glow ? [BoxShadow(color: b.colors.first.withValues(alpha: 0.5), blurRadius: 8)] : null,
     ),
     child: const DecoratedBox(
-        decoration: BoxDecoration(shape: BoxShape.circle, color: kElevated)),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: kElevated),
+    ),
   );
 }
 
 // Pick a photo, center-crop + downscale to a tiny JPEG, and store it.
 Future<void> _pickProfilePhoto(BuildContext context) async {
   try {
-    final x = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, maxWidth: 512, imageQuality: 85);
+    final x = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 512, imageQuality: 85);
     if (x == null) return;
     final bytes = await x.readAsBytes();
     final decoded = img.decodeImage(bytes);
@@ -1463,11 +1449,13 @@ Future<void> _pickProfilePhoto(BuildContext context) async {
       return;
     }
     final side = decoded.width < decoded.height ? decoded.width : decoded.height;
-    final cropped = img.copyCrop(decoded,
-        x: (decoded.width - side) ~/ 2,
-        y: (decoded.height - side) ~/ 2,
-        width: side,
-        height: side);
+    final cropped = img.copyCrop(
+      decoded,
+      x: (decoded.width - side) ~/ 2,
+      y: (decoded.height - side) ~/ 2,
+      width: side,
+      height: side,
+    );
     final resized = img.copyResize(cropped, width: 256, height: 256);
     appState.setPfp(base64Encode(img.encodeJpg(resized, quality: 82)));
   } catch (_) {
@@ -1477,19 +1465,19 @@ Future<void> _pickProfilePhoto(BuildContext context) async {
 
 // "Change photo" / "Remove" actions shown under the account avatar.
 Widget _photoActions(BuildContext context) => Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _secondaryPill('Change photo', () => _pickProfilePhoto(context)),
-        if (appState.pfpBase64.isNotEmpty) ...[
-          const SizedBox(width: 10),
-          TextButton(
-            onPressed: () => appState.setPfp(''),
-            child: Text('Remove', style: HrText.caption),
-          ),
-        ],
-      ],
-    );
+  mainAxisSize: MainAxisSize.min,
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    _secondaryPill('Change photo', () => _pickProfilePhoto(context)),
+    if (appState.pfpBase64.isNotEmpty) ...[
+      const SizedBox(width: 10),
+      TextButton(
+        onPressed: () => appState.setPfp(''),
+        child: Text('Remove', style: HrText.caption),
+      ),
+    ],
+  ],
+);
 
 // _coinsPill and _shopButton were replaced by _coinChip and per-screen headers.
 
@@ -1503,15 +1491,12 @@ const LinearGradient _kGlassSheen = LinearGradient(
   colors: [Color(0xE02A1B4F), Color(0xCC170B2E)],
 );
 
-BoxDecoration glassDecoration({double radius = 18, Color? border}) =>
-    BoxDecoration(
-      borderRadius: BorderRadius.circular(radius),
-      gradient: _kGlassSheen,
-      border: Border.all(color: border ?? kBorder),
-      boxShadow: const [
-        BoxShadow(color: Color(0x40000000), blurRadius: 18, offset: Offset(0, 8)),
-      ],
-    );
+BoxDecoration glassDecoration({double radius = 18, Color? border}) => BoxDecoration(
+  borderRadius: BorderRadius.circular(radius),
+  gradient: _kGlassSheen,
+  border: Border.all(color: border ?? kBorder),
+  boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 18, offset: Offset(0, 8))],
+);
 
 const List<Color> _kAccentGradient = [Color(0xFF8B5CF6), Color(0xFF22D3EE)];
 
@@ -1549,24 +1534,21 @@ class GradientButton extends StatelessWidget {
               gradient: const LinearGradient(colors: _kAccentGradient),
               boxShadow: [
                 BoxShadow(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6)),
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
               ],
             ),
             child: Row(
               mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 18, color: Colors.white),
-                  const SizedBox(width: 8),
-                ],
-                Text(label,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15)),
+                if (icon != null) ...[Icon(icon, size: 18, color: Colors.white), const SizedBox(width: 8)],
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
+                ),
               ],
             ),
           ),
@@ -1595,21 +1577,21 @@ class GlowBar extends StatelessWidget {
         height: height,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(height),
-          child: Stack(children: [
-            const Positioned.fill(child: ColoredBox(color: Color(0x22FFFFFF))),
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: value,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: c),
-                  boxShadow: [
-                    BoxShadow(color: c.last.withValues(alpha: 0.5), blurRadius: 6),
-                  ],
+          child: Stack(
+            children: [
+              const Positioned.fill(child: ColoredBox(color: Color(0x22FFFFFF))),
+              FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: value,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: c),
+                    boxShadow: [BoxShadow(color: c.last.withValues(alpha: 0.5), blurRadius: 6)],
+                  ),
                 ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ),
       ),
     );
@@ -1618,12 +1600,7 @@ class GlowBar extends StatelessWidget {
 
 // Luminous gradient progress ring.
 class GlowRing extends StatelessWidget {
-  const GlowRing(
-      {required this.value,
-      required this.size,
-      this.stroke = 6,
-      this.colors,
-      super.key});
+  const GlowRing({required this.value, required this.size, this.stroke = 6, this.colors, super.key});
   final double value;
   final double size;
   final double stroke;
@@ -1638,9 +1615,7 @@ class GlowRing extends StatelessWidget {
       builder: (context, animatedValue, _) => SizedBox(
         width: size,
         height: size,
-        child: CustomPaint(
-          painter: _RingPainter(animatedValue, stroke, colors ?? _kAccentGradient),
-        ),
+        child: CustomPaint(painter: _RingPainter(animatedValue, stroke, colors ?? _kAccentGradient)),
       ),
     );
   }
@@ -1657,12 +1632,13 @@ class _RingPainter extends CustomPainter {
     final radius = (size.width - stroke) / 2;
     final rect = Rect.fromCircle(center: center, radius: radius);
     canvas.drawCircle(
-        center,
-        radius,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = stroke
-          ..color = const Color(0x1FFFFFFF));
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..color = const Color(0x1FFFFFFF),
+    );
     if (value <= 0) return;
     final sweep = 2 * pi * value;
     final ring = colors.length > 1 ? colors : [colors.first, colors.first];
@@ -1675,22 +1651,22 @@ class _RingPainter extends CustomPainter {
         transform: const GradientRotation(-pi / 2),
       ).createShader(rect);
     canvas.drawArc(
-        rect,
-        -pi / 2,
-        sweep,
-        false,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = stroke
-          ..strokeCap = StrokeCap.round
-          ..color = ring.last.withValues(alpha: 0.4)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+      rect,
+      -pi / 2,
+      sweep,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round
+        ..color = ring.last.withValues(alpha: 0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
     canvas.drawArc(rect, -pi / 2, sweep, false, arc);
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) =>
-      old.value != value || old.colors != colors || old.stroke != stroke;
+  bool shouldRepaint(_RingPainter old) => old.value != value || old.colors != colors || old.stroke != stroke;
 }
 
 // Dashboard app bar: profile picture + level on the LEFT, coins + shop RIGHT.
@@ -1717,16 +1693,22 @@ class HomeScreen extends StatelessWidget {
         final reward = h.todayAwardXp;
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            duration: const Duration(milliseconds: 1100),
-            content: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.bolt_rounded, color: kGold, size: 18),
-              const SizedBox(width: 8),
-              Text('Habit complete  ·  +$reward XP',
-                  style: const TextStyle(color: kTextPrimary,
-                      fontWeight: FontWeight.w600)),
-            ]),
-          ));
+          ..showSnackBar(
+            SnackBar(
+              duration: const Duration(milliseconds: 1100),
+              content: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.bolt_rounded, color: kGold, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Habit complete  ·  +$reward XP',
+                    style: const TextStyle(color: kTextPrimary, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          );
       }
       final who = appState.activeCompanion;
       bool shownMajor = false;
@@ -1779,10 +1761,7 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 16),
             const _TodayHero(),
             const SizedBox(height: 18),
-            if (appState.habits.isEmpty)
-              _todayEmpty(context)
-            else
-              _FiveCard(onToggle: onToggle),
+            if (appState.habits.isEmpty) _todayEmpty(context) else _FiveCard(onToggle: onToggle),
             const SizedBox(height: 14),
             const _VictoryCard(),
             const _CompanionCard(),
@@ -1807,29 +1786,30 @@ String _prettyToday() {
 
 // Small tappable coins chip (opens the Shop) — replaces the old violet pill.
 Widget _coinChip(BuildContext context) => GestureDetector(
-      onTap: () => Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: HrColors.surface2,
-          borderRadius: BorderRadius.circular(HrRadius.full),
+  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShopScreen())),
+  child: Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.full)),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (appState.xpBoostActive) ...[
+          Text(
+            '2×',
+            style: HrText.caption.copyWith(color: HrColors.gold, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(width: 6),
+        ],
+        Image.asset('assets/shop/coin_stack.png', width: 19, height: 19, fit: BoxFit.contain, semanticLabel: 'Coins'),
+        const SizedBox(width: 5),
+        Text(
+          '${appState.coins}',
+          style: HrText.caption.copyWith(color: HrColors.text, fontWeight: FontWeight.w700),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (appState.xpBoostActive) ...[
-            Text('2×',
-                style: HrText.caption
-                    .copyWith(color: HrColors.gold, fontWeight: FontWeight.w800)),
-            const SizedBox(width: 6),
-          ],
-          const Icon(Icons.monetization_on_rounded, size: 15, color: HrColors.gold),
-          const SizedBox(width: 5),
-          Text('${appState.coins}',
-              style: HrText.caption
-                  .copyWith(color: HrColors.text, fontWeight: FontWeight.w700)),
-        ]),
-      ),
-    );
+      ],
+    ),
+  ),
+);
 
 // Header: date, "Today", a completion sticker, coins + add, and the level rail.
 Widget _todayHeader(BuildContext context) {
@@ -1839,67 +1819,87 @@ Widget _todayHeader(BuildContext context) {
   final allDone = total > 0 && done == total;
   return Padding(
     padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_prettyToday().toUpperCase(), style: HrText.labelCaps),
-            const SizedBox(height: 4),
-            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Text('Today', style: HrText.display),
-              if (total > 0) ...[
-                const SizedBox(width: 12),
-                CountSticker('$done/$total',
-                    size: 24,
-                    fill: allDone ? HrColors.accent : null,
-                    semanticLabel: '$done of $total habits done'),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_prettyToday().toUpperCase(), style: HrText.labelCaps),
+                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text('Today', style: HrText.display),
+                      if (total > 0) ...[
+                        const SizedBox(width: 12),
+                        CountSticker(
+                          '$done/$total',
+                          size: 24,
+                          fill: allDone ? HrColors.accent : null,
+                          semanticLabel: '$done of $total habits done',
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _coinChip(context),
+                const SizedBox(height: 8),
+                Tooltip(
+                  message: 'Add habit',
+                  child: Material(
+                    color: HrColors.surface2,
+                    shape: const CircleBorder(),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => showHabitEditor(context),
+                      child: const SizedBox(
+                        width: 38,
+                        height: 38,
+                        child: Icon(Icons.add_rounded, color: HrColors.text, size: 22),
+                      ),
+                    ),
+                  ),
+                ),
               ],
-            ]),
-          ]),
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
-        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          _coinChip(context),
-          const SizedBox(height: 8),
-          Tooltip(
-            message: 'Add habit',
-            child: Material(
-              color: HrColors.surface2,
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => showHabitEditor(context),
-                child: const SizedBox(
-                  width: 38,
-                  height: 38,
-                  child: Icon(Icons.add_rounded, color: HrColors.text, size: 22),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Text(
+              'Lv ${ld.level}',
+              style: HrText.caption.copyWith(color: HrColors.text2, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(HrRadius.full),
+                child: LinearProgressIndicator(
+                  value: ld.progress.clamp(0.0, 1.0).toDouble(),
+                  minHeight: 6,
+                  backgroundColor: HrColors.surface3,
+                  valueColor: const AlwaysStoppedAnimation(HrColors.text),
                 ),
               ),
             ),
-          ),
-        ]),
-      ]),
-      const SizedBox(height: 16),
-      Row(children: [
-        Text('Lv ${ld.level}',
-            style: HrText.caption
-                .copyWith(color: HrColors.text2, fontWeight: FontWeight.w700)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(HrRadius.full),
-            child: LinearProgressIndicator(
-              value: ld.progress.clamp(0.0, 1.0).toDouble(),
-              minHeight: 6,
-              backgroundColor: HrColors.surface3,
-              valueColor: const AlwaysStoppedAnimation(HrColors.text),
-            ),
-          ),
+            const SizedBox(width: 10),
+            Text(levelTitle(ld.level), style: HrText.caption),
+          ],
         ),
-        const SizedBox(width: 10),
-        Text(levelTitle(ld.level), style: HrText.caption),
-      ]),
-    ]),
+      ],
+    ),
   );
 }
 
@@ -1918,39 +1918,48 @@ class _TodayHero extends StatelessWidget {
     final line = appState.lastCompanionLine.isNotEmpty
         ? appState.lastCompanionLine
         : total == 0
-            ? comp.tagline
-            : allDone
-                ? 'Perfect day. Every rail cleared.'
-                : done == 0
-                    ? "Let's clear the first one."
-                    : '${total - done} to go — keep the streak alive.';
-    return Column(children: [
-      SizedBox(
-        height: 156,
-        child: Center(
-          child: SizedBox(
-            width: 150,
-            height: 150,
-            child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
-              SegmentedRing(
-                size: 140,
-                segments: segs,
-                value: val,
-                stroke: 9,
-                color: HrColors.accent,
-                center: CompanionSticker(
-                    icon: comp.icon, color: comp.color, size: 92, semanticLabel: comp.name,
-                    imageAsset: comp.imageAsset),
+        ? comp.tagline
+        : allDone
+        ? 'Perfect day. Every rail cleared.'
+        : done == 0
+        ? "Let's clear the first one."
+        : '${total - done} to go — keep the streak alive.';
+    return Column(
+      children: [
+        SizedBox(
+          height: 156,
+          child: Center(
+            child: SizedBox(
+              width: 150,
+              height: 150,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  SegmentedRing(
+                    size: 140,
+                    segments: segs,
+                    value: val,
+                    stroke: 9,
+                    color: HrColors.accent,
+                    center: CompanionSticker(
+                      icon: comp.icon,
+                      color: comp.color,
+                      size: 92,
+                      semanticLabel: comp.name,
+                      imageAsset: comp.imageAsset,
+                    ),
+                  ),
+                  if (streak > 0) Positioned(top: 0, right: -4, child: StreakPill(count: streak, big: true)),
+                ],
               ),
-              if (streak > 0)
-                Positioned(top: 0, right: -4, child: StreakPill(count: streak, big: true)),
-            ]),
+            ),
           ),
         ),
-      ),
-      const SizedBox(height: 8),
-      SpeechBubble(line, speaker: comp.name, maxWidth: 290),
-    ]);
+        const SizedBox(height: 8),
+        SpeechBubble(line, speaker: comp.name, maxWidth: 290),
+      ],
+    );
   }
 }
 
@@ -1972,83 +1981,94 @@ class _FiveCardState extends State<_FiveCard> {
       padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
       child: HrCard(
         padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          HrLabel(
-            habits.length == 5 ? 'The five' : "Today's habits",
-            trailing: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _reorder = !_reorder),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(_reorder ? Icons.check_rounded : Icons.swap_vert_rounded,
-                    size: 16, color: _reorder ? HrColors.accent : HrColors.text3),
-                const SizedBox(width: 4),
-                Text(_reorder ? 'DONE' : 'REORDER',
-                    style: HrText.labelCaps
-                        .copyWith(color: _reorder ? HrColors.accent : HrColors.text3)),
-              ]),
-            ),
-          ),
-          if (_reorder)
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              itemCount: habits.length,
-              onReorderItem: appState.reorderHabits,
-              itemBuilder: (ctx, i) {
-                final h = habits[i];
-                return Padding(
-                  key: ValueKey('reorder-${h.id}'),
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                  child: Row(children: [
-                    Expanded(
-                      child: Text(h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: HrText.body),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            HrLabel(
+              habits.length == 5 ? 'The five' : "Today's habits",
+              trailing: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _reorder = !_reorder),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _reorder ? Icons.check_rounded : Icons.swap_vert_rounded,
+                      size: 16,
+                      color: _reorder ? HrColors.accent : HrColors.text3,
                     ),
-                    ReorderableDragStartListener(
-                      index: i,
-                      child: const Icon(Icons.drag_handle_rounded, color: HrColors.text3),
+                    const SizedBox(width: 4),
+                    Text(
+                      _reorder ? 'DONE' : 'REORDER',
+                      style: HrText.labelCaps.copyWith(color: _reorder ? HrColors.accent : HrColors.text3),
                     ),
-                  ]),
-                );
-              },
-            )
-          else
-            for (final h in habits)
-              Dismissible(
-                key: ValueKey('five-${h.id}'),
-                direction: DismissDirection.endToStart,
-                onDismissed: (_) {
-                  appState.deleteHabit(h);
-                  hrToast(context, 'Habit removed',
-                      icon: Icons.delete_outline_rounded);
-                },
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  margin: const EdgeInsets.symmetric(vertical: 2),
-                  decoration: BoxDecoration(
-                      color: HrColors.dangerSurface,
-                      borderRadius: BorderRadius.circular(HrRadius.sm)),
-                  child: const Icon(Icons.delete_outline_rounded,
-                      color: HrColors.dangerText),
-                ),
-                child: HabitRow(
-                  title: h.name,
-                  icon: h.icon,
-                  rarity: h.rarity,
-                  done: appState.doneToday(h),
-                  streak: h.streak,
-                  reminder: h.reminderMinutes != null
-                      ? _fmtReminder(h.reminderMinutes!)
-                      : null,
-                  onToggle: () => widget.onToggle(h),
-                  onEdit: () => showHabitEditor(context, h),
+                  ],
                 ),
               ),
-        ]),
+            ),
+            if (_reorder)
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                itemCount: habits.length,
+                onReorderItem: appState.reorderHabits,
+                itemBuilder: (ctx, i) {
+                  final h = habits[i];
+                  return Padding(
+                    key: ValueKey('reorder-${h.id}'),
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: HrText.body,
+                          ),
+                        ),
+                        ReorderableDragStartListener(
+                          index: i,
+                          child: const Icon(Icons.drag_handle_rounded, color: HrColors.text3),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              )
+            else
+              for (final h in habits)
+                Dismissible(
+                  key: ValueKey('five-${h.id}'),
+                  direction: DismissDirection.endToStart,
+                  onDismissed: (_) {
+                    appState.deleteHabit(h);
+                    hrToast(context, 'Habit removed', icon: Icons.delete_outline_rounded);
+                  },
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    decoration: BoxDecoration(
+                      color: HrColors.dangerSurface,
+                      borderRadius: BorderRadius.circular(HrRadius.sm),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded, color: HrColors.dangerText),
+                  ),
+                  child: HabitRow(
+                    title: h.name,
+                    icon: h.icon,
+                    rarity: h.rarity,
+                    done: appState.doneToday(h),
+                    streak: h.streak,
+                    reminder: h.reminderMinutes != null ? _fmtReminder(h.reminderMinutes!) : null,
+                    onToggle: () => widget.onToggle(h),
+                    onEdit: () => showHabitEditor(context, h),
+                  ),
+                ),
+          ],
+        ),
       ),
     );
   }
@@ -2056,26 +2076,22 @@ class _FiveCardState extends State<_FiveCard> {
 
 // Zero-habits prompt shown in place of the five-card.
 Widget _todayEmpty(BuildContext context) => Padding(
-      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
-      child: HrCard(
-        padding: const EdgeInsets.all(24),
-        child: Column(children: [
-          const Text('🌱', style: TextStyle(fontSize: 40)),
-          const SizedBox(height: 12),
-          Text('No habits yet', style: HrText.title2),
-          const SizedBox(height: 6),
-          Text('Add your first habit to start your rail.',
-              textAlign: TextAlign.center, style: HrText.bodyS),
-          const SizedBox(height: 18),
-          HrButton(
-            label: 'Add habit',
-            icon: Icons.add_rounded,
-            expand: false,
-            onPressed: () => showHabitEditor(context),
-          ),
-        ]),
-      ),
-    );
+  padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+  child: HrCard(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      children: [
+        const Text('🌱', style: TextStyle(fontSize: 40)),
+        const SizedBox(height: 12),
+        Text('No habits yet', style: HrText.title2),
+        const SizedBox(height: 6),
+        Text('Add your first habit to start your rail.', textAlign: TextAlign.center, style: HrText.bodyS),
+        const SizedBox(height: 18),
+        HrButton(label: 'Add habit', icon: Icons.add_rounded, expand: false, onPressed: () => showHabitEditor(context)),
+      ],
+    ),
+  ),
+);
 
 class _VictoryCard extends StatelessWidget {
   const _VictoryCard();
@@ -2091,32 +2107,34 @@ class _VictoryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(HrRadius.md),
         border: const Border(top: BorderSide(color: HrColors.hairline)),
       ),
-      child: Row(children: [
-        SegmentedRing(
-          size: 64,
-          segments: 1,
-          value: v.score / 100,
-          stroke: 6,
-          color: color,
-          center: Text('${v.score}', style: HrText.stat.copyWith(fontSize: 20)),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('VICTORY SCORE', style: HrText.labelCaps),
-              const SizedBox(height: 3),
-              Text(victoryLabel(v.score),
-                  style: HrText.headline.copyWith(color: color)),
-              const SizedBox(height: 4),
-              Text(
-                  'Habits ${v.habits} · Nutr ${v.nutrition} · Focus ${v.focus} · Sleep ${v.sleep}',
-                  style: HrText.caption),
-            ],
+      child: Row(
+        children: [
+          SegmentedRing(
+            size: 64,
+            segments: 1,
+            value: v.score / 100,
+            stroke: 6,
+            color: color,
+            center: Text('${v.score}', style: HrText.stat.copyWith(fontSize: 20)),
           ),
-        ),
-      ]),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('VICTORY SCORE', style: HrText.labelCaps),
+                const SizedBox(height: 3),
+                Text(victoryLabel(v.score), style: HrText.headline.copyWith(color: color)),
+                const SizedBox(height: 4),
+                Text(
+                  'Habits ${v.habits} · Nutr ${v.nutrition} · Focus ${v.focus} · Sleep ${v.sleep}',
+                  style: HrText.caption,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2138,40 +2156,50 @@ class _BossCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Image.asset(kBossImageAsset,
-                width: 42, height: 42, fit: BoxFit.contain,
-                semanticLabel: 'Veil Regent weekly boss'),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(kBossTitle,
-                  style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
-            ),
-            Text(defeated ? 'DEFEATED' : '$count/$kBossGoal',
+          Row(
+            children: [
+              Image.asset(
+                kBossImageAsset,
+                width: 42,
+                height: 42,
+                fit: BoxFit.contain,
+                semanticLabel: 'Veil Regent weekly boss',
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(kBossTitle, style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+              ),
+              Text(
+                defeated ? 'DEFEATED' : '$count/$kBossGoal',
                 style: HrText.body.copyWith(
-                    color: defeated ? HrColors.gold : HrColors.text2,
-                    fontWeight: FontWeight.w800)),
-          ]),
+                  color: defeated ? HrColors.gold : HrColors.text2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(HrRadius.full),
             child: LinearProgressIndicator(
-                value: (count / kBossGoal).clamp(0.0, 1.0).toDouble(),
-                minHeight: 8,
-                backgroundColor: HrColors.surface3,
-                valueColor: const AlwaysStoppedAnimation(HrColors.gold)),
+              value: (count / kBossGoal).clamp(0.0, 1.0).toDouble(),
+              minHeight: 8,
+              backgroundColor: HrColors.surface3,
+              valueColor: const AlwaysStoppedAnimation(HrColors.gold),
+            ),
           ),
           const SizedBox(height: 10),
           Text(
-              defeated
-                  ? 'Reward claimed: +$kBossXp XP · +$kBossCoins coins'
-                  : '$kBossDesc  (+$kBossXp XP, +$kBossCoins coins)',
-              style: HrText.caption),
+            defeated
+                ? 'Reward claimed: +$kBossXp XP · +$kBossCoins coins'
+                : '$kBossDesc  (+$kBossXp XP, +$kBossCoins coins)',
+            style: HrText.caption,
+          ),
           const SizedBox(height: 6),
           Text(
-              'Season ${appState.currentSeason + 1} · ${appState.seasonBossDefeats}/4 bosses',
-              style: HrText.caption.copyWith(
-                  color: HrColors.info, fontWeight: FontWeight.w700)),
+            'Season ${appState.currentSeason + 1} · ${appState.seasonBossDefeats}/4 bosses',
+            style: HrText.caption.copyWith(color: HrColors.info, fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );
@@ -2198,8 +2226,7 @@ class _QuestsPanel extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('DAILY QUESTS', style: HrText.labelCaps),
-              Text('${claimed.length}/${kQuests.length}',
-                  style: HrText.labelCaps.copyWith(color: HrColors.accent)),
+              Text('${claimed.length}/${kQuests.length}', style: HrText.labelCaps.copyWith(color: HrColors.accent)),
             ],
           ),
           const SizedBox(height: 10),
@@ -2207,22 +2234,32 @@ class _QuestsPanel extends StatelessWidget {
             final on = claimed.contains(q.id);
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(children: [
-                Icon(on ? Icons.check_circle_rounded : Icons.circle_outlined,
-                    size: 18, color: on ? HrColors.accent : HrColors.text3),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(q.title,
+              child: Row(
+                children: [
+                  Icon(
+                    on ? Icons.check_circle_rounded : Icons.circle_outlined,
+                    size: 18,
+                    color: on ? HrColors.accent : HrColors.text3,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      q.title,
                       style: HrText.bodyS.copyWith(
                         color: on ? HrColors.text3 : HrColors.text,
                         decoration: on ? TextDecoration.lineThrough : null,
-                      )),
-                ),
-                Text('+${q.xp}',
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '+${q.xp}',
                     style: HrText.caption.copyWith(
-                        color: on ? HrColors.text3 : HrColors.accent,
-                        fontWeight: FontWeight.w800)),
-              ]),
+                      color: on ? HrColors.text3 : HrColors.accent,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
             );
           }),
         ],
@@ -2255,44 +2292,44 @@ void _showMoment(
           borderRadius: BorderRadius.circular(HrRadius.xl),
           border: const Border(top: BorderSide(color: HrColors.hairline)),
         ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(label.toUpperCase(),
-              style: HrText.labelCaps.copyWith(color: labelColor, letterSpacing: 2)),
-          const SizedBox(height: 16),
-          emblem,
-          const SizedBox(height: 18),
-          Text(title, textAlign: TextAlign.center, style: HrText.title1),
-          if (subtitle != null) ...[
-            const SizedBox(height: 6),
-            Text(subtitle, textAlign: TextAlign.center, style: HrText.bodyS),
-          ],
-          if (bubble != null) ...[
-            const SizedBox(height: 14),
-            SpeechBubble(bubble, maxWidth: 240),
-          ],
-          if (rewards.isNotEmpty) ...[
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label.toUpperCase(), style: HrText.labelCaps.copyWith(color: labelColor, letterSpacing: 2)),
             const SizedBox(height: 16),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: rewards),
+            emblem,
+            const SizedBox(height: 18),
+            Text(title, textAlign: TextAlign.center, style: HrText.title1),
+            if (subtitle != null) ...[
+              const SizedBox(height: 6),
+              Text(subtitle, textAlign: TextAlign.center, style: HrText.bodyS),
+            ],
+            if (bubble != null) ...[const SizedBox(height: 14), SpeechBubble(bubble, maxWidth: 240)],
+            if (rewards.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: rewards),
+            ],
+            const SizedBox(height: 22),
+            HrButton(label: buttonLabel, onPressed: () => Navigator.pop(ctx)),
           ],
-          const SizedBox(height: 22),
-          HrButton(label: buttonLabel, onPressed: () => Navigator.pop(ctx)),
-        ]),
+        ),
       ),
     ),
   );
 }
 
 Widget _momentReward(String value, String label, Color color) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      margin: const EdgeInsets.symmetric(horizontal: 5),
-      decoration: BoxDecoration(
-          color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
-      child: Column(children: [
-        Text(value, style: HrText.title2.copyWith(color: color)),
-        const SizedBox(height: 2),
-        Text(label, style: HrText.micro),
-      ]),
-    );
+  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+  margin: const EdgeInsets.symmetric(horizontal: 5),
+  decoration: BoxDecoration(color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
+  child: Column(
+    children: [
+      Text(value, style: HrText.title2.copyWith(color: color)),
+      const SizedBox(height: 2),
+      Text(label, style: HrText.micro),
+    ],
+  ),
+);
 
 void _showBossDefeat(BuildContext context) {
   _showMoment(
@@ -2305,15 +2342,11 @@ void _showBossDefeat(BuildContext context) {
       value: 1,
       stroke: 9,
       color: HrColors.gold,
-      center: Image.asset(kBossImageAsset,
-          width: 76, height: 76, fit: BoxFit.contain, semanticLabel: 'Weekly boss'),
+      center: Image.asset(kBossImageAsset, width: 76, height: 76, fit: BoxFit.contain, semanticLabel: 'Weekly boss'),
     ),
     title: 'Weekly Sovereignty\nChallenge',
     bubble: companionLine(appState.activeCompanion, 'boss_defeat'),
-    rewards: [
-      _momentReward('+$kBossXp', 'XP', HrColors.gold),
-      _momentReward('+$kBossCoins', 'Coins', HrColors.text),
-    ],
+    rewards: [_momentReward('+$kBossXp', 'XP', HrColors.gold), _momentReward('+$kBossCoins', 'Coins', HrColors.text)],
     buttonLabel: 'Claim',
   );
 }
@@ -2404,17 +2437,21 @@ class _FocusScreenState extends State<FocusScreen> {
       backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
-            child: Row(children: [
-              Text('Focus', style: HrText.display),
-              const Spacer(),
-              _coinChip(context),
-            ]),
-          ),
-          Expanded(child: _complete ? _completeView(context) : _timerView(context)),
-        ]),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+              child: Row(
+                children: [
+                  Text('Focus', style: HrText.display),
+                  const Spacer(),
+                  _coinChip(context),
+                ],
+              ),
+            ),
+            Expanded(child: _complete ? _completeView(context) : _timerView(context)),
+          ],
+        ),
       ),
     );
   }
@@ -2427,135 +2464,158 @@ class _FocusScreenState extends State<FocusScreen> {
     final sub = !_started
         ? '$_minutes min session'
         : _running
-            ? 'Deep work'
-            : 'Paused';
-    return Column(children: [
-      const Spacer(),
-      SegmentedRing(
-        size: 260,
-        segments: 1,
-        value: frac,
-        stroke: 10,
-        color: HrColors.accent,
-        center: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('$mm:$ss', style: HrText.numeralXl),
-          const SizedBox(height: 4),
-          Text(sub, style: HrText.caption),
-        ]),
-      ),
-      const Spacer(),
-      if (!_started)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
-          child: HrSegmented(
-            items: _durations.map((m) => '$m').toList(),
-            index: _durations.indexOf(_minutes).clamp(0, _durations.length - 1),
-            onChanged: (i) => _setMinutes(_durations[i]),
+        ? 'Deep work'
+        : 'Paused';
+    return Column(
+      children: [
+        const Spacer(),
+        SegmentedRing(
+          size: 260,
+          segments: 1,
+          value: frac,
+          stroke: 10,
+          color: HrColors.accent,
+          center: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('$mm:$ss', style: HrText.numeralXl),
+              const SizedBox(height: 4),
+              Text(sub, style: HrText.caption),
+            ],
           ),
         ),
-      const SizedBox(height: 16),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
-        child: !_started
-            ? HrButton(
-                label: 'Start focus',
-                icon: Icons.play_arrow_rounded,
-                kind: HrButtonKind.accent,
-                onPressed: _start,
-              )
-            : Row(children: [
-                Expanded(
-                  child: HrButton(
-                    label: 'Reset',
-                    icon: Icons.refresh_rounded,
-                    kind: HrButtonKind.secondary,
-                    onPressed: _reset,
-                  ),
+        const Spacer(),
+        if (!_started)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+            child: HrSegmented(
+              items: _durations.map((m) => '$m').toList(),
+              index: _durations.indexOf(_minutes).clamp(0, _durations.length - 1),
+              onChanged: (i) => _setMinutes(_durations[i]),
+            ),
+          ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+          child: !_started
+              ? HrButton(
+                  label: 'Start focus',
+                  icon: Icons.play_arrow_rounded,
+                  kind: HrButtonKind.accent,
+                  onPressed: _start,
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      child: HrButton(
+                        label: 'Reset',
+                        icon: Icons.refresh_rounded,
+                        kind: HrButtonKind.secondary,
+                        onPressed: _reset,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _running
+                          ? HrButton(
+                              label: 'Pause',
+                              icon: Icons.pause_rounded,
+                              kind: HrButtonKind.primary,
+                              onPressed: _pause,
+                            )
+                          : HrButton(
+                              label: 'Resume',
+                              icon: Icons.play_arrow_rounded,
+                              kind: HrButtonKind.accent,
+                              onPressed: _start,
+                            ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _running
-                      ? HrButton(
-                          label: 'Pause',
-                          icon: Icons.pause_rounded,
-                          kind: HrButtonKind.primary,
-                          onPressed: _pause,
-                        )
-                      : HrButton(
-                          label: 'Resume',
-                          icon: Icons.play_arrow_rounded,
-                          kind: HrButtonKind.accent,
-                          onPressed: _start,
-                        ),
-                ),
-              ]),
-      ),
-      const SizedBox(height: 10),
-      Text(
-        !_started
-            ? 'Finish a session to earn XP · today ${appState.focusMinutesToday} min'
-            : _running
-                ? 'Session in progress · +${_minutes * 2} XP at the end'
-                : 'Session paused',
-        style: HrText.caption,
-        textAlign: TextAlign.center,
-      ),
-      const SizedBox(height: 24),
-    ]);
+        ),
+        const SizedBox(height: 10),
+        Text(
+          !_started
+              ? 'Finish a session to earn XP · today ${appState.focusMinutesToday} min'
+              : _running
+              ? 'Session in progress · +${_minutes * 2} XP at the end'
+              : 'Session paused',
+          style: HrText.caption,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
   }
 
   Widget _completeView(BuildContext context) {
     final comp = companionByType(appState.activeCompanion);
     final questDone = kQuests.firstWhere((q) => q.id == 'q2').done(appState);
-    return Column(children: [
-      const Spacer(),
-      SegmentedRing(
-        size: 260,
-        segments: 1,
-        value: 1,
-        stroke: 10,
-        color: HrColors.accent,
-        center: CompanionSticker(
-            icon: comp.icon, color: comp.color, size: 96, semanticLabel: comp.name,
-            imageAsset: comp.imageAsset),
-      ),
-      const SizedBox(height: 16),
-      const SpeechBubble('Session complete. Output logged.', maxWidth: 260),
-      const Spacer(),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
-        child: Row(children: [
-          Expanded(child: _rewardTile('+$_lastGain', 'XP', HrColors.streak)),
-          const SizedBox(width: 10),
-          Expanded(child: _rewardTile('${appState.focusMinutesToday}', 'Min today', HrColors.text)),
-          const SizedBox(width: 10),
-          Expanded(child: _rewardTile(questDone ? '1/1' : '0/1', 'Quest',
-              questDone ? HrColors.accent : HrColors.text3)),
-        ]),
-      ),
-      const SizedBox(height: 16),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
-        child: HrButton(label: 'Back to Today', onPressed: _backToToday),
-      ),
-      const SizedBox(height: 24),
-    ]);
+    return Column(
+      children: [
+        const Spacer(),
+        SegmentedRing(
+          size: 260,
+          segments: 1,
+          value: 1,
+          stroke: 10,
+          color: HrColors.accent,
+          center: CompanionSticker(
+            icon: comp.icon,
+            color: comp.color,
+            size: 96,
+            semanticLabel: comp.name,
+            imageAsset: comp.imageAsset,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const SpeechBubble('Session complete. Output logged.', maxWidth: 260),
+        const Spacer(),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+          child: Row(
+            children: [
+              Expanded(child: _rewardTile('+$_lastGain', 'XP', HrColors.streak)),
+              const SizedBox(width: 10),
+              Expanded(child: _rewardTile('${appState.focusMinutesToday}', 'Min today', HrColors.text)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _rewardTile(questDone ? '1/1' : '0/1', 'Quest', questDone ? HrColors.accent : HrColors.text3),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+          child: HrButton(label: 'Back to Today', onPressed: _backToToday),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
   }
 
   Widget _rewardTile(String value, String label, Color color) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: BoxDecoration(
-          color: HrColors.surface,
-          borderRadius: BorderRadius.circular(HrRadius.md),
-          border: const Border(top: BorderSide(color: HrColors.hairline)),
+    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+    decoration: BoxDecoration(
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: const Border(top: BorderSide(color: HrColors.hairline)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: HrText.title2.copyWith(color: color),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: HrText.title2.copyWith(color: color)),
-          const SizedBox(height: 2),
-          Text(label, style: HrText.caption),
-        ]),
-      );
+        const SizedBox(height: 2),
+        Text(label, style: HrText.caption),
+      ],
+    ),
+  );
 }
 
 // ── STATS ───────────────────────────────────────────────────────────────────
@@ -2575,46 +2635,63 @@ class _ProgressScreenState extends State<ProgressScreen> {
       backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
-            child: Row(children: [
-              Text('Progress', style: HrText.display),
-              const Spacer(),
-              IconButton(
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const ShareCardScreen())),
-                icon: const Icon(Icons.ios_share_rounded, color: HrColors.text2),
-                tooltip: 'Share progress',
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+              child: Row(
+                children: [
+                  Text('Progress', style: HrText.display),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () =>
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShareCardScreen())),
+                    icon: const Icon(Icons.ios_share_rounded, color: HrColors.text2),
+                    tooltip: 'Share progress',
+                  ),
+                ],
               ),
-            ]),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 10),
-            child: HrSegmented(
-              items: const ['Calendar', 'Stats', 'Awards', 'Journal'],
-              index: _seg,
-              onChanged: (i) => setState(() => _seg = i),
             ),
-          ),
-          Expanded(
-            // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
-            child: IndexedStack(index: _seg, children: <Widget>[
-              CalendarScreen(embedded: true),
-              StatsScreen(embedded: true),
-              AwardsScreen(embedded: true),
-              JournalScreen(embedded: true),
-            ]),
-          ),
-        ]),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 10),
+              child: HrSegmented(
+                items: const ['Calendar', 'Stats', 'Awards', 'Journal'],
+                index: _seg,
+                onChanged: (i) => setState(() => _seg = i),
+              ),
+            ),
+            Expanded(
+              // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
+              child: IndexedStack(
+                index: _seg,
+                children: <Widget>[
+                  CalendarScreen(embedded: true),
+                  StatsScreen(embedded: true),
+                  AwardsScreen(embedded: true),
+                  JournalScreen(embedded: true),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 const _kMonthsFull = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 String _compactNum(int n) {
@@ -2641,8 +2718,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _month = DateTime(now.year, now.month, 1);
   }
 
-  void _shift(int d) =>
-      setState(() => _month = DateTime(_month.year, _month.month + d, 1));
+  void _shift(int d) => setState(() => _month = DateTime(_month.year, _month.month + d, 1));
 
   @override
   Widget build(BuildContext context) {
@@ -2660,26 +2736,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: SizedBox(
               width: 150,
               height: 150,
-              child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
-                SegmentedRing(
-                  size: 140,
-                  segments: 7,
-                  value: week.toDouble(),
-                  stroke: 9,
-                  color: HrColors.accent,
-                  center: CompanionSticker(
-                      icon: comp.icon, color: comp.color, size: 86, semanticLabel: comp.name,
-                      imageAsset: comp.imageAsset),
-                ),
-                if (streak > 0)
-                  Positioned(
-                    bottom: -6,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                        child: StreakPill(count: streak, big: true, label: '$streak DAY STREAK')),
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  SegmentedRing(
+                    size: 140,
+                    segments: 7,
+                    value: week.toDouble(),
+                    stroke: 9,
+                    color: HrColors.accent,
+                    center: CompanionSticker(
+                      icon: comp.icon,
+                      color: comp.color,
+                      size: 86,
+                      semanticLabel: comp.name,
+                      imageAsset: comp.imageAsset,
+                    ),
                   ),
-              ]),
+                  if (streak > 0)
+                    Positioned(
+                      bottom: -6,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: StreakPill(count: streak, big: true, label: '$streak DAY STREAK'),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -2702,40 +2787,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final atCurrentMonth = first.year == now.year && first.month == now.month;
     return HrCard(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
-      child: Column(children: [
-        Row(children: [
-          Text('${_kMonthsFull[first.month - 1]} ${first.year}', style: HrText.headline),
-          const Spacer(),
-          IconButton(
-            onPressed: () => _shift(-1),
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.chevron_left_rounded, color: HrColors.text2),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text('${_kMonthsFull[first.month - 1]} ${first.year}', style: HrText.headline),
+              const Spacer(),
+              IconButton(
+                onPressed: () => _shift(-1),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.chevron_left_rounded, color: HrColors.text2),
+              ),
+              IconButton(
+                onPressed: atCurrentMonth ? null : () => _shift(1),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.chevron_right_rounded, color: HrColors.text2),
+              ),
+            ],
           ),
-          IconButton(
-            onPressed: atCurrentMonth ? null : () => _shift(1),
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.chevron_right_rounded, color: HrColors.text2),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              for (final d in const ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'])
+                Expanded(
+                  child: Center(child: Text(d, style: HrText.micro)),
+                ),
+            ],
           ),
-        ]),
-        const SizedBox(height: 4),
-        Row(children: [
-          for (final d in const ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'])
-            Expanded(child: Center(child: Text(d, style: HrText.micro))),
-        ]),
-        const SizedBox(height: 8),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 7,
-          mainAxisSpacing: 6,
-          crossAxisSpacing: 6,
-          children: [
-            for (int i = 0; i < leading; i++) const SizedBox.shrink(),
-            for (int day = 1; day <= daysInMonth; day++)
-              _dayCell(context, DateTime(first.year, first.month, day), todayK, now),
-          ],
-        ),
-      ]),
+          const SizedBox(height: 8),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 7,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 6,
+            children: [
+              for (int i = 0; i < leading; i++) const SizedBox.shrink(),
+              for (int day = 1; day <= daysInMonth; day++)
+                _dayCell(context, DateTime(first.year, first.month, day), todayK, now),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -2765,11 +2858,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
             border: isToday ? Border.all(color: HrColors.text, width: 1.5) : null,
           ),
           alignment: Alignment.center,
-          child: mark ??
-              Text('${date.day}',
-                  style: HrText.caption.copyWith(
-                      color: strong ? HrColors.onAccent : HrColors.text2,
-                      fontWeight: isToday ? FontWeight.w800 : FontWeight.w500)),
+          child:
+              mark ??
+              Text(
+                '${date.day}',
+                style: HrText.caption.copyWith(
+                  color: strong ? HrColors.onAccent : HrColors.text2,
+                  fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                ),
+              ),
         ),
       ),
     );
@@ -2779,34 +2876,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: HrColors.surface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
       builder: (_) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(color: HrColors.surface3, borderRadius: BorderRadius.circular(2)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: HrColors.surface3, borderRadius: BorderRadius.circular(2)),
+              ),
             ),
-          ),
-          Text('${_kWeekdays[date.weekday - 1]}, ${_kMonthsFull[date.month - 1]} ${date.day}',
-              style: HrText.title2),
-          const SizedBox(height: 14),
-          if (score == null)
-            Text('No activity recorded for this day.', style: HrText.bodyS)
-          else
-            Row(children: [
-              CountSticker('$score', size: 30, fill: HrColors.victory(score)),
-              const SizedBox(width: 16),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(victoryLabel(score), style: HrText.headline.copyWith(color: HrColors.victory(score))),
-                const SizedBox(height: 2),
-                Text('Victory score${perfect ? ' · Perfect day' : ''}', style: HrText.caption),
-              ]),
-            ]),
-        ]),
+            Text('${_kWeekdays[date.weekday - 1]}, ${_kMonthsFull[date.month - 1]} ${date.day}', style: HrText.title2),
+            const SizedBox(height: 14),
+            if (score == null)
+              Text('No activity recorded for this day.', style: HrText.bodyS)
+            else
+              Row(
+                children: [
+                  CountSticker('$score', size: 30, fill: HrColors.victory(score)),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(victoryLabel(score), style: HrText.headline.copyWith(color: HrColors.victory(score))),
+                      const SizedBox(height: 2),
+                      Text('Victory score${perfect ? ' · Perfect day' : ''}', style: HrText.caption),
+                    ],
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -2819,44 +2924,54 @@ class _StatTile extends StatelessWidget {
   final Color color;
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: HrColors.surface,
-          borderRadius: BorderRadius.circular(HrRadius.md),
-          border: const Border(top: BorderSide(color: HrColors.hairline)),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: const Border(top: BorderSide(color: HrColors.hairline)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: HrText.stat.copyWith(color: color),
         ),
-        child: Column(
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: HrText.stat.copyWith(color: color)),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
-              if (sub != null)
-                Text(sub!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: HrText.micro.copyWith(color: HrColors.text3)),
-            ]),
+            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
+            if (sub != null)
+              Text(
+                sub!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: HrText.micro.copyWith(color: HrColors.text3),
+              ),
           ],
         ),
-      );
+      ],
+    ),
+  );
 }
 
 Widget _legacyLink(BuildContext context) => HrCard(
-      onTap: () => Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const LegacyScreen())),
-      child: Row(children: [
-        const Icon(Icons.history_rounded, color: HrColors.text2, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text('Legacy timeline',
-              style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
-        ),
-        Text('${appState.milestoneLog.length}',
-            style: HrText.body.copyWith(color: HrColors.text3)),
-        const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
-      ]),
-    );
+  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LegacyScreen())),
+  child: Row(
+    children: [
+      const Icon(Icons.history_rounded, color: HrColors.text2, size: 20),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Text('Legacy timeline', style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+      ),
+      Text('${appState.milestoneLog.length}', style: HrText.body.copyWith(color: HrColors.text3)),
+      const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+    ],
+  ),
+);
 
 class StatsScreen extends StatelessWidget {
   const StatsScreen({this.embedded = false, super.key});
@@ -2883,9 +2998,7 @@ class StatsScreen extends StatelessWidget {
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
           childAspectRatio: 0.9,
-          children: tiles
-              .map((t) => _StatTile(label: t.$1, value: t.$2, sub: t.$3, color: t.$4))
-              .toList(),
+          children: tiles.map((t) => _StatTile(label: t.$1, value: t.$2, sub: t.$3, color: t.$4)).toList(),
         ),
         const SizedBox(height: 14),
         const _WeekTrendCard(),
@@ -2906,31 +3019,40 @@ class _HabitStreaksCard extends StatelessWidget {
   const _HabitStreaksCard();
   @override
   Widget build(BuildContext context) {
-    final habits = [...appState.habits]
-      ..sort((a, b) => b.streak.compareTo(a.streak));
+    final habits = [...appState.habits]..sort((a, b) => b.streak.compareTo(a.streak));
     if (habits.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
       child: HrCard(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const HrLabel('Habit streaks'),
-          ...habits.take(8).map((h) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                child: Row(children: [
-                  Expanded(
-                    child: Text(
-                        h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: HrText.body.copyWith(color: HrColors.text2)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const HrLabel('Habit streaks'),
+            ...habits
+                .take(8)
+                .map(
+                  (h) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: HrText.body.copyWith(color: HrColors.text2),
+                          ),
+                        ),
+                        if (h.streak > 0)
+                          StreakPill(count: h.streak, quiet: true)
+                        else
+                          Text('—', style: HrText.body.copyWith(color: HrColors.text3)),
+                      ],
+                    ),
                   ),
-                  if (h.streak > 0)
-                    StreakPill(count: h.streak, quiet: true)
-                  else
-                    Text('—', style: HrText.body.copyWith(color: HrColors.text3)),
-                ]),
-              )),
-        ]),
+                ),
+          ],
+        ),
       ),
     );
   }
@@ -2950,23 +3072,22 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
   Future<void> _share() async {
     setState(() => _busy = true);
     try {
-      final boundary =
-          _cardKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final boundary = _cardKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       final box = context.findRenderObject() as RenderBox?;
-      final origin =
-          box != null ? (box.localToGlobal(Offset.zero) & box.size) : null;
+      final origin = box != null ? (box.localToGlobal(Offset.zero) & box.size) : null;
       final image = await boundary.toImage(pixelRatio: 3);
       final data = await image.toByteData(format: ImageByteFormat.png);
       if (data == null) throw 'encode failed';
-      final file = File(
-          '${Directory.systemTemp.path}/habitrail_progress_${DateTime.now().millisecondsSinceEpoch}.png');
+      final file = File('${Directory.systemTemp.path}/habitrail_progress_${DateTime.now().millisecondsSinceEpoch}.png');
       await file.writeAsBytes(data.buffer.asUint8List());
-      await SharePlus.instance.share(ShareParams(
-        files: [XFile(file.path)],
-        text:
-            "I'm Level ${appState.level} on Habitrail with a ${appState.bestStreak}-day streak! 🔥 Build habits, earn XP, level up.",
-        sharePositionOrigin: origin,
-      ));
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text:
+              "I'm Level ${appState.level} on Habitrail with a ${appState.bestStreak}-day streak! 🔥 Build habits, earn XP, level up.",
+          sharePositionOrigin: origin,
+        ),
+      );
     } catch (_) {
       if (mounted) _toast(context, "Couldn't share right now.");
     } finally {
@@ -3017,29 +3138,31 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                         const SizedBox(height: 22),
                         _Avatar(size: 92),
                         const SizedBox(height: 14),
-                        Text(appState.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: HrText.title1),
+                        Text(appState.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.title1),
                         const SizedBox(height: 3),
-                        Text('Level ${ld.level} · ${levelTitle(ld.level)}',
-                            style: HrText.caption),
+                        Text('Level ${ld.level} · ${levelTitle(ld.level)}', style: HrText.caption),
                         const SizedBox(height: 22),
-                        Row(children: [
-                          _shareStat('🔥', 'Streak', '${appState.bestStreak}'),
-                          _shareStat('🏆', 'Victory', '${v.score}'),
-                          _shareStat('⭐', 'Level', '${ld.level}'),
-                        ]),
+                        Row(
+                          children: [
+                            _shareStat('🔥', 'Streak', '${appState.bestStreak}'),
+                            _shareStat('🏆', 'Victory', '${v.score}'),
+                            _shareStat('⭐', 'Level', '${ld.level}'),
+                          ],
+                        ),
                         const SizedBox(height: 14),
-                        Row(children: [
-                          _shareStat('⚡', 'Total XP', '${appState.totalXp}'),
-                          _shareStat(
-                              '✅', 'Habits', '${appState.habits.length}'),
-                          _shareStat('👑', 'Prestige', '${appState.prestige}'),
-                        ]),
+                        Row(
+                          children: [
+                            _shareStat('⚡', 'Total XP', '${appState.totalXp}'),
+                            _shareStat('✅', 'Habits', '${appState.habits.length}'),
+                            _shareStat('👑', 'Prestige', '${appState.prestige}'),
+                          ],
+                        ),
                         const SizedBox(height: 22),
-                        Text('Build habits. Earn XP. Level up your life.',
-                            textAlign: TextAlign.center, style: HrText.micro),
+                        Text(
+                          'Build habits. Earn XP. Level up your life.',
+                          textAlign: TextAlign.center,
+                          style: HrText.micro,
+                        ),
                       ],
                     ),
                   ),
@@ -3053,8 +3176,11 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                 onPressed: _busy ? null : _share,
               ),
               const SizedBox(height: 10),
-              Text('Share your card to show off your streak and level.',
-                  textAlign: TextAlign.center, style: HrText.caption),
+              Text(
+                'Share your card to show off your streak and level.',
+                textAlign: TextAlign.center,
+                style: HrText.caption,
+              ),
             ],
           ),
         );
@@ -3064,20 +3190,21 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
 }
 
 Widget _shareStat(String emoji, String label, String value) => Expanded(
-      child: Column(children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
-        const SizedBox(height: 4),
-        Text(value, style: HrText.headline),
-        Text(label, style: HrText.micro),
-      ]),
-    );
+  child: Column(
+    children: [
+      Text(emoji, style: const TextStyle(fontSize: 18)),
+      const SizedBox(height: 4),
+      Text(value, style: HrText.headline),
+      Text(label, style: HrText.micro),
+    ],
+  ),
+);
 
 // ── FRIENDS & LEADERBOARD ────────────────────────────────────────────────────
 
 // A ranked entry (you or a friend) for the leaderboard.
 class _Ranked {
-  _Ranked(this.name, this.totalXp, this.streak, this.borderId, this.isMe,
-      {this.friendId});
+  _Ranked(this.name, this.totalXp, this.streak, this.borderId, this.isMe, {this.friendId});
   final String name;
   final int totalXp;
   final int streak;
@@ -3101,49 +3228,51 @@ class _FriendsScreenState extends State<FriendsScreen> {
       builder: (context, _) {
         // Leaderboard = you + your friends, ranked by total XP.
         final board = <_Ranked>[
-          _Ranked(appState.displayName, appState.totalXp, appState.bestStreak,
-              appState.selectedBorder, true),
-          ...friends.friends.map((f) => _Ranked(
-              f.name, f.totalXp, f.streak, f.borderId, false,
-              friendId: f.id)),
+          _Ranked(appState.displayName, appState.totalXp, appState.bestStreak, appState.selectedBorder, true),
+          ...friends.friends.map((f) => _Ranked(f.name, f.totalXp, f.streak, f.borderId, false, friendId: f.id)),
         ]..sort((a, b) => b.totalXp.compareTo(a.totalXp));
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: SafeArea(
             bottom: false,
-            child: Column(children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
-                child: Row(children: [
-                  Text('Friends', style: HrText.display),
-                  const Spacer(),
-                  Tooltip(
-                    message: 'Add a friend',
-                    child: Material(
-                      color: HrColors.surface2,
-                      shape: const CircleBorder(),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () => setState(() => _seg = 1),
-                        child: const SizedBox(
-                            width: 38, height: 38,
-                            child: Icon(Icons.person_add_alt_1_rounded, color: HrColors.text, size: 20)),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+                  child: Row(
+                    children: [
+                      Text('Friends', style: HrText.display),
+                      const Spacer(),
+                      Tooltip(
+                        message: 'Add a friend',
+                        child: Material(
+                          color: HrColors.surface2,
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => setState(() => _seg = 1),
+                            child: const SizedBox(
+                              width: 38,
+                              height: 38,
+                              child: Icon(Icons.person_add_alt_1_rounded, color: HrColors.text, size: 20),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ]),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 10, HrSpace.gutter, 10),
-                child: HrSegmented(
-                  items: const ['Leaderboard', 'Friends'],
-                  index: _seg,
-                  onChanged: (i) => setState(() => _seg = i),
                 ),
-              ),
-              Expanded(
-                child: _seg == 0 ? _leaderboardTab(context, board) : _friendsTab(context)),
-            ]),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 10, HrSpace.gutter, 10),
+                  child: HrSegmented(
+                    items: const ['Leaderboard', 'Friends'],
+                    index: _seg,
+                    onChanged: (i) => setState(() => _seg = i),
+                  ),
+                ),
+                Expanded(child: _seg == 0 ? _leaderboardTab(context, board) : _friendsTab(context)),
+              ],
+            ),
           ),
         );
       },
@@ -3195,17 +3324,23 @@ class _FriendsScreenState extends State<FriendsScreen> {
     final comp = companionByType(appState.activeCompanion);
     return Padding(
       padding: const EdgeInsets.only(top: 24),
-      child: Column(children: [
-        CompanionSticker(icon: comp.icon, color: comp.color, size: 72, semanticLabel: comp.name,
-            imageAsset: comp.imageAsset),
-        const SizedBox(height: 14),
-        const SpeechBubble('Habits are easier with witnesses.', maxWidth: 240),
-        const SizedBox(height: 20),
-        Text('No friends yet', style: HrText.title2),
-        const SizedBox(height: 6),
-        Text('Add a friend by username to compare XP and streaks.',
-            textAlign: TextAlign.center, style: HrText.bodyS),
-      ]),
+      child: Column(
+        children: [
+          CompanionSticker(
+            icon: comp.icon,
+            color: comp.color,
+            size: 72,
+            semanticLabel: comp.name,
+            imageAsset: comp.imageAsset,
+          ),
+          const SizedBox(height: 14),
+          const SpeechBubble('Habits are easier with witnesses.', maxWidth: 240),
+          const SizedBox(height: 20),
+          Text('No friends yet', style: HrText.title2),
+          const SizedBox(height: 6),
+          Text('Add a friend by username to compare XP and streaks.', textAlign: TextAlign.center, style: HrText.bodyS),
+        ],
+      ),
     );
   }
 }
@@ -3221,8 +3356,7 @@ class _FriendAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final b = borderById(borderId);
     final hasBorder = b.id != 'none';
-    final ringW =
-        hasBorder ? (size * 0.1).clamp(3.0, 6.0) : (size * 0.06).clamp(2.0, 4.0);
+    final ringW = hasBorder ? (size * 0.1).clamp(3.0, 6.0) : (size * 0.06).clamp(2.0, 4.0);
     final inner = size - ringW * 2;
     final letter = name.isNotEmpty ? name[0].toUpperCase() : '?';
     return Container(
@@ -3232,26 +3366,17 @@ class _FriendAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: b.colors.length == 1 ? b.colors.first : null,
-        gradient: b.colors.length > 1
-            ? SweepGradient(colors: [...b.colors, b.colors.first])
-            : null,
-        boxShadow: b.glow
-            ? [
-                BoxShadow(
-                    color: b.colors.first.withValues(alpha: 0.6),
-                    blurRadius: size * 0.22)
-              ]
-            : null,
+        gradient: b.colors.length > 1 ? SweepGradient(colors: [...b.colors, b.colors.first]) : null,
+        boxShadow: b.glow ? [BoxShadow(color: b.colors.first.withValues(alpha: 0.6), blurRadius: size * 0.22)] : null,
       ),
       child: ClipOval(
         child: Container(
           alignment: Alignment.center,
           decoration: BoxDecoration(gradient: LinearGradient(colors: [kPlasma, kBlue])),
-          child: Text(letter,
-              style: GoogleFonts.spaceGrotesk(
-                  color: Colors.white,
-                  fontSize: inner * 0.42,
-                  fontWeight: FontWeight.w800)),
+          child: Text(
+            letter,
+            style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: inner * 0.42, fontWeight: FontWeight.w800),
+          ),
         ),
       ),
     );
@@ -3259,72 +3384,116 @@ class _FriendAvatar extends StatelessWidget {
 }
 
 Widget _youTag() => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-          color: HrColors.accent.withValues(alpha: 0.22),
-          borderRadius: BorderRadius.circular(HrRadius.xs)),
-      child: Text('YOU',
-          style: HrText.micro.copyWith(
-              color: HrColors.accent, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-    );
+  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+  decoration: BoxDecoration(
+    color: HrColors.accent.withValues(alpha: 0.22),
+    borderRadius: BorderRadius.circular(HrRadius.xs),
+  ),
+  child: Text(
+    'YOU',
+    style: HrText.micro.copyWith(color: HrColors.accent, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+  ),
+);
 
-// Top-3 podium: 2nd · 1st · 3rd, tallest in the middle.
+// Top-three leaderboard profiles, shown without a podium backdrop.
 Widget _podium(BuildContext context, List<_Ranked> board) {
   final top = board.take(3).toList();
   _Ranked? at(int r) => top.length >= r ? top[r - 1] : null;
   const order = [2, 1, 3];
-  const heights = {1: 96.0, 2: 70.0, 3: 58.0};
-  return SizedBox(
-    height: 200,
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (final r in order)
-          if (at(r) != null) Expanded(child: _podiumPillar(context, r, at(r)!, heights[r]!)),
-      ],
-    ),
-  );
-}
+  void openProfile(_Ranked? entry) {
+    if (entry?.friendId == null) return;
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: entry!.friendId!)));
+  }
 
-Widget _podiumPillar(BuildContext context, int rank, _Ranked e, double height) {
-  final barColor = rank == 1
-      ? HrColors.gold
-      : rank == 2
-          ? HrColors.accent
-          : HrColors.surface3;
-  final onBar = rank == 3 ? HrColors.text : HrColors.bg;
-  final pillar = Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-    e.isMe ? _Avatar(size: 46) : _FriendAvatar(name: e.name, borderId: e.borderId, size: 46),
-    const SizedBox(height: 6),
-    Text(e.isMe ? 'You' : e.name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: HrText.caption.copyWith(color: HrColors.text, fontWeight: FontWeight.w700)),
-    const SizedBox(height: 6),
-    Container(
-      height: height,
-      margin: const EdgeInsets.symmetric(horizontal: 6),
-      padding: const EdgeInsets.only(top: 10),
-      decoration: BoxDecoration(
-          color: barColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(HrRadius.sm))),
-      alignment: Alignment.topCenter,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text('$rank', style: HrText.title1.copyWith(color: onBar)),
-        const SizedBox(height: 2),
-        Text('${e.totalXp}', style: HrText.micro.copyWith(color: onBar.withValues(alpha: 0.85))),
-      ]),
-    ),
-  ]);
-  return e.friendId == null
-      ? pillar
-      : GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => FriendProfileScreen(friendId: e.friendId!))),
-          child: pillar,
-        );
+  Widget avatarFor(int rank, double size) {
+    final entry = at(rank);
+    if (entry == null) return SizedBox(width: size, height: size);
+    final avatar = entry.isMe
+        ? _Avatar(size: size)
+        : _FriendAvatar(name: entry.name, borderId: entry.borderId, size: size);
+    return GestureDetector(behavior: HitTestBehavior.opaque, onTap: () => openProfile(entry), child: avatar);
+  }
+
+  Color rankColor(int rank) => switch (rank) {
+    1 => HrColors.gold,
+    2 => HrColors.text2,
+    _ => const Color(0xFFD98A5A),
+  };
+
+  Widget rankSummary(int rank) {
+    final entry = at(rank);
+    if (entry == null) return const Expanded(child: SizedBox.shrink());
+    final label = switch (rank) {
+      1 => '1ST',
+      2 => '2ND',
+      _ => '3RD',
+    };
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => openProfile(entry),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: HrText.micro.copyWith(color: rankColor(rank), fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                entry.isMe ? 'You' : entry.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: HrText.caption.copyWith(fontWeight: FontWeight.w700),
+              ),
+              Text('${entry.totalXp} XP', style: HrText.micro.copyWith(color: HrColors.text2)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final height = width * 2 / 3;
+          // podium_stands.png is 1536x1024 (3:2) — same aspect as this box, so
+          // BoxFit.contain adds no letterbox and these image-fraction centres
+          // land in each ring frame's dark hole. Avatars scale with the width.
+          final d1 = width * 0.145;
+          final d2 = width * 0.145;
+          final d3 = width * 0.137;
+          return SizedBox(
+            width: width,
+            height: height,
+            child: Stack(
+              children: [
+                Image.asset(
+                  'assets/leaderboard/podium_stands.png',
+                  width: width,
+                  height: height,
+                  fit: BoxFit.contain,
+                  semanticLabel: 'Three 3D leaderboard podium stands',
+                ),
+                Positioned(left: width * 0.499 - d1 / 2, top: height * 0.277 - d1 / 2, child: avatarFor(1, d1)),
+                Positioned(left: width * 0.223 - d2 / 2, top: height * 0.527 - d2 / 2, child: avatarFor(2, d2)),
+                Positioned(left: width * 0.808 - d3 / 2, top: height * 0.573 - d3 / 2, child: avatarFor(3, d3)),
+              ],
+            ),
+          );
+        },
+      ),
+      const SizedBox(height: 4),
+      Row(children: [for (final rank in order) rankSummary(rank)]),
+    ],
+  );
 }
 
 Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
@@ -3336,62 +3505,67 @@ Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
       color: e.isMe ? HrColors.accentSurface : HrColors.surface,
       borderRadius: BorderRadius.circular(HrRadius.md),
       border: Border(
-          top: BorderSide(
-              color: e.isMe ? HrColors.accent : HrColors.hairline,
-              width: e.isMe ? 2 : 1)),
-    ),
-    child: Row(children: [
-      SizedBox(
-        width: 24,
-        child: Text('$rank',
-            textAlign: TextAlign.center,
-            style: HrText.body.copyWith(
-                color: rank <= 3 ? HrColors.text : HrColors.text3,
-                fontWeight: FontWeight.w800)),
+        top: BorderSide(color: e.isMe ? HrColors.accent : HrColors.hairline, width: e.isMe ? 2 : 1),
       ),
-      const SizedBox(width: 8),
-      e.isMe
-          ? _Avatar(size: 40)
-          : _FriendAvatar(name: e.name, borderId: e.borderId, size: 40),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Flexible(
-                child: Text(e.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+    ),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 24,
+          child: Text(
+            '$rank',
+            textAlign: TextAlign.center,
+            style: HrText.body.copyWith(color: rank <= 3 ? HrColors.text : HrColors.text3, fontWeight: FontWeight.w800),
+          ),
+        ),
+        const SizedBox(width: 8),
+        e.isMe ? _Avatar(size: 40) : _FriendAvatar(name: e.name, borderId: e.borderId, size: 40),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      e.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  if (e.isMe) ...[const SizedBox(width: 6), _youTag()],
+                ],
               ),
-              if (e.isMe) ...[const SizedBox(width: 6), _youTag()],
-            ]),
-            const SizedBox(height: 2),
-            Text('Lv ${ld.level} · ${levelTitle(ld.level)}',
+              const SizedBox(height: 2),
+              Text(
+                'Lv ${ld.level} · ${levelTitle(ld.level)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: HrText.caption),
+                style: HrText.caption,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        if (e.streak > 0) ...[StreakPill(count: e.streak, quiet: true), const SizedBox(width: 10)],
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text('${e.totalXp}', style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
+            Text('XP', style: HrText.micro),
           ],
         ),
-      ),
-      const SizedBox(width: 8),
-      if (e.streak > 0) ...[StreakPill(count: e.streak, quiet: true), const SizedBox(width: 10)],
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text('${e.totalXp}', style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
-          Text('XP', style: HrText.micro),
-        ],
-      ),
-    ]),
+      ],
+    ),
   );
   return e.friendId == null
       ? row
       : GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => FriendProfileScreen(friendId: e.friendId!))),
+          onTap: () =>
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: e.friendId!))),
           child: row,
         );
 }
@@ -3401,44 +3575,54 @@ Widget _friendCard(BuildContext context, Friend f) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: HrCard(
-      onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: f.id))),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: f.id))),
       padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
-      child: Row(children: [
-        _FriendAvatar(name: f.name, borderId: f.borderId, size: 46),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Flexible(
-                  child: Text(f.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+      child: Row(
+        children: [
+          _FriendAvatar(name: f.name, borderId: f.borderId, size: 46),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        f.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    if (f.prestige > 0) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '★${f.prestige}',
+                        style: HrText.caption.copyWith(color: HrColors.gold, fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ],
                 ),
-                if (f.prestige > 0) ...[
-                  const SizedBox(width: 6),
-                  Text('★${f.prestige}',
-                      style: HrText.caption.copyWith(
-                          color: HrColors.gold, fontWeight: FontWeight.w800)),
-                ],
-              ]),
-              const SizedBox(height: 2),
-              Text('@${f.username} · Lv ${ld.level}',
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  '@${f.username} · Lv ${ld.level}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.caption,
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        if (f.streak > 0) StreakPill(count: f.streak, quiet: true),
-        IconButton(
-          icon: const Icon(Icons.more_horiz_rounded, color: HrColors.text3, size: 20),
-          tooltip: 'Remove',
-          onPressed: () => _confirmRemoveFriend(context, f),
-        ),
-      ]),
+          const SizedBox(width: 8),
+          if (f.streak > 0) StreakPill(count: f.streak, quiet: true),
+          IconButton(
+            icon: const Icon(Icons.more_horiz_rounded, color: HrColors.text3, size: 20),
+            tooltip: 'Remove',
+            onPressed: () => _confirmRemoveFriend(context, f),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -3449,37 +3633,45 @@ Widget _suggestionCard(BuildContext context, Friend f) {
     padding: const EdgeInsets.only(bottom: 8),
     child: HrCard(
       padding: const EdgeInsets.all(12),
-      child: Row(children: [
-        _FriendAvatar(name: f.name, borderId: f.borderId, size: 42),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(f.name,
+      child: Row(
+        children: [
+          _FriendAvatar(name: f.name, borderId: f.borderId, size: 42),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  f.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              Text('@${f.username} · Lv ${ld.level}',
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
-            ],
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '@${f.username} · Lv ${ld.level}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.caption,
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        HrButton(
-          label: 'Add',
-          icon: Icons.add_rounded,
-          kind: HrButtonKind.secondary,
-          small: true,
-          expand: false,
-          onPressed: () async {
-            final err = await friends.addByUsername(f.username);
-            if (!context.mounted) return;
-            _toast(context, err ?? 'Added @${f.username}');
-          },
-        ),
-      ]),
+          const SizedBox(width: 8),
+          HrButton(
+            label: 'Add',
+            icon: Icons.add_rounded,
+            kind: HrButtonKind.secondary,
+            small: true,
+            expand: false,
+            onPressed: () async {
+              final err = await friends.addByUsername(f.username);
+              if (!context.mounted) return;
+              _toast(context, err ?? 'Added @${f.username}');
+            },
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -3489,13 +3681,10 @@ void _confirmRemoveFriend(BuildContext context, Friend f) {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: kElevated,
-      title: Text('Remove ${f.name}?',
-          style: const TextStyle(color: kTextPrimary)),
-      content: Text('You can add @${f.username} again any time.',
-          style: const TextStyle(color: kTextSecondary)),
+      title: Text('Remove ${f.name}?', style: const TextStyle(color: kTextPrimary)),
+      content: Text('You can add @${f.username} again any time.', style: const TextStyle(color: kTextSecondary)),
       actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kRed),
           onPressed: () {
@@ -3539,77 +3728,102 @@ class _AddFriendFieldState extends State<_AddFriendField> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Expanded(
-        child: TextField(
-          controller: _c,
-          onSubmitted: (_) => _add(),
-          textInputAction: TextInputAction.done,
-          style: HrText.body,
-          decoration: InputDecoration(
-            hintText: 'Add by username',
-            hintStyle: HrText.body.copyWith(color: HrColors.text3),
-            filled: true,
-            fillColor: HrColors.surface,
-            prefixIcon: const Icon(Icons.alternate_email_rounded, size: 18, color: HrColors.text3),
-            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-            enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _c,
+            onSubmitted: (_) => _add(),
+            textInputAction: TextInputAction.done,
+            style: HrText.body,
+            decoration: InputDecoration(
+              hintText: 'Add by username',
+              hintStyle: HrText.body.copyWith(color: HrColors.text3),
+              filled: true,
+              fillColor: HrColors.surface,
+              prefixIcon: const Icon(Icons.alternate_email_rounded, size: 18, color: HrColors.text3),
+              contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+              enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(HrRadius.md),
-                borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HrRadius.md),
+                borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+              ),
+            ),
           ),
         ),
-      ),
-      const SizedBox(width: 10),
-      SizedBox(width: 76, child: HrButton(label: 'Add', small: true, onPressed: _add)),
-    ]);
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 76,
+          child: HrButton(label: 'Add', small: true, onPressed: _add),
+        ),
+      ],
+    );
   }
 }
 
 Widget _profileStat(String value, String label, Color color) => Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-      decoration: BoxDecoration(
-        color: HrColors.surface,
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        border: const Border(top: BorderSide(color: HrColors.hairline)),
+  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+  decoration: BoxDecoration(
+    color: HrColors.surface,
+    borderRadius: BorderRadius.circular(HrRadius.md),
+    border: const Border(top: BorderSide(color: HrColors.hairline)),
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: HrText.stat.copyWith(color: color),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: HrText.stat.copyWith(color: color)),
-        const SizedBox(height: 2),
-        Text(label, style: HrText.caption),
-      ]),
-    );
+      const SizedBox(height: 2),
+      Text(label, style: HrText.caption),
+    ],
+  ),
+);
 
 Widget _compareBar(double frac, Color color) => ClipRRect(
-      borderRadius: BorderRadius.circular(HrRadius.full),
-      child: LinearProgressIndicator(
-        value: frac.clamp(0.0, 1.0),
-        minHeight: 6,
-        backgroundColor: HrColors.surface2,
-        valueColor: AlwaysStoppedAnimation(color),
-      ),
-    );
+  borderRadius: BorderRadius.circular(HrRadius.full),
+  child: LinearProgressIndicator(
+    value: frac.clamp(0.0, 1.0),
+    minHeight: 6,
+    backgroundColor: HrColors.surface2,
+    valueColor: AlwaysStoppedAnimation(color),
+  ),
+);
 
 // Friend value (grey) over your value (accent), scaled to the larger of the two.
 Widget _compareRow(String label, int friendVal, int myVal) {
   final peak = friendVal > myVal ? friendVal : myVal;
   final denom = peak <= 0 ? 1.0 : peak.toDouble();
-  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Row(children: [
-      Expanded(child: Text(label, style: HrText.caption)),
-      Text('$friendVal', style: HrText.caption.copyWith(color: HrColors.text2, fontWeight: FontWeight.w700)),
-      Text('  vs  ', style: HrText.caption),
-      Text('$myVal', style: HrText.caption.copyWith(color: HrColors.accent, fontWeight: FontWeight.w700)),
-    ]),
-    const SizedBox(height: 6),
-    _compareBar(friendVal / denom, HrColors.text3),
-    const SizedBox(height: 5),
-    _compareBar(myVal / denom, HrColors.accent),
-  ]);
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Expanded(child: Text(label, style: HrText.caption)),
+          Text(
+            '$friendVal',
+            style: HrText.caption.copyWith(color: HrColors.text2, fontWeight: FontWeight.w700),
+          ),
+          Text('  vs  ', style: HrText.caption),
+          Text(
+            '$myVal',
+            style: HrText.caption.copyWith(color: HrColors.accent, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+      const SizedBox(height: 6),
+      _compareBar(friendVal / denom, HrColors.text3),
+      const SizedBox(height: 5),
+      _compareBar(myVal / denom, HrColors.accent),
+    ],
+  );
 }
 
 // Full profile / stat card for a friend (opened by tapping a friend).
@@ -3627,25 +3841,22 @@ class FriendProfileScreen extends StatelessWidget {
         if (f == null) {
           return Scaffold(
             backgroundColor: Colors.transparent,
-            appBar: AppBar(
-                backgroundColor: Colors.transparent,
-                foregroundColor: kTextPrimary),
+            appBar: AppBar(backgroundColor: Colors.transparent, foregroundColor: kTextPrimary),
             body: const Center(
-                child: Text('This friend was removed.',
-                    style: TextStyle(color: kTextTertiary))),
+              child: Text('This friend was removed.', style: TextStyle(color: kTextTertiary)),
+            ),
           );
         }
         final ld = levelFromXp(f.totalXp);
         final myXp = appState.totalXp;
-        final ranked = [myXp, ...friends.friends.map((x) => x.totalXp)]
-          ..sort((a, b) => b.compareTo(a));
+        final ranked = [myXp, ...friends.friends.map((x) => x.totalXp)]..sort((a, b) => b.compareTo(a));
         final rank = ranked.indexOf(f.totalXp) + 1;
         final diff = f.totalXp - myXp;
         final cmp = diff == 0
             ? "You're dead even — go break the tie!"
             : diff > 0
-                ? '${f.name} leads you by $diff XP.'
-                : 'You lead ${f.name} by ${-diff} XP.';
+            ? '${f.name} leads you by $diff XP.'
+            : 'You lead ${f.name} by ${-diff} XP.';
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
@@ -3657,43 +3868,51 @@ class FriendProfileScreen extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 32),
             children: [
-              Column(children: [
-                _FriendAvatar(name: f.name, borderId: f.borderId, size: 96),
-                const SizedBox(height: 14),
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Flexible(
-                    child: Text(f.name,
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.title1),
+              Column(
+                children: [
+                  _FriendAvatar(name: f.name, borderId: f.borderId, size: 96),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.title1),
+                      ),
+                      if (f.prestige > 0) ...[
+                        const SizedBox(width: 8),
+                        Text('★${f.prestige}', style: HrText.title2.copyWith(color: HrColors.gold)),
+                      ],
+                    ],
                   ),
-                  if (f.prestige > 0) ...[
-                    const SizedBox(width: 8),
-                    Text('★${f.prestige}', style: HrText.title2.copyWith(color: HrColors.gold)),
-                  ],
-                ]),
-                const SizedBox(height: 4),
-                Text('@${f.username} · Lv ${ld.level} · ${levelTitle(ld.level)}',
-                    style: HrText.caption),
-              ]),
+                  const SizedBox(height: 4),
+                  Text('@${f.username} · Lv ${ld.level} · ${levelTitle(ld.level)}', style: HrText.caption),
+                ],
+              ),
               const SizedBox(height: 20),
-              Row(children: [
-                Expanded(child: _profileStat('${ld.level}', 'Level', HrColors.text)),
-                const SizedBox(width: 10),
-                Expanded(child: _profileStat('${f.streak}', 'Streak', HrColors.streak)),
-                const SizedBox(width: 10),
-                Expanded(child: _profileStat('#$rank', 'Rank', HrColors.accent)),
-              ]),
+              Row(
+                children: [
+                  Expanded(child: _profileStat('${ld.level}', 'Level', HrColors.text)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _profileStat('${f.streak}', 'Streak', HrColors.streak)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _profileStat('#$rank', 'Rank', HrColors.accent)),
+                ],
+              ),
               const SizedBox(height: 14),
               HrCard(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const HrLabel('Compared to you'),
-                  _compareRow('Total XP', f.totalXp, myXp),
-                  const SizedBox(height: 12),
-                  _compareRow('Streak', f.streak, appState.bestStreak),
-                  const SizedBox(height: 12),
-                  _compareRow('Level', ld.level, levelFromXp(myXp).level),
-                  const SizedBox(height: 14),
-                  Text(cmp, style: HrText.bodyS),
-                ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const HrLabel('Compared to you'),
+                    _compareRow('Total XP', f.totalXp, myXp),
+                    const SizedBox(height: 12),
+                    _compareRow('Streak', f.streak, appState.bestStreak),
+                    const SizedBox(height: 12),
+                    _compareRow('Level', ld.level, levelFromXp(myXp).level),
+                    const SizedBox(height: 14),
+                    Text(cmp, style: HrText.bodyS),
+                  ],
+                ),
               ),
               const SizedBox(height: 18),
               HrButton(
@@ -3710,11 +3929,9 @@ class FriendProfileScreen extends StatelessWidget {
                   builder: (ctx) => AlertDialog(
                     backgroundColor: HrColors.surface,
                     title: Text('Remove ${f.name}?', style: HrText.title2),
-                    content: Text('You can add @${f.username} again any time.',
-                        style: HrText.bodyS),
+                    content: Text('You can add @${f.username} again any time.', style: HrText.bodyS),
                     actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
                       FilledButton(
                         style: FilledButton.styleFrom(backgroundColor: HrColors.danger),
                         onPressed: () {
@@ -3743,36 +3960,42 @@ class AwardsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unlocked =
-        kAchievements.where((a) => appState.isAchievementEarned(a)).length;
+    final unlocked = kAchievements.where((a) => appState.isAchievementEarned(a)).length;
     final total = kAchievements.length;
     final allDone = unlocked >= total;
-    final next = kAchievements.firstWhere(
-        (a) => !appState.isAchievementEarned(a),
-        orElse: () => kAchievements.last);
+    final next = kAchievements.firstWhere((a) => !appState.isAchievementEarned(a), orElse: () => kAchievements.last);
     return ListView(
       padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
       children: [
         HrCard(
-          child: Row(children: [
-            SegmentedRing(
-              size: 64,
-              segments: 1,
-              value: total == 0 ? 0 : unlocked / total,
-              stroke: 7,
-              color: HrColors.gold,
-              center: Text('$unlocked', style: HrText.title2),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('$unlocked of $total unlocked', style: HrText.headline),
-                const SizedBox(height: 3),
-                Text(allDone ? 'Every award earned.' : 'Next: ${next.title}',
-                    style: HrText.caption, maxLines: 2, overflow: TextOverflow.ellipsis),
-              ]),
-            ),
-          ]),
+          child: Row(
+            children: [
+              SegmentedRing(
+                size: 64,
+                segments: 1,
+                value: total == 0 ? 0 : unlocked / total,
+                stroke: 7,
+                color: HrColors.gold,
+                center: Text('$unlocked', style: HrText.title2),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$unlocked of $total unlocked', style: HrText.headline),
+                    const SizedBox(height: 3),
+                    Text(
+                      allDone ? 'Every award earned.' : 'Next: ${next.title}',
+                      style: HrText.caption,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 14),
         GridView.count(
@@ -3804,7 +4027,8 @@ class _AchievementCard extends StatelessWidget {
         color: HrColors.surface,
         borderRadius: BorderRadius.circular(HrRadius.lg),
         border: Border(
-            top: BorderSide(color: on ? color : HrColors.hairline, width: on ? 2 : 1)),
+          top: BorderSide(color: on ? color : HrColors.hairline, width: on ? 2 : 1),
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -3832,38 +4056,40 @@ class _AchievementCard extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: HrColors.hairline),
                       ),
-                      child: const Icon(Icons.lock_rounded,
-                          size: 12, color: HrColors.text2),
+                      child: const Icon(Icons.lock_rounded, size: 12, color: HrColors.text2),
                     ),
                   ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-          Text(a.title,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: HrText.bodyS.copyWith(
-                  color: on ? HrColors.text : HrColors.text2,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            a.title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: HrText.bodyS.copyWith(color: on ? HrColors.text : HrColors.text2, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 6),
           on
               ? Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(HrRadius.xs)),
-                  child: Text(rarity.toUpperCase(),
-                      style: HrText.micro.copyWith(
-                          color: color, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                    color: color.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(HrRadius.xs),
+                  ),
+                  child: Text(
+                    rarity.toUpperCase(),
+                    style: HrText.micro.copyWith(color: color, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+                  ),
                 )
-              : Text(a.description,
+              : Text(
+                  a.description,
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: HrText.micro),
+                  style: HrText.micro,
+                ),
         ],
       ),
     );
@@ -3898,14 +4124,15 @@ class JournalScreen extends StatelessWidget {
         if (items.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 48),
-            child: Column(children: [
-              const Text('📓', style: TextStyle(fontSize: 40)),
-              const SizedBox(height: 12),
-              Text('No reflections yet', style: HrText.title2),
-              const SizedBox(height: 6),
-              Text('Write your first one to earn +20 XP.',
-                  textAlign: TextAlign.center, style: HrText.bodyS),
-            ]),
+            child: Column(
+              children: [
+                const Text('📓', style: TextStyle(fontSize: 40)),
+                const SizedBox(height: 12),
+                Text('No reflections yet', style: HrText.title2),
+                const SizedBox(height: 6),
+                Text('Write your first one to earn +20 XP.', textAlign: TextAlign.center, style: HrText.bodyS),
+              ],
+            ),
           )
         else
           ...items.map((r) {
@@ -3913,24 +4140,31 @@ class JournalScreen extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: HrCard(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Text(_journalDate(r.date).toUpperCase(), style: HrText.labelCaps),
-                    const Spacer(),
-                    if (score != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                            color: HrColors.victory(score).withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(HrRadius.xs)),
-                        child: Text('Score $score',
-                            style: HrText.micro.copyWith(
-                                color: HrColors.victory(score), fontWeight: FontWeight.w800)),
-                      ),
-                  ]),
-                  const SizedBox(height: 8),
-                  Text(r.text, style: HrText.body.copyWith(color: HrColors.text2)),
-                ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(_journalDate(r.date).toUpperCase(), style: HrText.labelCaps),
+                        const Spacer(),
+                        if (score != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: HrColors.victory(score).withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(HrRadius.xs),
+                            ),
+                            child: Text(
+                              'Score $score',
+                              style: HrText.micro.copyWith(color: HrColors.victory(score), fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(r.text, style: HrText.body.copyWith(color: HrColors.text2)),
+                  ],
+                ),
               ),
             );
           }),
@@ -3941,8 +4175,7 @@ class JournalScreen extends StatelessWidget {
 
 // ── Shared bits ─────────────────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
-  const _EmptyState(
-      {required this.emoji, required this.title, required this.subtitle});
+  const _EmptyState({required this.emoji, required this.title, required this.subtitle});
   final String emoji;
   final String title;
   final String subtitle;
@@ -3965,26 +4198,23 @@ class _EmptyState extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: const LinearGradient(colors: _kAccentGradient),
                 boxShadow: [
-                  BoxShadow(
-                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
-                      blurRadius: 22,
-                      spreadRadius: 1),
+                  BoxShadow(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4), blurRadius: 22, spreadRadius: 1),
                 ],
               ),
               child: Text(emoji, style: const TextStyle(fontSize: 36)),
             ),
             const SizedBox(height: 16),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.spaceGrotesk(
-                    color: kTextPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700)),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.spaceGrotesk(color: kTextPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 6),
-            Text(subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: kTextTertiary, fontSize: 13, height: 1.4)),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: kTextTertiary, fontSize: 13, height: 1.4),
+            ),
           ],
         ),
       ),
@@ -4030,9 +4260,7 @@ void _showAchievementUnlocked(BuildContext context, List<Achievement> items) {
       child: Image.asset(a.imageAsset, fit: BoxFit.cover),
     ),
     title: a.title,
-    subtitle: items.length > 1
-        ? '${a.description}\n+${items.length - 1} more unlocked'
-        : a.description,
+    subtitle: items.length > 1 ? '${a.description}\n+${items.length - 1} more unlocked' : a.description,
     buttonLabel: 'Nice',
   );
 }
@@ -4051,24 +4279,19 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
   // The current difficulty decision — the AI (or heuristic) owns this; the user
   // no longer picks it. It's frozen onto the habit when they tap Add/Save.
   DifficultyVerdict verdict = existing != null
-      ? DifficultyVerdict(existing.rarity, existing.difficultyReason,
-          fromAi: existing.aiRated)
+      ? DifficultyVerdict(existing.rarity, existing.difficultyReason, fromAi: existing.aiRated)
       : heuristicVerdict(controller.text);
   bool analyzing = false;
   Timer? debounce;
   int reqSeq = 0; // drops stale async results from earlier keystrokes
   String icon = existing?.icon ?? '';
   int? reminderMinutes = existing?.reminderMinutes; // daily reminder time
-  const emojis = [
-    '💧', '📖', '🏋️', '😴', '🧘', '🏃', '🥗', '💻',
-    '🎯', '✍️', '🎸', '☀️', '🧠', '💰', '🌱', '🚭'
-  ];
+  const emojis = ['💧', '📖', '🏋️', '😴', '🧘', '🏃', '🥗', '💻', '🎯', '✍️', '🎸', '☀️', '🧠', '💰', '🌱', '🚭'];
   await showModalBottomSheet<void>(
     context: context,
     backgroundColor: HrColors.surface,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setLocal) {
         // Re-rate the habit: show the instant heuristic now, then let the local
@@ -4089,10 +4312,12 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
             analyzing = true;
           });
           debounce = Timer(const Duration(milliseconds: 650), () async {
-            final v = await classifyDifficulty(name,
-                enabled: appState.aiEnabled,
-                baseUrl: appState.aiBaseUrl,
-                model: appState.aiModel);
+            final v = await classifyDifficulty(
+              name,
+              enabled: appState.aiEnabled,
+              baseUrl: appState.aiBaseUrl,
+              model: appState.aiModel,
+            );
             if (!ctx.mounted || seq != reqSeq) return;
             setLocal(() {
               verdict = v;
@@ -4102,8 +4327,7 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
         }
 
         return Padding(
-          padding: EdgeInsets.fromLTRB(
-              20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -4113,8 +4337,7 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                   width: 36,
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                      color: HrColors.surface3, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: HrColors.surface3, borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               Text(existing == null ? 'New habit' : 'Edit habit', style: HrText.title2),
@@ -4131,12 +4354,17 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                   fillColor: HrColors.surface2,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                    borderSide: BorderSide.none,
+                  ),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                    borderSide: BorderSide.none,
+                  ),
                   focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(HrRadius.md),
-                      borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                    borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+                  ),
                 ),
                 onChanged: analyze,
               ),
@@ -4154,9 +4382,18 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                       height: 42,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                          color: sel ? HrColors.accent : HrColors.surface2,
-                          borderRadius: BorderRadius.circular(HrRadius.sm)),
-                      child: Text(e, style: const TextStyle(fontSize: 20)),
+                        color: sel ? HrColors.accent : HrColors.surface2,
+                        borderRadius: BorderRadius.circular(HrRadius.sm),
+                      ),
+                      child: e == '💰'
+                          ? Image.asset(
+                              'assets/shop/coin_stack.png',
+                              width: 27,
+                              height: 27,
+                              fit: BoxFit.contain,
+                              semanticLabel: 'Coins',
+                            )
+                          : Text(e, style: const TextStyle(fontSize: 20)),
                     ),
                   );
                 }).toList(),
@@ -4166,90 +4403,98 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 2, 6, 2),
-                decoration: BoxDecoration(
-                    color: HrColors.surface2,
-                    borderRadius: BorderRadius.circular(HrRadius.md)),
-                child: Row(children: [
-                  Icon(Icons.notifications_active_rounded,
+                decoration: BoxDecoration(color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.notifications_active_rounded,
                       size: 18,
-                      color: reminderMinutes != null ? HrColors.accent : HrColors.text3),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
+                      color: reminderMinutes != null ? HrColors.accent : HrColors.text3,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
                         reminderMinutes == null
                             ? 'No daily reminder'
                             : 'Remind me at ${_fmtReminder(reminderMinutes!)}',
-                        style: HrText.bodyS.copyWith(color: HrColors.text)),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      final init = reminderMinutes != null
-                          ? TimeOfDay(
-                              hour: reminderMinutes! ~/ 60,
-                              minute: reminderMinutes! % 60)
-                          : const TimeOfDay(hour: 20, minute: 0);
-                      final picked = await showTimePicker(
-                          context: ctx, initialTime: init);
-                      if (picked != null) {
-                        setLocal(() => reminderMinutes =
-                            picked.hour * 60 + picked.minute);
-                      }
-                    },
-                    child: Text(reminderMinutes == null ? 'Set' : 'Change',
-                        style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w700)),
-                  ),
-                  if (reminderMinutes != null)
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => setLocal(() => reminderMinutes = null),
-                      icon: const Icon(Icons.close, size: 18, color: HrColors.text3),
+                        style: HrText.bodyS.copyWith(color: HrColors.text),
+                      ),
                     ),
-                ]),
+                    TextButton(
+                      onPressed: () async {
+                        final init = reminderMinutes != null
+                            ? TimeOfDay(hour: reminderMinutes! ~/ 60, minute: reminderMinutes! % 60)
+                            : const TimeOfDay(hour: 20, minute: 0);
+                        final picked = await showTimePicker(context: ctx, initialTime: init);
+                        if (picked != null) {
+                          setLocal(() => reminderMinutes = picked.hour * 60 + picked.minute);
+                        }
+                      },
+                      child: Text(
+                        reminderMinutes == null ? 'Set' : 'Change',
+                        style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    if (reminderMinutes != null)
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => setLocal(() => reminderMinutes = null),
+                        icon: const Icon(Icons.close, size: 18, color: HrColors.text3),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 18),
-              Row(children: [
-                if (existing != null)
-                  TextButton.icon(
+              Row(
+                children: [
+                  if (existing != null)
+                    TextButton.icon(
                       onPressed: () {
                         appState.deleteHabit(existing);
                         Navigator.pop(ctx);
                       },
                       icon: const Icon(Icons.delete_outline, color: HrColors.dangerText),
-                      label: Text('Delete',
-                          style: HrText.body.copyWith(color: HrColors.dangerText))),
-                const Spacer(),
-                SizedBox(
-                  width: 130,
-                  child: HrButton(
-                    label: existing == null ? 'Add' : 'Save',
-                    onPressed: () {
-                      final name = controller.text.trim();
-                      if (name.isEmpty) {
-                        Navigator.pop(ctx);
-                        return;
-                      }
-                      debounce?.cancel();
-                      final v = verdict;
-                      if (existing == null) {
-                        appState.addHabit(name, v.rarity,
+                      label: Text('Delete', style: HrText.body.copyWith(color: HrColors.dangerText)),
+                    ),
+                  const Spacer(),
+                  SizedBox(
+                    width: 130,
+                    child: HrButton(
+                      label: existing == null ? 'Add' : 'Save',
+                      onPressed: () {
+                        final name = controller.text.trim();
+                        if (name.isEmpty) {
+                          Navigator.pop(ctx);
+                          return;
+                        }
+                        debounce?.cancel();
+                        final v = verdict;
+                        if (existing == null) {
+                          appState.addHabit(
+                            name,
+                            v.rarity,
                             icon: icon,
                             aiRated: v.fromAi,
                             reason: v.reason,
-                            reminderMinutes: reminderMinutes);
-                      } else {
-                        appState.editHabit(existing,
+                            reminderMinutes: reminderMinutes,
+                          );
+                        } else {
+                          appState.editHabit(
+                            existing,
                             name: name,
                             rarity: v.rarity,
                             icon: icon,
                             aiRated: v.fromAi,
-                            reason: v.reason);
-                        appState.setHabitReminder(existing, reminderMinutes);
-                      }
-                      Navigator.pop(ctx);
-                    },
+                            reason: v.reason,
+                          );
+                          appState.setHabitReminder(existing, reminderMinutes);
+                        }
+                        Navigator.pop(ctx);
+                      },
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ],
           ),
         );
@@ -4264,50 +4509,54 @@ Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
   final color = HrColors.rarity[v.rarity] ?? HrColors.text3;
   return Container(
     padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-        color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
-    child: Row(children: [
-      Icon(Icons.auto_awesome_rounded, size: 18, color: color),
-      const SizedBox(width: 10),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Flexible(
-                child: Text('${v.label} · ×${v.multiplier} · ~${estimatedXp(v.rarity)} XP',
-                    style: HrText.bodyS.copyWith(color: color, fontWeight: FontWeight.w700)),
+    decoration: BoxDecoration(color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
+    child: Row(
+      children: [
+        Icon(Icons.auto_awesome_rounded, size: 18, color: color),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      '${v.label} · ×${v.multiplier} · ~${estimatedXp(v.rarity)} XP',
+                      style: HrText.bodyS.copyWith(color: color, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _ratingChip(v, analyzing),
+                ],
               ),
-              const SizedBox(width: 8),
-              _ratingChip(v, analyzing),
-            ]),
-            const SizedBox(height: 3),
-            Text(
-                analyzing
-                    ? 'Reading your habit…'
-                    : (v.reason.isEmpty ? 'Difficulty set automatically' : v.reason),
-                style: HrText.caption),
-          ],
+              const SizedBox(height: 3),
+              Text(
+                analyzing ? 'Reading your habit…' : (v.reason.isEmpty ? 'Difficulty set automatically' : v.reason),
+                style: HrText.caption,
+              ),
+            ],
+          ),
         ),
-      ),
-    ]),
+      ],
+    ),
   );
 }
 
 Widget _ratingChip(DifficultyVerdict v, bool analyzing) {
   if (analyzing) {
-    return const SizedBox(
-      width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2));
+    return const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2));
   }
   final ai = v.fromAi;
   final label = ai ? '🤖 AI' : '✨ Auto';
   final c = ai ? HrColors.info : HrColors.text3;
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-    decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(HrRadius.xs)),
-    child: Text(label, style: HrText.micro.copyWith(color: c, fontWeight: FontWeight.w700)),
+    decoration: BoxDecoration(color: c.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(HrRadius.xs)),
+    child: Text(
+      label,
+      style: HrText.micro.copyWith(color: c, fontWeight: FontWeight.w700),
+    ),
   );
 }
 
@@ -4324,12 +4573,10 @@ Future<void> showAddReflection(BuildContext context) async {
         maxLines: 4,
         style: const TextStyle(color: kTextPrimary),
         textCapitalization: TextCapitalization.sentences,
-        decoration:
-            const InputDecoration(hintText: 'How did today go?'),
+        decoration: const InputDecoration(hintText: 'How did today go?'),
       ),
       actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kPlasma),
           onPressed: () => Navigator.pop(ctx, controller.text.trim()),
@@ -4352,28 +4599,29 @@ class _NutritionCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       child: HrCard(
-        onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const NutritionScreen())),
-        child: Row(children: [
-          Icon(Icons.restaurant_rounded, color: HrColors.accent, size: 22),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('NUTRITION', style: HrText.labelCaps),
-                const SizedBox(height: 3),
-                Text(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NutritionScreen())),
+        child: Row(
+          children: [
+            Icon(Icons.restaurant_rounded, color: HrColors.accent, size: 22),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('NUTRITION', style: HrText.labelCaps),
+                  const SizedBox(height: 3),
+                  Text(
                     '${n.calories.round()} / ${t.calories.round()} kcal · ${n.protein.round()}g protein',
-                    style: HrText.caption),
-              ],
+                    style: HrText.caption,
+                  ),
+                ],
+              ),
             ),
-          ),
-          Text('$score',
-              style: HrText.stat.copyWith(fontSize: 20, color: HrColors.victory(score))),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
-        ]),
+            Text('$score', style: HrText.stat.copyWith(fontSize: 20, color: HrColors.victory(score))),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+          ],
+        ),
       ),
     );
   }
@@ -4388,8 +4636,7 @@ class NutritionScreen extends StatelessWidget {
       builder: (context, _) {
         final n = appState.todayNutrition();
         final today = dateKey(DateTime.now());
-        final todays =
-            appState.foodLog.where((e) => e.date == today).toList();
+        final todays = appState.foodLog.where((e) => e.date == today).toList();
         final score = appState.nutritionScore();
         final t = appState.targets();
         final p = appState.bodyProfile;
@@ -4413,52 +4660,59 @@ class NutritionScreen extends StatelessWidget {
             children: [
               HrCard(
                 padding: const EdgeInsets.all(18),
-                child: Column(children: [
-                  Row(children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('NUTRITION SCORE', style: HrText.labelCaps),
-                          Text('$score / 100',
-                              style: HrText.stat.copyWith(color: HrColors.victory(score))),
-                        ],
-                      ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('NUTRITION SCORE', style: HrText.labelCaps),
+                              Text('$score / 100', style: HrText.stat.copyWith(color: HrColors.victory(score))),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.restaurant_rounded, color: HrColors.victory(score), size: 32),
+                      ],
                     ),
-                    Icon(Icons.restaurant_rounded, color: HrColors.victory(score), size: 32),
-                  ]),
-                  const SizedBox(height: 14),
-                  _macroBar('Calories', n.calories, t.calories, 'kcal', HrColors.gold),
-                  _macroBar('Protein', n.protein, t.protein, 'g', HrColors.danger),
-                  _macroBar('Carbs', n.carbs, t.carbs, 'g', HrColors.info),
-                  _macroBar('Fat', n.fat, t.fat, 'g', HrColors.accent),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                      child: Text(
-                          p == null
-                              ? 'Targets: defaults'
-                              : 'TDEE ${computeTDEE(p).round()} kcal · ${p.goal}',
-                          style: HrText.caption),
+                    const SizedBox(height: 14),
+                    _macroBar('Calories', n.calories, t.calories, 'kcal', HrColors.gold),
+                    _macroBar('Protein', n.protein, t.protein, 'g', HrColors.danger),
+                    _macroBar('Carbs', n.carbs, t.carbs, 'g', HrColors.info),
+                    _macroBar('Fat', n.fat, t.fat, 'g', HrColors.accent),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            p == null ? 'Targets: defaults' : 'TDEE ${computeTDEE(p).round()} kcal · ${p.goal}',
+                            style: HrText.caption,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () =>
+                              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BodyProfileScreen())),
+                          icon: const Icon(Icons.person_rounded, size: 16, color: HrColors.text2),
+                          label: Text(
+                            p == null ? 'Set body profile' : 'Edit profile',
+                            style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
                     ),
-                    TextButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const BodyProfileScreen())),
-                      icon: const Icon(Icons.person_rounded, size: 16, color: HrColors.text2),
-                      label: Text(p == null ? 'Set body profile' : 'Edit profile',
-                          style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600)),
-                    ),
-                  ]),
-                ]),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
               if (todays.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(24),
                   child: _EmptyState(
-                      emoji: '🍎',
-                      title: 'No food logged today',
-                      subtitle: 'Tap "Log food" to add a meal.'),
+                    emoji: '🍎',
+                    title: 'No food logged today',
+                    subtitle: 'Tap "Log food" to add a meal.',
+                  ),
                 )
               else
                 ...todays.map((e) => _FoodTile(e)),
@@ -4470,8 +4724,7 @@ class NutritionScreen extends StatelessWidget {
   }
 }
 
-Widget _macroBar(
-    String label, double value, double target, String unit, Color color) {
+Widget _macroBar(String label, double value, double target, String unit, Color color) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 5),
     child: Column(
@@ -4508,23 +4761,27 @@ class _FoodTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: HrCard(
         padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
-        child: Row(children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(e.name, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 2),
-                Text(
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(e.name, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(
                     '${e.calories.round()} kcal · P${e.protein.round()} C${e.carbs.round()} F${e.fat.round()}',
-                    style: HrText.caption),
-              ],
+                    style: HrText.caption,
+                  ),
+                ],
+              ),
             ),
-          ),
-          IconButton(
+            IconButton(
               icon: const Icon(Icons.close, color: HrColors.text3, size: 18),
-              onPressed: () => appState.deleteFood(e)),
-        ]),
+              onPressed: () => appState.deleteFood(e),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -4532,30 +4789,27 @@ class _FoodTile extends StatelessWidget {
 
 double _parseNum(String s) => double.tryParse(s.trim()) ?? 0;
 
-Widget _numField(TextEditingController c, String label, TextInputType kb,
-        {ValueChanged<String>? onChanged}) =>
-    Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: TextField(
-        controller: c,
-        keyboardType: kb,
-        style: HrText.body,
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: HrText.caption,
-          filled: true,
-          fillColor: HrColors.surface,
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md),
-              borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
-        ),
-        onChanged: onChanged,
+Widget _numField(TextEditingController c, String label, TextInputType kb, {ValueChanged<String>? onChanged}) => Padding(
+  padding: const EdgeInsets.symmetric(vertical: 6),
+  child: TextField(
+    controller: c,
+    keyboardType: kb,
+    style: HrText.body,
+    decoration: InputDecoration(
+      labelText: label,
+      labelStyle: HrText.caption,
+      filled: true,
+      fillColor: HrColors.surface,
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: const BorderSide(color: HrColors.text, width: 1.5),
       ),
-    );
+    ),
+    onChanged: onChanged,
+  ),
+);
 
 Future<void> showAddFood(BuildContext context) async {
   final meal = TextEditingController(); // free-text description for the AI
@@ -4576,18 +4830,24 @@ Future<void> showAddFood(BuildContext context) async {
           final desc = meal.text.trim();
           if (desc.isEmpty) return;
           setLocal(() => busy = true);
-          final est = await estimateNutrition(desc,
-              enabled: appState.aiEnabled,
-              baseUrl: appState.aiBaseUrl,
-              model: appState.aiModel);
+          final est = await estimateNutrition(
+            desc,
+            enabled: appState.aiEnabled,
+            baseUrl: appState.aiBaseUrl,
+            model: appState.aiModel,
+          );
           if (!ctx.mounted) return;
           setLocal(() => busy = false);
           if (est == null) {
-            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-              content: Text(appState.aiEnabled
-                  ? "Couldn't reach the AI — is Ollama running? You can enter the macros manually."
-                  : 'Turn on AI in Settings → AI difficulty, or enter the macros manually.'),
-            ));
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              SnackBar(
+                content: Text(
+                  appState.aiEnabled
+                      ? "Couldn't reach the AI — is Ollama running? You can enter the macros manually."
+                      : 'Turn on AI in Settings → AI difficulty, or enter the macros manually.',
+                ),
+              ),
+            );
             return;
           }
           if (name.text.trim().isEmpty) name.text = est.name;
@@ -4600,8 +4860,7 @@ Future<void> showAddFood(BuildContext context) async {
 
         return AlertDialog(
           backgroundColor: kCard,
-          title:
-              const Text('Log food', style: TextStyle(color: kTextPrimary)),
+          title: const Text('Log food', style: TextStyle(color: kTextPrimary)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -4610,22 +4869,23 @@ Future<void> showAddFood(BuildContext context) async {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                      color: kElevated,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kBorder)),
+                    color: kElevated,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: kBorder),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(children: [
-                        Icon(Icons.auto_awesome_rounded,
-                            size: 15, color: kCyan),
-                        const SizedBox(width: 6),
-                        const Text('Describe your meal',
-                            style: TextStyle(
-                                color: kTextSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600)),
-                      ]),
+                      Row(
+                        children: [
+                          Icon(Icons.auto_awesome_rounded, size: 15, color: kCyan),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Describe your meal',
+                            style: TextStyle(color: kTextSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: meal,
@@ -4633,9 +4893,7 @@ Future<void> showAddFood(BuildContext context) async {
                         textCapitalization: TextCapitalization.sentences,
                         minLines: 1,
                         maxLines: 3,
-                        decoration: const InputDecoration(
-                            hintText:
-                                'e.g. 2 eggs, toast with butter, black coffee'),
+                        decoration: const InputDecoration(hintText: 'e.g. 2 eggs, toast with butter, black coffee'),
                         onSubmitted: (_) => runAi(),
                       ),
                       const SizedBox(height: 8),
@@ -4643,19 +4901,18 @@ Future<void> showAddFood(BuildContext context) async {
                         width: double.infinity,
                         child: FilledButton.icon(
                           style: FilledButton.styleFrom(
-                              backgroundColor: kPlasma,
-                              minimumSize: const Size.fromHeight(40)),
+                            backgroundColor: kPlasma,
+                            minimumSize: const Size.fromHeight(40),
+                          ),
                           onPressed: busy ? null : runAi,
                           icon: busy
                               ? const SizedBox(
                                   width: 15,
                                   height: 15,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.auto_awesome_rounded,
-                                  size: 16),
-                          label: Text(
-                              busy ? 'Calculating…' : 'Calculate macros with AI'),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.auto_awesome_rounded, size: 16),
+                          label: Text(busy ? 'Calculating…' : 'Calculate macros with AI'),
                         ),
                       ),
                     ],
@@ -4665,8 +4922,7 @@ Future<void> showAddFood(BuildContext context) async {
                 if (aiFilled)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 2),
-                    child: Text('🤖 AI estimate — adjust anything below',
-                        style: TextStyle(color: kCyan, fontSize: 11)),
+                    child: Text('🤖 AI estimate — adjust anything below', style: TextStyle(color: kCyan, fontSize: 11)),
                   ),
                 _numField(name, 'Food name', TextInputType.text),
                 _numField(cal, 'Calories (kcal)', TextInputType.number),
@@ -4677,9 +4933,7 @@ Future<void> showAddFood(BuildContext context) async {
             ),
           ),
           actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: kPlasma),
               onPressed: () => Navigator.pop(ctx, true),
@@ -4692,18 +4946,13 @@ Future<void> showAddFood(BuildContext context) async {
   );
   if (ok == true) {
     final nm = name.text.trim().isEmpty ? 'Food' : name.text.trim();
-    appState.addFood(nm, _parseNum(cal.text), _parseNum(p.text),
-        _parseNum(c.text), _parseNum(f.text));
+    appState.addFood(nm, _parseNum(cal.text), _parseNum(p.text), _parseNum(c.text), _parseNum(f.text));
   }
 }
 
 // ── COMPANIONS ───────────────────────────────────────────────────────────────
 class _CompanionOrb extends StatelessWidget {
-  const _CompanionOrb(
-      {required this.color,
-      required this.icon,
-      required this.size,
-      this.imageAsset});
+  const _CompanionOrb({required this.color, required this.icon, required this.size, this.imageAsset});
   final Color color;
   final IconData icon;
   final double size;
@@ -4718,16 +4967,9 @@ class _CompanionOrb extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: imageAsset == null ? null : Colors.black,
-        gradient: imageAsset == null
-            ? RadialGradient(colors: [color, color.withValues(alpha: 0.25)])
-            : null,
+        gradient: imageAsset == null ? RadialGradient(colors: [color, color.withValues(alpha: 0.25)]) : null,
         boxShadow: imageAsset == null
-            ? [
-                BoxShadow(
-                    color: color.withValues(alpha: 0.5),
-                    blurRadius: 16,
-                    spreadRadius: 1),
-              ]
+            ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 16, spreadRadius: 1)]
             : null,
       ),
       clipBehavior: Clip.antiAlias,
@@ -4744,49 +4986,56 @@ class _CompanionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = companionByType(appState.activeCompanion);
     final stage = companionStage(appState.level);
-    final line = appState.lastCompanionLine.isEmpty
-        ? c.tagline
-        : appState.lastCompanionLine;
+    final line = appState.lastCompanionLine.isEmpty ? c.tagline : appState.lastCompanionLine;
     return Padding(
       padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       child: HrCard(
-        onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CompanionsScreen())),
-        child: Row(children: [
-          _CompanionOrb(color: c.color, icon: c.icon, size: 46, imageAsset: c.imageAsset),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Flexible(
-                    child: Text(c.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CompanionsScreen())),
+        child: Row(
+          children: [
+            _CompanionOrb(color: c.color, icon: c.icon, size: 46, imageAsset: c.imageAsset),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          c.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: HrColors.accentSurface,
+                          borderRadius: BorderRadius.circular(HrRadius.xs),
+                        ),
+                        child: Text(
+                          'Stage $stage',
+                          style: HrText.micro.copyWith(color: HrColors.accent, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                        color: HrColors.accentSurface,
-                        borderRadius: BorderRadius.circular(HrRadius.xs)),
-                    child: Text('Stage $stage',
-                        style: HrText.micro.copyWith(
-                            color: HrColors.accent, fontWeight: FontWeight.w800)),
-                  ),
-                ]),
-                const SizedBox(height: 3),
-                Text('"$line"',
+                  const SizedBox(height: 3),
+                  Text(
+                    '"$line"',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: HrText.caption.copyWith(fontStyle: FontStyle.italic)),
-              ],
+                    style: HrText.caption.copyWith(fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
-        ]),
+            const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+          ],
+        ),
       ),
     );
   }
@@ -4824,9 +5073,8 @@ class CompanionsScreen extends StatelessWidget {
                     color: HrColors.surface,
                     borderRadius: BorderRadius.circular(HrRadius.md),
                     border: Border(
-                        top: BorderSide(
-                            color: active ? HrColors.accent : HrColors.hairline,
-                            width: active ? 2 : 1)),
+                      top: BorderSide(color: active ? HrColors.accent : HrColors.hairline, width: active ? 2 : 1),
+                    ),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -4840,11 +5088,7 @@ class CompanionsScreen extends StatelessWidget {
                             Positioned.fill(
                               child: Opacity(
                                 opacity: unlocked ? 1 : 0.48,
-                                child: _CompanionOrb(
-                                    color: c.color,
-                                    icon: c.icon,
-                                    size: 54,
-                                    imageAsset: c.imageAsset),
+                                child: _CompanionOrb(color: c.color, icon: c.icon, size: 54, imageAsset: c.imageAsset),
                               ),
                             ),
                             if (!unlocked)
@@ -4853,32 +5097,37 @@ class CompanionsScreen extends StatelessWidget {
                                 bottom: -2,
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: HrColors.surface2,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.lock_rounded,
-                                      size: 12, color: HrColors.text3),
+                                  decoration: const BoxDecoration(color: HrColors.surface2, shape: BoxShape.circle),
+                                  child: const Icon(Icons.lock_rounded, size: 12, color: HrColors.text3),
                                 ),
                               ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 10),
-                      Text(c.name,
-                          style: HrText.body.copyWith(
-                              color: unlocked ? HrColors.text : HrColors.text3,
-                              fontWeight: FontWeight.w700)),
+                      Text(
+                        c.name,
+                        style: HrText.body.copyWith(
+                          color: unlocked ? HrColors.text : HrColors.text3,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(unlocked ? c.tagline : 'Unlock at Lv ${c.unlockLevel}',
-                          textAlign: TextAlign.center, style: HrText.caption),
+                      Text(
+                        unlocked ? c.tagline : 'Unlock at Lv ${c.unlockLevel}',
+                        textAlign: TextAlign.center,
+                        style: HrText.caption,
+                      ),
                       if (active) ...[
                         const SizedBox(height: 6),
-                        Text('ACTIVE',
-                            style: HrText.micro.copyWith(
-                                color: HrColors.accent,
-                                letterSpacing: 1.5,
-                                fontWeight: FontWeight.w800)),
+                        Text(
+                          'ACTIVE',
+                          style: HrText.micro.copyWith(
+                            color: HrColors.accent,
+                            letterSpacing: 1.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -4904,42 +5153,40 @@ class _PrestigeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: HrColors.surface,
         borderRadius: BorderRadius.circular(HrRadius.md),
-        border: Border(
-            top: BorderSide(color: appState.prestige > 0 ? HrColors.gold : HrColors.hairline)),
+        border: Border(top: BorderSide(color: appState.prestige > 0 ? HrColors.gold : HrColors.hairline)),
       ),
-      child: Row(children: [
-        const Icon(Icons.auto_awesome_rounded, color: HrColors.gold, size: 22),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Text('PRESTIGE', style: HrText.labelCaps),
-                if (appState.prestige > 0) ...[
-                  const SizedBox(width: 8),
-                  Text('★' * appState.prestige,
-                      style: HrText.caption.copyWith(color: HrColors.gold)),
-                ],
-              ]),
-              const SizedBox(height: 3),
-              Text(
-                  can
-                      ? 'Rebirth to Lv 1 for a permanent ★ (+5% XP each)'
-                      : 'Unlocks at Level $kPrestigeMinLevel',
-                  style: HrText.caption),
-            ],
+      child: Row(
+        children: [
+          const Icon(Icons.auto_awesome_rounded, color: HrColors.gold, size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('PRESTIGE', style: HrText.labelCaps),
+                    if (appState.prestige > 0) ...[
+                      const SizedBox(width: 8),
+                      Text('★' * appState.prestige, style: HrText.caption.copyWith(color: HrColors.gold)),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  can ? 'Rebirth to Lv 1 for a permanent ★ (+5% XP each)' : 'Unlocks at Level $kPrestigeMinLevel',
+                  style: HrText.caption,
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: 110,
-          child: HrButton(
-              label: 'Prestige',
-              small: true,
-              onPressed: can ? () => _confirmPrestige(context) : null),
-        ),
-      ]),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 110,
+            child: HrButton(label: 'Prestige', small: true, onPressed: can ? () => _confirmPrestige(context) : null),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -4951,14 +5198,13 @@ Future<void> _confirmPrestige(BuildContext context) async {
       backgroundColor: HrColors.surface,
       title: Text('Prestige to ★${appState.prestige + 1}?', style: HrText.title2),
       content: Text(
-          'You go back to Level 1 and your XP resets. You keep a permanent ★ and +5% XP per star. Habits, streaks and coins stay.',
-          style: HrText.bodyS),
+        'You go back to Level 1 and your XP resets. You keep a permanent ★ and +5% XP per star. Habits, streaks and coins stay.',
+        style: HrText.bodyS,
+      ),
       actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx, false), child: const Text('Not yet')),
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not yet')),
         FilledButton(
-          style: FilledButton.styleFrom(
-              backgroundColor: HrColors.btnPrimary, foregroundColor: HrColors.onBtnPrimary),
+          style: FilledButton.styleFrom(backgroundColor: HrColors.btnPrimary, foregroundColor: HrColors.onBtnPrimary),
           onPressed: () => Navigator.pop(ctx, true),
           child: const Text('Prestige'),
         ),
@@ -4966,8 +5212,7 @@ Future<void> _confirmPrestige(BuildContext context) async {
     ),
   );
   if (ok == true && context.mounted) {
-    appState
-        .setCompanionLine(companionLine(appState.activeCompanion, 'prestige'));
+    appState.setCompanionLine(companionLine(appState.activeCompanion, 'prestige'));
     appState.doPrestige();
     if (context.mounted) _showPrestige(context, appState.prestige);
   }
@@ -4979,8 +5224,7 @@ void _showPrestige(BuildContext context, int prestige) {
     context,
     label: 'Prestige',
     labelColor: HrColors.gold,
-    emblem: CompanionSticker(
-        icon: comp.icon, color: comp.color, size: 104, semanticLabel: comp.name),
+    emblem: CompanionSticker(icon: comp.icon, color: comp.color, size: 104, semanticLabel: comp.name),
     title: 'Reborn.  ${'★' * prestige}',
     subtitle: 'Reborn as Initiate — stronger than before. +5% XP per star.',
     bubble: companionLine(appState.activeCompanion, 'prestige'),
@@ -5009,35 +5253,37 @@ void _showSeasonIntro(BuildContext context) {
 }
 
 // ── BODY PROFILE ─────────────────────────────────────────────────────────────
-Widget _dropdown(String label, String value, Map<String, String> opts,
-        ValueChanged<String> onChanged) =>
-    Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: DropdownButtonFormField<String>(
-        initialValue: value,
-        dropdownColor: HrColors.surface2,
-        style: HrText.body,
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: HrText.caption,
-          filled: true,
-          fillColor: HrColors.surface,
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md),
-              borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
-        ),
-        items: opts.entries
-            .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: HrText.body)))
-            .toList(),
-        onChanged: (v) {
-          if (v != null) onChanged(v);
-        },
+Widget _dropdown(String label, String value, Map<String, String> opts, ValueChanged<String> onChanged) => Padding(
+  padding: const EdgeInsets.symmetric(vertical: 6),
+  child: DropdownButtonFormField<String>(
+    initialValue: value,
+    dropdownColor: HrColors.surface2,
+    style: HrText.body,
+    decoration: InputDecoration(
+      labelText: label,
+      labelStyle: HrText.caption,
+      filled: true,
+      fillColor: HrColors.surface,
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: const BorderSide(color: HrColors.text, width: 1.5),
       ),
-    );
+    ),
+    items: opts.entries
+        .map(
+          (e) => DropdownMenuItem(
+            value: e.key,
+            child: Text(e.value, style: HrText.body),
+          ),
+        )
+        .toList(),
+    onChanged: (v) {
+      if (v != null) onChanged(v);
+    },
+  ),
+);
 
 class BodyProfileScreen extends StatefulWidget {
   const BodyProfileScreen({super.key});
@@ -5057,10 +5303,8 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
   void initState() {
     super.initState();
     final p = appState.bodyProfile;
-    _weight = TextEditingController(
-        text: p != null ? p.weight.toStringAsFixed(0) : '');
-    _height = TextEditingController(
-        text: p != null ? p.height.toStringAsFixed(0) : '');
+    _weight = TextEditingController(text: p != null ? p.weight.toStringAsFixed(0) : '');
+    _height = TextEditingController(text: p != null ? p.height.toStringAsFixed(0) : '');
     _age = TextEditingController(text: p != null ? p.age.toString() : '');
     if (p != null) {
       _gender = p.gender;
@@ -5082,17 +5326,13 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
     final h = double.tryParse(_height.text.trim()) ?? 0;
     final a = int.tryParse(_age.text.trim()) ?? 0;
     if (w <= 0 || h <= 0 || a <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Enter a valid weight, height, and age')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enter a valid weight, height, and age')));
       return;
     }
-    appState.setBodyProfile(BodyProfile(
-        weight: w,
-        height: h,
-        age: a,
-        gender: _gender,
-        activity: _activity,
-        goal: _goal));
+    appState.setBodyProfile(
+      BodyProfile(weight: w, height: h, age: a, gender: _gender, activity: _activity, goal: _goal),
+    );
     Navigator.of(context).pop();
   }
 
@@ -5102,13 +5342,9 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
     final h = double.tryParse(_height.text) ?? 0;
     final a = int.tryParse(_age.text) ?? 0;
     final preview = (w > 0 && h > 0 && a > 0)
-        ? computeMacroTargets(BodyProfile(
-            weight: w,
-            height: h,
-            age: a,
-            gender: _gender,
-            activity: _activity,
-            goal: _goal))
+        ? computeMacroTargets(
+            BodyProfile(weight: w, height: h, age: a, gender: _gender, activity: _activity, goal: _goal),
+          )
         : null;
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -5121,37 +5357,26 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
         children: [
-          _numField(_weight, 'Weight (kg)', TextInputType.number,
-              onChanged: (_) => setState(() {})),
-          _numField(_height, 'Height (cm)', TextInputType.number,
-              onChanged: (_) => setState(() {})),
-          _numField(_age, 'Age', TextInputType.number,
-              onChanged: (_) => setState(() {})),
-          _dropdown(
-              'Gender',
-              _gender,
-              const {'male': 'Male', 'female': 'Female', 'other': 'Other'},
-              (v) => setState(() => _gender = v)),
-          _dropdown(
-              'Activity',
-              _activity,
-              const {
-                'sedentary': 'Sedentary',
-                'light': 'Light',
-                'moderate': 'Moderate',
-                'active': 'Active',
-                'very_active': 'Very active'
-              },
-              (v) => setState(() => _activity = v)),
-          _dropdown(
-              'Goal',
-              _goal,
-              const {
-                'cut': 'Cut (lose fat)',
-                'maintain': 'Maintain',
-                'bulk': 'Bulk (gain)'
-              },
-              (v) => setState(() => _goal = v)),
+          _numField(_weight, 'Weight (kg)', TextInputType.number, onChanged: (_) => setState(() {})),
+          _numField(_height, 'Height (cm)', TextInputType.number, onChanged: (_) => setState(() {})),
+          _numField(_age, 'Age', TextInputType.number, onChanged: (_) => setState(() {})),
+          _dropdown('Gender', _gender, const {
+            'male': 'Male',
+            'female': 'Female',
+            'other': 'Other',
+          }, (v) => setState(() => _gender = v)),
+          _dropdown('Activity', _activity, const {
+            'sedentary': 'Sedentary',
+            'light': 'Light',
+            'moderate': 'Moderate',
+            'active': 'Active',
+            'very_active': 'Very active',
+          }, (v) => setState(() => _activity = v)),
+          _dropdown('Goal', _goal, const {
+            'cut': 'Cut (lose fat)',
+            'maintain': 'Maintain',
+            'bulk': 'Bulk (gain)',
+          }, (v) => setState(() => _goal = v)),
           const SizedBox(height: 16),
           if (preview != null)
             HrCard(
@@ -5162,8 +5387,9 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
                   Text('${preview.calories.round()} kcal', style: HrText.title1),
                   const SizedBox(height: 4),
                   Text(
-                      'Protein ${preview.protein.round()}g · Carbs ${preview.carbs.round()}g · Fat ${preview.fat.round()}g',
-                      style: HrText.caption),
+                    'Protein ${preview.protein.round()}g · Carbs ${preview.carbs.round()}g · Fat ${preview.fat.round()}g',
+                    style: HrText.caption,
+                  ),
                 ],
               ),
             ),
@@ -5208,27 +5434,23 @@ Color _milestoneColor(String type) {
 String _fmtDate(String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return '';
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   final hh = d.hour.toString().padLeft(2, '0');
   final mm = d.minute.toString().padLeft(2, '0');
   return '${months[d.month - 1]} ${d.day} · $hh:$mm';
 }
 
 Widget _bestChip(String label, String value) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-          color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value, style: HrText.title2),
-          Text(label, style: HrText.caption),
-        ],
-      ),
-    );
+  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  decoration: BoxDecoration(color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(value, style: HrText.title2),
+      Text(label, style: HrText.caption),
+    ],
+  ),
+);
 
 class LegacyScreen extends StatelessWidget {
   const LegacyScreen({super.key});
@@ -5255,13 +5477,17 @@ class LegacyScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const HrLabel('Career bests'),
-                    Wrap(spacing: 10, runSpacing: 10, children: [
-                      _bestChip('Peak level', '${appState.highestLevel}'),
-                      _bestChip('Prestige', '★${appState.prestige}'),
-                      _bestChip('Bosses', '${appState.totalBossDefeats}'),
-                      _bestChip('Season', '${appState.currentSeason + 1}'),
-                      _bestChip('Best streak', '${appState.bestStreak}'),
-                    ]),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _bestChip('Peak level', '${appState.highestLevel}'),
+                        _bestChip('Prestige', '★${appState.prestige}'),
+                        _bestChip('Bosses', '${appState.totalBossDefeats}'),
+                        _bestChip('Season', '${appState.currentSeason + 1}'),
+                        _bestChip('Best streak', '${appState.bestStreak}'),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -5270,9 +5496,10 @@ class LegacyScreen extends StatelessWidget {
                 const Padding(
                   padding: EdgeInsets.all(24),
                   child: _EmptyState(
-                      emoji: '📜',
-                      title: 'No milestones yet',
-                      subtitle: 'Level up, defeat the boss, or hit a streak.'),
+                    emoji: '📜',
+                    title: 'No milestones yet',
+                    subtitle: 'Level up, defeat the boss, or hit a streak.',
+                  ),
                 )
               else
                 ...log.map((m) => _MilestoneTile(m)),
@@ -5294,42 +5521,43 @@ class _MilestoneTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-          color: HrColors.surface,
-          borderRadius: BorderRadius.circular(HrRadius.md),
-          border: const Border(top: BorderSide(color: HrColors.hairline))),
-      child: Row(children: [
-        Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-              shape: BoxShape.circle, color: color.withValues(alpha: 0.15)),
-          child: Icon(_milestoneIcon(m.type), color: color, size: 18),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(m.description,
-                  style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 2),
-              Text(_fmtDate(m.date), style: HrText.caption),
-            ],
+        color: HrColors.surface,
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: const Border(top: BorderSide(color: HrColors.hairline)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.15)),
+            child: Icon(_milestoneIcon(m.type), color: color, size: 18),
           ),
-        ),
-        if (m.xp > 0)
-          Text('+${m.xp}',
-              style: HrText.caption.copyWith(color: color, fontWeight: FontWeight.w800)),
-      ]),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(m.description, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(_fmtDate(m.date), style: HrText.caption),
+              ],
+            ),
+          ),
+          if (m.xp > 0)
+            Text(
+              '+${m.xp}',
+              style: HrText.caption.copyWith(color: color, fontWeight: FontWeight.w800),
+            ),
+        ],
+      ),
     );
   }
 }
 
 // ── SETTINGS & ACCOUNT ───────────────────────────────────────────────────────
-Widget _settingsTile(IconData icon, String title, String subtitle,
-    VoidCallback? onTap,
-    {bool danger = false}) {
+Widget _settingsTile(IconData icon, String title, String subtitle, VoidCallback? onTap, {bool danger = false}) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Material(
@@ -5340,25 +5568,29 @@ Widget _settingsTile(IconData icon, String title, String subtitle,
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Row(children: [
-            Icon(icon, color: danger ? HrColors.dangerText : HrColors.text2, size: 20),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
+          child: Row(
+            children: [
+              Icon(icon, color: danger ? HrColors.dangerText : HrColors.text2, size: 20),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
                       style: HrText.body.copyWith(
-                          color: danger ? HrColors.dangerText : HrColors.text,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: HrText.caption),
-                ],
+                        color: danger ? HrColors.dangerText : HrColors.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: HrText.caption),
+                  ],
+                ),
               ),
-            ),
-            if (onTap != null)
-              const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
-          ]),
+              if (onTap != null) const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+            ],
+          ),
         ),
       ),
     ),
@@ -5366,9 +5598,9 @@ Widget _settingsTile(IconData icon, String title, String subtitle,
 }
 
 Widget _sectionLabel(String s) => Padding(
-      padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
-      child: Text(s.toUpperCase(), style: HrText.labelCaps),
-    );
+  padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+  child: Text(s.toUpperCase(), style: HrText.labelCaps),
+);
 
 // ── "You" hub rows (redesign) ────────────────────────────────────────────────
 class _YouRow {
@@ -5380,46 +5612,54 @@ class _YouRow {
 }
 
 Widget _youRowWidget(_YouRow r) => Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: r.onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(children: [
-            Icon(r.icon, size: 20, color: r.danger ? HrColors.dangerText : HrColors.text2),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(r.title,
-                    style: HrText.body.copyWith(
-                        color: r.danger ? HrColors.dangerText : HrColors.text,
-                        fontWeight: FontWeight.w600)),
+  color: Colors.transparent,
+  child: InkWell(
+    onTap: r.onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      child: Row(
+        children: [
+          Icon(r.icon, size: 20, color: r.danger ? HrColors.dangerText : HrColors.text2),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  r.title,
+                  style: HrText.body.copyWith(
+                    color: r.danger ? HrColors.dangerText : HrColors.text,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 if (r.subtitle.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(r.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
                 ],
-              ]),
+              ],
             ),
-            if (r.onTap != null && !r.danger)
-              const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
-          ]),
-        ),
+          ),
+          if (r.onTap != null && !r.danger) const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+        ],
       ),
-    );
+    ),
+  ),
+);
 
 Widget _youGroup(List<_YouRow> rows) => HrCard(
-      padding: EdgeInsets.zero,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(HrRadius.lg),
-        child: Column(children: [
-          for (int i = 0; i < rows.length; i++) ...[
-            if (i > 0)
-              const Divider(height: 1, thickness: 1, color: HrColors.hairline, indent: 48),
-            _youRowWidget(rows[i]),
-          ],
-        ]),
-      ),
-    );
+  padding: EdgeInsets.zero,
+  child: ClipRRect(
+    borderRadius: BorderRadius.circular(HrRadius.lg),
+    child: Column(
+      children: [
+        for (int i = 0; i < rows.length; i++) ...[
+          if (i > 0) const Divider(height: 1, thickness: 1, color: HrColors.hairline, indent: 48),
+          _youRowWidget(rows[i]),
+        ],
+      ],
+    ),
+  ),
+);
 
 Widget _youQuickCard({
   required IconData icon,
@@ -5428,31 +5668,45 @@ Widget _youQuickCard({
   required String subtitle,
   required VoidCallback onTap,
   String? imageAsset,
-}) =>
-    HrCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(14),
-      child: Row(children: [
-        Container(
-          width: imageAsset == null ? 36 : 44,
-          height: imageAsset == null ? 36 : 44,
-          alignment: Alignment.center,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: iconColor),
-          child: imageAsset == null
-              ? Icon(icon, size: 18, color: HrColors.bg)
-              : Image.asset(imageAsset, fit: BoxFit.cover),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+  double imageSize = 44,
+}) => HrCard(
+  onTap: onTap,
+  padding: const EdgeInsets.all(14),
+  child: Row(
+    children: [
+      Container(
+        width: imageAsset == null ? 36 : 44,
+        height: imageAsset == null ? 36 : 44,
+        alignment: Alignment.center,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: iconColor),
+        child: imageAsset == null
+            ? Icon(icon, size: 18, color: HrColors.bg)
+            : Image.asset(
+                imageAsset,
+                width: imageSize,
+                height: imageSize,
+                fit: BoxFit.contain,
+              ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+            ),
             Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
-          ]),
+          ],
         ),
-      ]),
-    );
+      ),
+    ],
+  ),
+);
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -5479,115 +5733,146 @@ class SettingsScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
               children: [
-                Row(children: [
-                  Text('You', style: HrText.display),
-                  const Spacer(),
-                  _coinChip(context),
-                ]),
+                Row(
+                  children: [
+                    Text('You', style: HrText.display),
+                    const Spacer(),
+                    _coinChip(context),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 HrCard(
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => authed ? const AccountScreen() : const LoginScreen())),
-                    child: Row(children: [
-                      GestureDetector(
-                        onTap: () => _pickProfilePhoto(context),
-                        child: _Avatar(size: 54),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(appState.displayName,
-                              maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.title2),
-                          const SizedBox(height: 3),
-                          Text('${handle}Lv ${ld.level} · ${levelTitle(ld.level)}',
-                              maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
-                          const SizedBox(height: 10),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(HrRadius.full),
-                            child: LinearProgressIndicator(
-                              value: ld.progress.clamp(0.0, 1.0).toDouble(),
-                              minHeight: 6,
-                              backgroundColor: HrColors.surface3,
-                              valueColor: const AlwaysStoppedAnimation(HrColors.text),
-                            ),
+                    onTap: () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => authed ? const AccountScreen() : const LoginScreen())),
+                    child: Row(
+                      children: [
+                        GestureDetector(onTap: () => _pickProfilePhoto(context), child: _Avatar(size: 54)),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                appState.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: HrText.title2,
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '${handle}Lv ${ld.level} · ${levelTitle(ld.level)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: HrText.caption,
+                              ),
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(HrRadius.full),
+                                child: LinearProgressIndicator(
+                                  value: ld.progress.clamp(0.0, 1.0).toDouble(),
+                                  minHeight: 6,
+                                  backgroundColor: HrColors.surface3,
+                                  valueColor: const AlwaysStoppedAnimation(HrColors.text),
+                                ),
+                              ),
+                            ],
                           ),
-                        ]),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.edit_rounded, color: HrColors.text3, size: 18),
-                        tooltip: 'Edit name',
-                        onPressed: () => _editName(context),
-                      ),
-                    ]),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.edit_rounded, color: HrColors.text3, size: 18),
+                          tooltip: 'Edit name',
+                          onPressed: () => _editName(context),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: _youQuickCard(
-                      icon: comp.icon,
-                      iconColor: comp.color,
-                      title: comp.name,
-                      subtitle: 'Companion',
-                      imageAsset: comp.imageAsset,
-                      onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const CompanionsScreen())),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _youQuickCard(
+                        icon: comp.icon,
+                        iconColor: comp.color,
+                        title: comp.name,
+                        subtitle: 'Companion',
+                        imageAsset: comp.imageAsset,
+                        onTap: () =>
+                            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CompanionsScreen())),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _youQuickCard(
-                      icon: Icons.monetization_on_rounded,
-                      iconColor: HrColors.gold,
-                      title: 'Shop',
-                      subtitle: '${appState.coins} coins',
-                      onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const ShopScreen())),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _youQuickCard(
+                        icon: Icons.monetization_on_rounded,
+                        iconColor: Colors.transparent,
+                        title: 'Shop',
+                        subtitle: '${appState.coins} coins',
+                        imageAsset: 'assets/shop/coin_stack.png',
+                        imageSize: 44,
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShopScreen())),
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
                 const SizedBox(height: 18),
                 const HrLabel('Account'),
                 _youGroup([
                   _YouRow(
                     authed ? Icons.person_rounded : Icons.login_rounded,
                     authed ? 'Account' : 'Sign in or create account',
-                    authed
-                        ? (u?.email ?? 'Manage your account')
-                        : 'Back up progress & sync devices',
-                    () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => authed ? const AccountScreen() : const LoginScreen())),
+                    authed ? (u?.email ?? 'Manage your account') : 'Back up progress & sync devices',
+                    () => Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => authed ? const AccountScreen() : const LoginScreen())),
                   ),
-                  _YouRow(Icons.ios_share_rounded, 'Share progress', 'Level · streak · score',
-                      () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const ShareCardScreen()))),
+                  _YouRow(
+                    Icons.ios_share_rounded,
+                    'Share progress',
+                    'Level · streak · score',
+                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShareCardScreen())),
+                  ),
                 ]),
                 const SizedBox(height: 18),
                 const HrLabel('Preferences'),
                 _youGroup([
-                  _YouRow(Icons.palette_rounded, 'Appearance', 'Rings, checks & progress colour',
-                      () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const AppearanceScreen()))),
-                  _YouRow(Icons.monitor_heart_rounded, 'Body profile', bodySub,
-                      () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const BodyProfileScreen()))),
-                  _YouRow(Icons.restaurant_rounded, 'Nutrition',
-                      '${n.calories.round()} / ${t.calories.round()} kcal today',
-                      () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const NutritionScreen()))),
-                  _YouRow(Icons.auto_awesome_rounded, 'AI difficulty',
-                      appState.aiEnabled ? 'Ollama · ${appState.aiModel}' : 'Built-in estimate',
-                      () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const AiSettingsScreen()))),
+                  _YouRow(
+                    Icons.palette_rounded,
+                    'Appearance',
+                    'Rings, checks & progress colour',
+                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AppearanceScreen())),
+                  ),
+                  _YouRow(
+                    Icons.monitor_heart_rounded,
+                    'Body profile',
+                    bodySub,
+                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BodyProfileScreen())),
+                  ),
+                  _YouRow(
+                    Icons.restaurant_rounded,
+                    'Nutrition',
+                    '${n.calories.round()} / ${t.calories.round()} kcal today',
+                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NutritionScreen())),
+                  ),
+                  _YouRow(
+                    Icons.auto_awesome_rounded,
+                    'AI difficulty',
+                    appState.aiEnabled ? 'Ollama · ${appState.aiModel}' : 'Built-in estimate',
+                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AiSettingsScreen())),
+                  ),
                 ]),
                 const SizedBox(height: 18),
                 const HrLabel('Data'),
                 _youGroup([
-                  _YouRow(Icons.refresh_rounded, 'Reset all progress', 'Wipe habits, XP & history',
-                      () => _confirmReset(context), danger: true),
+                  _YouRow(
+                    Icons.refresh_rounded,
+                    'Reset all progress',
+                    'Wipe habits, XP & history',
+                    () => _confirmReset(context),
+                    danger: true,
+                  ),
                   if (authed)
                     _YouRow(Icons.logout_rounded, 'Log out', '', () async {
                       await auth.signOut();
@@ -5619,8 +5904,7 @@ Future<void> _editName(BuildContext context) async {
         decoration: const InputDecoration(hintText: 'Display name'),
       ),
       actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kPlasma),
           onPressed: () => Navigator.pop(ctx, c.text.trim()),
@@ -5639,14 +5923,13 @@ Future<void> _confirmReset(BuildContext context) async {
       backgroundColor: HrColors.surface,
       title: Text('Reset all progress?', style: HrText.title2),
       content: Text(
-          'This permanently clears your habits, XP, coins, streaks, nutrition, companions, prestige and history on this device.',
-          style: HrText.bodyS),
+        'This permanently clears your habits, XP, coins, streaks, nutrition, companions, prestige and history on this device.',
+        style: HrText.bodyS,
+      ),
       actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
         FilledButton(
-          style: FilledButton.styleFrom(
-              backgroundColor: HrColors.danger, foregroundColor: Colors.white),
+          style: FilledButton.styleFrom(backgroundColor: HrColors.danger, foregroundColor: Colors.white),
           onPressed: () => Navigator.pop(ctx, true),
           child: const Text('Reset everything'),
         ),
@@ -5667,10 +5950,8 @@ class AiSettingsScreen extends StatefulWidget {
 }
 
 class _AiSettingsScreenState extends State<AiSettingsScreen> {
-  late final TextEditingController _url =
-      TextEditingController(text: appState.aiBaseUrl);
-  late final TextEditingController _model =
-      TextEditingController(text: appState.aiModel);
+  late final TextEditingController _url = TextEditingController(text: appState.aiBaseUrl);
+  late final TextEditingController _model = TextEditingController(text: appState.aiModel);
   bool _testing = false;
   bool _testOk = false;
   String? _testResult;
@@ -5719,11 +6000,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
-                      const Icon(Icons.auto_awesome_rounded, color: HrColors.text2, size: 20),
-                      const SizedBox(width: 8),
-                      Text('How it works', style: HrText.headline),
-                    ]),
+                    Row(
+                      children: [
+                        const Icon(Icons.auto_awesome_rounded, color: HrColors.text2, size: 20),
+                        const SizedBox(width: 8),
+                        Text('How it works', style: HrText.headline),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'When you add a habit, a local AI model reads it and picks a '
@@ -5742,21 +6025,28 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 child: SwitchListTile(
                   value: on,
                   activeThumbColor: HrColors.accent,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                  title: Text('Use Ollama',
-                      style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  title: Text('Use Ollama', style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
                   subtitle: Text('Rate new habits with a local model', style: HrText.caption),
                   onChanged: (v) => appState.setAiConfig(enabled: v),
                 ),
               ),
               const SizedBox(height: 16),
-              _aiField('Server URL', _url, 'http://localhost:11434',
-                  enabled: on,
-                  onChanged: (v) => appState.setAiConfig(baseUrl: v)),
+              _aiField(
+                'Server URL',
+                _url,
+                'http://localhost:11434',
+                enabled: on,
+                onChanged: (v) => appState.setAiConfig(baseUrl: v),
+              ),
               const SizedBox(height: 12),
-              _aiField('Model', _model, kDefaultAiModel,
-                  enabled: on, onChanged: (v) => appState.setAiConfig(model: v)),
+              _aiField(
+                'Model',
+                _model,
+                kDefaultAiModel,
+                enabled: on,
+                onChanged: (v) => appState.setAiConfig(model: v),
+              ),
               const SizedBox(height: 16),
               HrButton(
                 label: _testing ? 'Testing…' : 'Test connection',
@@ -5770,18 +6060,25 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: (_testOk ? HrColors.accent : HrColors.danger).withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(HrRadius.md)),
-                  child: Row(children: [
-                    Icon(_testOk ? Icons.check_circle_rounded : Icons.error_rounded,
-                        color: _testOk ? HrColors.accent : HrColors.dangerText, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(_testResult!,
-                          style: HrText.caption.copyWith(
-                              color: _testOk ? HrColors.accent : HrColors.dangerText)),
-                    ),
-                  ]),
+                    color: (_testOk ? HrColors.accent : HrColors.danger).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _testOk ? Icons.check_circle_rounded : Icons.error_rounded,
+                        color: _testOk ? HrColors.accent : HrColors.dangerText,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _testResult!,
+                          style: HrText.caption.copyWith(color: _testOk ? HrColors.accent : HrColors.dangerText),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
               const SizedBox(height: 20),
@@ -5807,8 +6104,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
   }
 }
 
-Widget _aiField(String label, TextEditingController c, String hint,
-    {required bool enabled, required ValueChanged<String> onChanged}) {
+Widget _aiField(
+  String label,
+  TextEditingController c,
+  String hint, {
+  required bool enabled,
+  required ValueChanged<String> onChanged,
+}) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -5827,12 +6129,14 @@ Widget _aiField(String label, TextEditingController c, String hint,
           fillColor: HrColors.surface,
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            borderSide: BorderSide.none,
+          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
           focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(HrRadius.md),
-              borderSide: const BorderSide(color: HrColors.text, width: 1.5)),
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+          ),
         ),
         onChanged: onChanged,
       ),
@@ -5842,15 +6146,14 @@ Widget _aiField(String label, TextEditingController c, String hint,
 
 // ── APPEARANCE (themes) ──────────────────────────────────────────────────────
 Widget _swatch(Color c) => Container(
-      width: 22,
-      height: 22,
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      decoration: BoxDecoration(shape: BoxShape.circle, color: c),
-    );
+  width: 22,
+  height: 22,
+  margin: const EdgeInsets.symmetric(horizontal: 3),
+  decoration: BoxDecoration(shape: BoxShape.circle, color: c),
+);
 
 void _toast(BuildContext context, String msg) =>
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: kElevated));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: kElevated));
 
 // Gold affordability-aware buy pill. Affordable → glowing gold; otherwise a
 // muted pill that still taps through to show the "not enough coins" toast.
@@ -5865,31 +6168,34 @@ Widget _buyPill({required int cost, required VoidCallback onTap}) {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          gradient: canAfford
-              ? const LinearGradient(
-                  colors: [Color(0xFFFFD873), Color(0xFFF5A623)])
-              : null,
+          gradient: canAfford ? const LinearGradient(colors: [Color(0xFFFFD873), Color(0xFFF5A623)]) : null,
           color: canAfford ? null : kElevated,
           border: canAfford ? null : Border.all(color: kBorder),
           boxShadow: canAfford
               ? [
                   BoxShadow(
-                      color: const Color(0xFFF5A623).withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 3))
+                    color: const Color(0xFFF5A623).withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
                 ]
               : null,
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.bolt,
-              size: 15, color: canAfford ? const Color(0xFF3A2A05) : kGold),
-          const SizedBox(width: 3),
-          Text('$cost',
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.bolt, size: 15, color: canAfford ? const Color(0xFF3A2A05) : kGold),
+            const SizedBox(width: 3),
+            Text(
+              '$cost',
               style: TextStyle(
-                  color: canAfford ? const Color(0xFF3A2A05) : kTextSecondary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13)),
-        ]),
+                color: canAfford ? const Color(0xFF3A2A05) : kTextSecondary,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -5897,93 +6203,107 @@ Widget _buyPill({required int cost, required VoidCallback onTap}) {
 
 // Small status chip for an owned/active cosmetic (check + label).
 Widget _stateChip(String label, Color color) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(HrRadius.sm),
+  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+  decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(HrRadius.sm)),
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.check_rounded, size: 13, color: color),
+      const SizedBox(width: 4),
+      Text(
+        label,
+        style: HrText.micro.copyWith(color: color, fontWeight: FontWeight.w800, letterSpacing: 0.8),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.check_rounded, size: 13, color: color),
-        const SizedBox(width: 4),
-        Text(label,
-            style: HrText.micro.copyWith(
-                color: color, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
-      ]),
-    );
+    ],
+  ),
+);
 
 // Outline pill for a secondary action (Select / Apply an owned cosmetic).
 Widget _secondaryPill(String label, VoidCallback onTap) => Material(
-      color: HrColors.surface2,
-      borderRadius: BorderRadius.circular(HrRadius.full),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          child: Text(label,
-              style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w700)),
-        ),
+  color: HrColors.surface2,
+  borderRadius: BorderRadius.circular(HrRadius.full),
+  clipBehavior: Clip.antiAlias,
+  child: InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      child: Text(
+        label,
+        style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w700),
       ),
-    );
+    ),
+  ),
+);
 
 // Section header with an optional right-aligned owned-count ("3 / 7").
 Widget _shopSectionHeader(String title, String trailing) => Padding(
-      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-      child: Row(children: [
-        Expanded(child: Text(title.toUpperCase(), style: HrText.labelCaps)),
-        if (trailing.isNotEmpty) Text(trailing, style: HrText.labelCaps),
-      ]),
-    );
+  padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+  child: Row(
+    children: [
+      Expanded(child: Text(title.toUpperCase(), style: HrText.labelCaps)),
+      if (trailing.isNotEmpty) Text(trailing, style: HrText.labelCaps),
+    ],
+  ),
+);
 
 // Coins balance hero at the top of the shop.
 Widget _balanceHero() => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-      decoration: BoxDecoration(
-        color: HrColors.surface,
-        borderRadius: BorderRadius.circular(HrRadius.lg),
-        border: const Border(top: BorderSide(color: HrColors.hairline)),
+  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+  decoration: BoxDecoration(
+    color: HrColors.surface,
+    borderRadius: BorderRadius.circular(HrRadius.lg),
+    border: const Border(top: BorderSide(color: HrColors.hairline)),
+  ),
+  child: Row(
+    children: [
+      Image.asset(
+        'assets/shop/coin_stack.png',
+        width: 64,
+        height: 64,
+        fit: BoxFit.contain,
+        semanticLabel: 'Gold coin stack',
       ),
-      child: Row(children: [
-        Image.asset('assets/shop/coin_stack.png',
-            width: 64, height: 64, fit: BoxFit.contain,
-            semanticLabel: 'Gold coin stack'),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      const SizedBox(width: 16),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('YOUR BALANCE', style: HrText.labelCaps),
+            const SizedBox(height: 3),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text('${appState.coins}', style: HrText.numeralXl.copyWith(color: HrColors.gold, fontSize: 34)),
+                const SizedBox(width: 6),
+                Text('coins', style: HrText.caption),
+              ],
+            ),
+          ],
+        ),
+      ),
+      if (appState.xpBoostActive)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(color: HrColors.accentSurface, borderRadius: BorderRadius.circular(HrRadius.sm)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text('YOUR BALANCE', style: HrText.labelCaps),
-              const SizedBox(height: 3),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text('${appState.coins}',
-                      style: HrText.numeralXl.copyWith(color: HrColors.gold, fontSize: 34)),
-                  const SizedBox(width: 6),
-                  Text('coins', style: HrText.caption),
-                ],
+              Text(
+                '2×',
+                style: HrText.bodyS.copyWith(color: HrColors.accent, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'XP',
+                style: HrText.micro.copyWith(color: HrColors.accent, fontWeight: FontWeight.w700),
               ),
             ],
           ),
         ),
-        if (appState.xpBoostActive)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-            decoration: BoxDecoration(
-              color: HrColors.accentSurface,
-              borderRadius: BorderRadius.circular(HrRadius.sm),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text('2×',
-                  style: HrText.bodyS.copyWith(color: HrColors.accent, fontWeight: FontWeight.w800)),
-              const SizedBox(width: 4),
-              Text('XP',
-                  style: HrText.micro.copyWith(color: HrColors.accent, fontWeight: FontWeight.w700)),
-            ]),
-          ),
-      ]),
-    );
+    ],
+  ),
+);
 
 Widget _shopItem({
   required IconData icon,
@@ -5999,42 +6319,43 @@ Widget _shopItem({
     margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-        color: HrColors.surface,
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        border: const Border(top: BorderSide(color: HrColors.hairline))),
-    child: Row(children: [
-      Container(
-        width: 46,
-        height: 46,
-        alignment: Alignment.center,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(HrRadius.sm),
-          color: color.withValues(alpha: 0.16),
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: const Border(top: BorderSide(color: HrColors.hairline)),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          alignment: Alignment.center,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(HrRadius.sm),
+            color: color.withValues(alpha: 0.16),
+          ),
+          child: imageAsset == null ? Icon(icon, color: color, size: 22) : Image.asset(imageAsset, fit: BoxFit.cover),
         ),
-        child: imageAsset == null
-            ? Icon(icon, color: color, size: 22)
-            : Image.asset(imageAsset, fit: BoxFit.cover),
-      ),
-      const SizedBox(width: 14),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 3),
-            Text(desc, style: HrText.caption),
-          ],
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 3),
+              Text(desc, style: HrText.caption),
+            ],
+          ),
         ),
-      ),
-      const SizedBox(width: 10),
-      if (activeLabel != null)
-        _stateChip(activeLabel, HrColors.accent)
-      else if (onBuy != null)
-        _buyPill(cost: cost, onTap: onBuy)
-      else
-        _stateChip('OWNED', HrColors.accent),
-    ]),
+        const SizedBox(width: 10),
+        if (activeLabel != null)
+          _stateChip(activeLabel, HrColors.accent)
+        else if (onBuy != null)
+          _buyPill(cost: cost, onTap: onBuy)
+        else
+          _stateChip('OWNED', HrColors.accent),
+      ],
+    ),
   );
 }
 
@@ -6045,10 +6366,8 @@ class ShopScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) {
-        final ownedBorders =
-            kBorders.where((b) => appState.ownsBorder(b.id)).length;
-        final ownedThemes =
-            kThemes.where((t) => appState.ownsTheme(t.id)).length;
+        final ownedBorders = kBorders.where((b) => appState.ownsBorder(b.id)).length;
+        final ownedThemes = kThemes.where((t) => appState.ownsTheme(t.id)).length;
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
@@ -6064,8 +6383,9 @@ class ShopScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
                 child: Text(
-                    'Spend coins on power-ups and cosmetics to personalize your journey.',
-                    style: HrText.caption),
+                  'Spend coins on power-ups and cosmetics to personalize your journey.',
+                  style: HrText.caption,
+                ),
               ),
               _shopSectionHeader('POWER-UPS', ''),
               _shopItem(
@@ -6073,17 +6393,11 @@ class ShopScreen extends StatelessWidget {
                 color: kGold,
                 imageAsset: 'assets/powerups/xp_booster.png',
                 title: '2× XP Booster',
-                desc: appState.xpBoostActive
-                    ? 'Active for the rest of today'
-                    : 'Double all XP you earn today',
+                desc: appState.xpBoostActive ? 'Active for the rest of today' : 'Double all XP you earn today',
                 cost: 150,
                 onBuy: appState.xpBoostActive
                     ? null
-                    : () => _toast(
-                        context,
-                        appState.buyXpBoost()
-                            ? '2× XP active for today!'
-                            : 'Not enough coins'),
+                    : () => _toast(context, appState.buyXpBoost() ? '2× XP active for today!' : 'Not enough coins'),
                 activeLabel: appState.xpBoostActive ? 'ACTIVE' : null,
               ),
               _shopItem(
@@ -6091,17 +6405,11 @@ class ShopScreen extends StatelessWidget {
                 color: kCyan,
                 imageAsset: 'assets/powerups/streak_shield.png',
                 title: 'Streak Shield',
-                desc:
-                    'Saves a streak from one missed day · owned: ${appState.streakShields}',
+                desc: 'Saves a streak from one missed day · owned: ${appState.streakShields}',
                 cost: 100,
-                onBuy: () => _toast(
-                    context,
-                    appState.buyStreakShield()
-                        ? 'Streak Shield added!'
-                        : 'Not enough coins'),
+                onBuy: () => _toast(context, appState.buyStreakShield() ? 'Streak Shield added!' : 'Not enough coins'),
               ),
-              _shopSectionHeader(
-                  'PROFILE BORDERS', '$ownedBorders / ${kBorders.length}'),
+              _shopSectionHeader('PROFILE BORDERS', '$ownedBorders / ${kBorders.length}'),
               ...kBorders.map((b) => _borderShopTile(context, b)),
               _shopSectionHeader('THEMES', '$ownedThemes / ${kThemes.length}'),
               ...kThemes.map((t) => _themeShopTile(context, t)),
@@ -6120,36 +6428,36 @@ Widget _borderShopTile(BuildContext context, BorderDef b) {
     margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-        color: HrColors.surface,
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        border: Border(
-            top: BorderSide(
-                color: selected ? HrColors.accent : HrColors.hairline,
-                width: selected ? 2 : 1))),
-    child: Row(children: [
-      _borderPreview(b, size: 42),
-      const SizedBox(width: 14),
-      Expanded(
-          child: Text(b.name,
-              style: HrText.body.copyWith(fontWeight: FontWeight.w600))),
-      if (owned)
-        selected
-            ? _stateChip('SELECTED', HrColors.accent)
-            : _secondaryPill('Select', () => appState.setBorder(b.id))
-      else
-        _buyPill(
-          cost: b.cost,
-          onTap: () {
-            if (appState.buyBorder(b.id)) {
-              appState.setBorder(b.id);
-              celebrate(context);
-              _toast(context, '${b.name} unlocked & applied!');
-            } else {
-              _toast(context, 'Not enough coins');
-            }
-          },
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: Border(
+        top: BorderSide(color: selected ? HrColors.accent : HrColors.hairline, width: selected ? 2 : 1),
+      ),
+    ),
+    child: Row(
+      children: [
+        _borderPreview(b, size: 42),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(b.name, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
         ),
-    ]),
+        if (owned)
+          selected ? _stateChip('SELECTED', HrColors.accent) : _secondaryPill('Select', () => appState.setBorder(b.id))
+        else
+          _buyPill(
+            cost: b.cost,
+            onTap: () {
+              if (appState.buyBorder(b.id)) {
+                appState.setBorder(b.id);
+                celebrate(context);
+                _toast(context, '${b.name} unlocked & applied!');
+              } else {
+                _toast(context, 'Not enough coins');
+              }
+            },
+          ),
+      ],
+    ),
   );
 }
 
@@ -6160,40 +6468,36 @@ Widget _themeShopTile(BuildContext context, AppThemeDef t) {
     margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-        color: HrColors.surface,
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        border: Border(
-            top: BorderSide(
-                color: active ? HrColors.accent : HrColors.hairline,
-                width: active ? 2 : 1))),
-    child: Row(children: [
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        _swatch(t.accent),
-        _swatch(t.bright),
-        _swatch(t.glow),
-      ]),
-      const SizedBox(width: 10),
-      Expanded(
-          child: Text(t.name,
-              style: HrText.body.copyWith(fontWeight: FontWeight.w600))),
-      if (owned)
-        active
-            ? _stateChip('ACTIVE', HrColors.accent)
-            : _secondaryPill('Apply', () => appState.setTheme(t.id))
-      else
-        _buyPill(
-          cost: themeCost(t.id),
-          onTap: () {
-            if (appState.buyTheme(t.id)) {
-              appState.setTheme(t.id);
-              celebrate(context);
-              _toast(context, '${t.name} unlocked & applied!');
-            } else {
-              _toast(context, 'Not enough coins');
-            }
-          },
+      color: HrColors.surface,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+      border: Border(
+        top: BorderSide(color: active ? HrColors.accent : HrColors.hairline, width: active ? 2 : 1),
+      ),
+    ),
+    child: Row(
+      children: [
+        Row(mainAxisSize: MainAxisSize.min, children: [_swatch(t.accent), _swatch(t.bright), _swatch(t.glow)]),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(t.name, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
         ),
-    ]),
+        if (owned)
+          active ? _stateChip('ACTIVE', HrColors.accent) : _secondaryPill('Apply', () => appState.setTheme(t.id))
+        else
+          _buyPill(
+            cost: themeCost(t.id),
+            onTap: () {
+              if (appState.buyTheme(t.id)) {
+                appState.setTheme(t.id);
+                celebrate(context);
+                _toast(context, '${t.name} unlocked & applied!');
+              } else {
+                _toast(context, 'Not enough coins');
+              }
+            },
+          ),
+      ],
+    ),
   );
 }
 
@@ -6202,9 +6506,7 @@ void celebrate(BuildContext context) {
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
   entry = OverlayEntry(
-    builder: (_) => Positioned.fill(
-      child: _Confetti(onDone: () => entry.remove()),
-    ),
+    builder: (_) => Positioned.fill(child: _Confetti(onDone: () => entry.remove())),
   );
   overlay.insert(entry);
 }
@@ -6222,8 +6524,7 @@ class _Confetti extends StatefulWidget {
   State<_Confetti> createState() => _ConfettiState();
 }
 
-class _ConfettiState extends State<_Confetti>
-    with SingleTickerProviderStateMixin {
+class _ConfettiState extends State<_Confetti> with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   final List<_Confo> _p = [];
 
@@ -6231,22 +6532,21 @@ class _ConfettiState extends State<_Confetti>
   void initState() {
     super.initState();
     final r = Random();
-    final colors = [
-      kPlasma, kCyan, kGold, const Color(0xFFF472B6), kGreen, kBlue
-    ];
+    final colors = [kPlasma, kCyan, kGold, const Color(0xFFF472B6), kGreen, kBlue];
     for (int i = 0; i < 80; i++) {
-      _p.add(_Confo(
-        r.nextDouble(),
-        (r.nextDouble() - 0.5) * 0.4,
-        r.nextDouble() * 0.25,
-        r.nextDouble() * 6.28,
-        (r.nextDouble() - 0.5) * 10,
-        colors[r.nextInt(colors.length)],
-        6 + r.nextDouble() * 7,
-      ));
+      _p.add(
+        _Confo(
+          r.nextDouble(),
+          (r.nextDouble() - 0.5) * 0.4,
+          r.nextDouble() * 0.25,
+          r.nextDouble() * 6.28,
+          (r.nextDouble() - 0.5) * 10,
+          colors[r.nextInt(colors.length)],
+          6 + r.nextDouble() * 7,
+        ),
+      );
     }
-    _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1900))
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1900))
       ..addStatusListener((s) {
         if (s == AnimationStatus.completed) widget.onDone();
       })
@@ -6264,8 +6564,7 @@ class _ConfettiState extends State<_Confetti>
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _c,
-        builder: (_, _) => CustomPaint(
-            size: Size.infinite, painter: _ConfettiPainter(_p, _c.value)),
+        builder: (_, _) => CustomPaint(size: Size.infinite, painter: _ConfettiPainter(_p, _c.value)),
       ),
     );
   }
@@ -6292,9 +6591,9 @@ class _ConfettiPainter extends CustomPainter {
       canvas.rotate(c.rot + c.vr * t);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-            Rect.fromCenter(
-                center: Offset.zero, width: c.size, height: c.size * 0.6),
-            const Radius.circular(1.5)),
+          Rect.fromCenter(center: Offset.zero, width: c.size, height: c.size * 0.6),
+          const Radius.circular(1.5),
+        ),
         paint,
       );
       canvas.restore();
@@ -6336,12 +6635,9 @@ class _HeatmapCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(HrRadius.xs),
                     color: on
-                        ? HrColors.victory(c.score)
-                            .withValues(alpha: 0.3 + c.score / 100 * 0.7)
+                        ? HrColors.victory(c.score).withValues(alpha: 0.3 + c.score / 100 * 0.7)
                         : HrColors.surface2,
-                    border: c.today
-                        ? Border.all(color: HrColors.text, width: 1)
-                        : null,
+                    border: c.today ? Border.all(color: HrColors.text, width: 1) : null,
                   ),
                 );
               }).toList(),
@@ -6383,19 +6679,18 @@ class _WeekTrendCard extends StatelessWidget {
                         height: h,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(HrRadius.xs),
-                          color: HrColors.victory(d.score)
-                              .withValues(alpha: d.today ? 1 : 0.5),
-                          border: d.today
-                              ? Border.all(color: HrColors.text, width: 1)
-                              : null,
+                          color: HrColors.victory(d.score).withValues(alpha: d.today ? 1 : 0.5),
+                          border: d.today ? Border.all(color: HrColors.text, width: 1) : null,
                         ),
                       ),
                       const SizedBox(height: 5),
-                      Text(d.label,
-                          style: HrText.micro.copyWith(
-                              color: d.today ? HrColors.text : HrColors.text3,
-                              fontWeight:
-                                  d.today ? FontWeight.w800 : FontWeight.w600)),
+                      Text(
+                        d.label,
+                        style: HrText.micro.copyWith(
+                          color: d.today ? HrColors.text : HrColors.text3,
+                          fontWeight: d.today ? FontWeight.w800 : FontWeight.w600,
+                        ),
+                      ),
                     ],
                   );
                 }).toList(),
@@ -6440,9 +6735,8 @@ class AppearanceScreen extends StatelessWidget {
                     color: HrColors.surface,
                     borderRadius: BorderRadius.circular(HrRadius.md),
                     border: Border(
-                        top: BorderSide(
-                            color: active ? HrColors.accent : HrColors.hairline,
-                            width: active ? 2 : 1)),
+                      top: BorderSide(color: active ? HrColors.accent : HrColors.hairline, width: active ? 2 : 1),
+                    ),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -6451,17 +6745,15 @@ class AppearanceScreen extends StatelessWidget {
                         opacity: owned ? 1 : 0.5,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _swatch(t.accent),
-                            _swatch(t.bright),
-                            _swatch(t.glow),
-                          ],
+                          children: [_swatch(t.accent), _swatch(t.bright), _swatch(t.glow)],
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(t.name,
-                          textAlign: TextAlign.center,
-                          style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+                      Text(
+                        t.name,
+                        textAlign: TextAlign.center,
+                        style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                      ),
                       const SizedBox(height: 10),
                       if (active)
                         _stateChip('ACTIVE', HrColors.accent)
@@ -6474,8 +6766,7 @@ class AppearanceScreen extends StatelessWidget {
                             if (appState.buyTheme(t.id)) {
                               appState.setTheme(t.id);
                               celebrate(context);
-                              _toast(
-                                  context, '${t.name} unlocked & applied!');
+                              _toast(context, '${t.name} unlocked & applied!');
                             } else {
                               _toast(context, 'Not enough coins');
                             }
@@ -6495,28 +6786,25 @@ class AppearanceScreen extends StatelessWidget {
 
 // ── DAILY BRIEFING ───────────────────────────────────────────────────────────
 Widget _briefPanel(String tag, String title, Widget body) => Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(tag,
-              style: const TextStyle(
-                  color: kCyan,
-                  letterSpacing: 3,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Text(title,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.spaceGrotesk(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800)),
-          const SizedBox(height: 28),
-          body,
-        ],
+  padding: const EdgeInsets.all(28),
+  child: Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Text(
+        tag,
+        style: const TextStyle(color: kCyan, letterSpacing: 3, fontSize: 12, fontWeight: FontWeight.bold),
       ),
-    );
+      const SizedBox(height: 10),
+      Text(
+        title,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
+      ),
+      const SizedBox(height: 28),
+      body,
+    ],
+  ),
+);
 
 class _DailyBriefing extends StatefulWidget {
   const _DailyBriefing();
@@ -6544,10 +6832,12 @@ class _DailyBriefingState extends State<_DailyBriefing> {
         'Victory score today: ${v.score}/100 (${victoryLabel(v.score)}). '
         'Habits done today: ${appState.doneTodayCount}/${appState.habits.length}. '
         'Best streak: ${appState.bestStreak} days. Coins: ${appState.coins}.';
-    final msg = await aiCoachMessage(summary,
-        enabled: appState.aiEnabled,
-        baseUrl: appState.aiBaseUrl,
-        model: appState.aiModel);
+    final msg = await aiCoachMessage(
+      summary,
+      enabled: appState.aiEnabled,
+      baseUrl: appState.aiBaseUrl,
+      model: appState.aiModel,
+    );
     if (!mounted) return;
     setState(() {
       _coach = msg;
@@ -6577,8 +6867,7 @@ class _DailyBriefingState extends State<_DailyBriefing> {
       appState.markBriefingSeen();
       Navigator.of(context).pop();
     } else {
-      _pc.nextPage(
-          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      _pc.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
     }
   }
 
@@ -6591,95 +6880,95 @@ class _DailyBriefingState extends State<_DailyBriefing> {
       _briefPanel(
         'COACH',
         'Your coach',
-        Column(children: [
-          _CompanionOrb(
-              color: who.color,
-              icon: who.icon,
-              size: 56,
-              imageAsset: who.imageAsset),
-          const SizedBox(height: 18),
-          if (_coachLoading)
-            Column(children: [
-              SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: kPlasmaBright)),
-              const SizedBox(height: 10),
-              const Text('Reading your day…',
-                  style: TextStyle(color: kTextTertiary, fontSize: 13)),
-            ])
-          else
-            Text('"${_coach ?? _coachFallback()}"',
+        Column(
+          children: [
+            _CompanionOrb(color: who.color, icon: who.icon, size: 56, imageAsset: who.imageAsset),
+            const SizedBox(height: 18),
+            if (_coachLoading)
+              Column(
+                children: [
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: kPlasmaBright),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text('Reading your day…', style: TextStyle(color: kTextTertiary, fontSize: 13)),
+                ],
+              )
+            else
+              Text(
+                '"${_coach ?? _coachFallback()}"',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: kTextSecondary,
-                    fontSize: 15,
-                    fontStyle: FontStyle.italic,
-                    height: 1.5)),
-        ]),
+                style: const TextStyle(color: kTextSecondary, fontSize: 15, fontStyle: FontStyle.italic, height: 1.5),
+              ),
+          ],
+        ),
       ),
       _briefPanel(
         'BRIEFING',
         'Welcome back, ${appState.displayName}',
-        Column(children: [
-          Container(
-            width: 72,
-            height: 72,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
+        Column(
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(colors: [kPlasma, kBlue])),
-            child: Text('${ld.level}',
-                style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800)),
-          ),
-          const SizedBox(height: 12),
-          Text(levelTitle(ld.level).toUpperCase(),
-              style: const TextStyle(
-                  color: kCyan, letterSpacing: 2, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Text('Best streak: ${appState.bestStreak} days',
-              style: const TextStyle(color: kTextSecondary)),
-        ]),
+                gradient: LinearGradient(colors: [kPlasma, kBlue]),
+              ),
+              child: Text(
+                '${ld.level}',
+                style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              levelTitle(ld.level).toUpperCase(),
+              style: const TextStyle(color: kCyan, letterSpacing: 2, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text('Best streak: ${appState.bestStreak} days', style: const TextStyle(color: kTextSecondary)),
+          ],
+        ),
       ),
       _briefPanel(
         'STATUS',
         'Today',
-        Column(children: [
-          SizedBox(
-            width: 96,
-            height: 96,
-            child: Stack(alignment: Alignment.center, children: [
-              GlowRing(
-                value: v.score / 100,
-                size: 96,
-                stroke: 8,
-                colors: [
-                  victoryColor(v.score),
-                  Color.lerp(victoryColor(v.score), Colors.white, 0.35)!,
+        Column(
+          children: [
+            SizedBox(
+              width: 96,
+              height: 96,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  GlowRing(
+                    value: v.score / 100,
+                    size: 96,
+                    stroke: 8,
+                    colors: [victoryColor(v.score), Color.lerp(victoryColor(v.score), Colors.white, 0.35)!],
+                  ),
+                  Text(
+                    '${v.score}',
+                    style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800),
+                  ),
                 ],
               ),
-              Text('${v.score}',
-                  style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800)),
-            ]),
-          ),
-          const SizedBox(height: 12),
-          Text(victoryLabel(v.score),
-              style: TextStyle(
-                  color: victoryColor(v.score),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18)),
-          const SizedBox(height: 6),
-          Text(
+            ),
+            const SizedBox(height: 12),
+            Text(
+              victoryLabel(v.score),
+              style: TextStyle(color: victoryColor(v.score), fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 6),
+            Text(
               '${appState.doneTodayCount}/${appState.habits.length} habits · ${appState.coins} coins',
-              style: const TextStyle(color: kTextSecondary)),
-        ]),
+              style: const TextStyle(color: kTextSecondary),
+            ),
+          ],
+        ),
       ),
       _briefPanel(
         'ORDERS',
@@ -6689,20 +6978,23 @@ class _DailyBriefingState extends State<_DailyBriefing> {
             final on = appState.questClaimedIds.contains(q.id);
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(children: [
-                Icon(on ? Icons.check_circle_rounded : Icons.circle_outlined,
-                    size: 16, color: on ? kGreen : kTextTertiary),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: Text(q.title,
-                        style: const TextStyle(
-                            color: kTextSecondary, fontSize: 13))),
-                Text('+${q.xp}',
-                    style: TextStyle(
-                        color: kPlasmaGlow,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
-              ]),
+              child: Row(
+                children: [
+                  Icon(
+                    on ? Icons.check_circle_rounded : Icons.circle_outlined,
+                    size: 16,
+                    color: on ? kGreen : kTextTertiary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(q.title, style: const TextStyle(color: kTextSecondary, fontSize: 13)),
+                  ),
+                  Text(
+                    '+${q.xp}',
+                    style: TextStyle(color: kPlasmaGlow, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             );
           }).toList(),
         ),
@@ -6710,60 +7002,54 @@ class _DailyBriefingState extends State<_DailyBriefing> {
       _briefPanel(
         'DEPLOY',
         who.name,
-        Column(children: [
-          _CompanionOrb(
-              color: who.color,
-              icon: who.icon,
-              size: 60,
-              imageAsset: who.imageAsset),
-          const SizedBox(height: 14),
-          Text(
+        Column(
+          children: [
+            _CompanionOrb(color: who.color, icon: who.icon, size: 60, imageAsset: who.imageAsset),
+            const SizedBox(height: 14),
+            Text(
               '"${companionLine(appState.activeCompanion, v.score >= 90 ? 'elite_day' : 'level_up')}"',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: kTextSecondary, fontStyle: FontStyle.italic)),
-        ]),
+              style: const TextStyle(color: kTextSecondary, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
       ),
     ];
     final last = panels.length - 1;
     return Dialog.fullscreen(
       backgroundColor: kBase,
       child: SafeArea(
-        child: Column(children: [
-          Expanded(
-            child: PageView(
-              controller: _pc,
-              onPageChanged: (i) => setState(() => _page = i),
-              children: panels,
+        child: Column(
+          children: [
+            Expanded(
+              child: PageView(controller: _pc, onPageChanged: (i) => setState(() => _page = i), children: panels),
             ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              panels.length,
-              (i) => AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.all(4),
-                width: i == _page ? 18 : 7,
-                height: 7,
-                decoration: BoxDecoration(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                panels.length,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.all(4),
+                  width: i == _page ? 18 : 7,
+                  height: 7,
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
-                    color: i == _page ? kPlasma : const Color(0x33FFFFFF)),
+                    color: i == _page ? kPlasma : const Color(0x33FFFFFF),
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-            child: SizedBox(
-              width: double.infinity,
-              child: GradientButton(
-                label: _page >= last ? 'Start the day' : 'Next',
-                onPressed: () => _next(last),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: GradientButton(label: _page >= last ? 'Start the day' : 'Next', onPressed: () => _next(last)),
               ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }

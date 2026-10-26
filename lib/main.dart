@@ -4,7 +4,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui' show MaskFilter, BlurStyle, ImageByteFormat;
 
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
@@ -42,7 +43,12 @@ void main() async {
           defaultTargetPlatform == TargetPlatform.linux ||
           defaultTargetPlatform == TargetPlatform.macOS)) {
     await windowManager.ensureInitialized();
-    const opts = WindowOptions(size: Size(400, 860), minimumSize: Size(340, 640), center: true, title: 'Habitrail');
+    const opts = WindowOptions(
+      size: Size(400, 860),
+      minimumSize: Size(340, 640),
+      center: true,
+      title: 'Habitrail',
+    );
     await windowManager.waitUntilReadyToShow(opts, () async {
       await windowManager.show();
       await windowManager.focus();
@@ -120,11 +126,18 @@ class _FadeSlidePageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final eased = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
+    final eased = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
     return FadeTransition(
       opacity: eased,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0.035, 0), end: Offset.zero).animate(eased),
+        position: Tween<Offset>(
+          begin: const Offset(0.035, 0),
+          end: Offset.zero,
+        ).animate(eased),
         child: child,
       ),
     );
@@ -152,7 +165,9 @@ class _AuthGateState extends State<AuthGate> {
       builder: (context, _) {
         if (auth.status == AuthStatus.unknown) {
           return Scaffold(
-            body: Center(child: CircularProgressIndicator(color: kPlasmaBright)),
+            body: Center(
+              child: CircularProgressIndicator(color: kPlasmaBright),
+            ),
           );
         }
         final enter = auth.status == AuthStatus.signedIn || auth.guest;
@@ -172,7 +187,12 @@ class WelcomeScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 12, HrSpace.gutter, 24),
+          padding: const EdgeInsets.fromLTRB(
+            HrSpace.gutter,
+            12,
+            HrSpace.gutter,
+            24,
+          ),
           child: Column(
             children: [
               Expanded(
@@ -191,9 +211,17 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Center(child: SpeechBubble("Five habits. Every day. I'm watching.", maxWidth: 260)),
+                      const Center(
+                        child: SpeechBubble(
+                          "Five habits. Every day. I'm watching.",
+                          maxWidth: 260,
+                        ),
+                      ),
                       const SizedBox(height: 36),
-                      Text('Build habits.\nEarn XP.\nLevel up your life.', style: HrText.displayXl),
+                      Text(
+                        'Build habits.\nEarn XP.\nLevel up your life.',
+                        style: HrText.displayXl,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         'Check off up to five habits a day, keep the streak alive, and let your companion keep you honest.',
@@ -206,18 +234,25 @@ class WelcomeScreen extends StatelessWidget {
               ),
               HrButton(
                 label: 'Create account',
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SignUpScreen())),
+                onPressed: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const SignUpScreen())),
               ),
               const SizedBox(height: 10),
               HrButton(
                 label: 'Log in',
                 kind: HrButtonKind.secondary,
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen())),
+                onPressed: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const LoginScreen())),
               ),
               const SizedBox(height: 6),
               TextButton(
                 onPressed: () => auth.continueAsGuest(),
-                child: Text('Continue without an account', style: HrText.caption),
+                child: Text(
+                  'Continue without an account',
+                  style: HrText.caption,
+                ),
               ),
             ],
           ),
@@ -283,14 +318,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final u = _username.text.trim();
     if (u.isEmpty) return const SizedBox.shrink();
     if (!isValidUsername(u)) {
-      return _unameStatusLine(HrColors.text3, Icons.info_outline_rounded, '3–20 letters, numbers, or underscores');
+      return _unameStatusLine(
+        HrColors.text3,
+        Icons.info_outline_rounded,
+        '3–20 letters, numbers, or underscores',
+      );
     }
     if (_unameChecking) {
       return Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 10),
         child: Row(
           children: [
-            const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
             const SizedBox(width: 8),
             Text('Checking…', style: HrText.caption),
           ],
@@ -298,10 +341,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
     }
     if (_unameAvailable == true) {
-      return _unameStatusLine(HrColors.accent, Icons.check_circle_rounded, 'Available');
+      return _unameStatusLine(
+        HrColors.accent,
+        Icons.check_circle_rounded,
+        'Available',
+      );
     }
     if (_unameAvailable == false) {
-      return _unameStatusLine(HrColors.dangerText, Icons.cancel_rounded, 'Unavailable');
+      return _unameStatusLine(
+        HrColors.dangerText,
+        Icons.cancel_rounded,
+        'Unavailable',
+      );
     }
     return const SizedBox.shrink();
   }
@@ -329,7 +380,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // New account → wipe any guest/previous progress and start at Level 1,
       // then introduce the app with the onboarding flow.
       appState.startFreshForAccount(auth.user?.name ?? '');
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const OnboardingQuizScreen()));
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const OnboardingQuizScreen()),
+      );
     } else {
       setState(() => _error = err);
     }
@@ -342,10 +395,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
       title: 'Create account',
       subtitle: 'Start earning XP for your habits.',
       children: [
-        _authField(_username, 'Username', hint: 'e.g. sam_92', onChanged: _onUsernameChanged),
+        _authField(
+          _username,
+          'Username',
+          hint: 'e.g. sam_92',
+          onChanged: _onUsernameChanged,
+        ),
         _usernameStatus(),
-        _authField(_email, 'Email', keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
-        _authField(_pw, 'Password', obscure: true, hint: 'At least 6 characters'),
+        _authField(
+          _email,
+          'Email',
+          keyboard: TextInputType.emailAddress,
+          hint: 'you@example.com',
+        ),
+        _authField(
+          _pw,
+          'Password',
+          obscure: true,
+          hint: 'At least 6 characters',
+        ),
         if (_error != null) _authError(_error!),
         const SizedBox(height: 4),
         _authSubmit('Create account', _busy, _submit),
@@ -356,10 +424,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const SizedBox(height: 16),
         Center(
           child: TextButton(
-            onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+            onPressed: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+            ),
             child: Text(
               'Already have an account? Log in',
-              style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600),
+              style: HrText.bodyS.copyWith(
+                color: HrColors.text,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
@@ -413,7 +487,12 @@ class _LoginScreenState extends State<LoginScreen> {
       title: 'Welcome back',
       subtitle: 'Log in to pick up where you left off.',
       children: [
-        _authField(_email, 'Email', keyboard: TextInputType.emailAddress, hint: 'you@example.com'),
+        _authField(
+          _email,
+          'Email',
+          keyboard: TextInputType.emailAddress,
+          hint: 'you@example.com',
+        ),
         _authField(_pw, 'Password', obscure: true, hint: 'Your password'),
         if (_error != null) _authError(_error!),
         const SizedBox(height: 4),
@@ -425,11 +504,16 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 16),
         Center(
           child: TextButton(
-            onPressed: () =>
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SignUpScreen())),
+            onPressed: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SignUpScreen()),
+            ),
             child: Text(
               'New here? Create an account',
-              style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600),
+              style: HrText.bodyS.copyWith(
+                color: HrColors.text,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
@@ -459,7 +543,12 @@ class AccountScreen extends StatelessWidget {
             title: Text('Account', style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              24,
+            ),
             children: [
               HrCard(
                 padding: const EdgeInsets.all(18),
@@ -478,9 +567,16 @@ class AccountScreen extends StatelessWidget {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: HrColors.accent,
-                                border: Border.all(color: HrColors.surface, width: 2),
+                                border: Border.all(
+                                  color: HrColors.surface,
+                                  width: 2,
                               ),
-                              child: const Icon(Icons.camera_alt_rounded, size: 12, color: HrColors.bg),
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_rounded,
+                                size: 12,
+                                color: HrColors.bg,
+                              ),
                             ),
                           ),
                         ],
@@ -496,7 +592,10 @@ class AccountScreen extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         '@${u.username}',
-                        style: HrText.caption.copyWith(color: HrColors.text2, fontWeight: FontWeight.w600),
+                        style: HrText.caption.copyWith(
+                          color: HrColors.text2,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                     if (_memberSince(u.createdAt).isNotEmpty) ...[
@@ -523,11 +622,18 @@ class AccountScreen extends StatelessWidget {
               HrButton(
                 label: 'Share my progress',
                 icon: Icons.ios_share_rounded,
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShareCardScreen())),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ShareCardScreen()),
+                ),
               ),
               const SizedBox(height: 4),
               _sectionLabel('ACCOUNT'),
-              _settingsTile(Icons.edit_rounded, 'Edit name', u.name, () => _editAccountName(context)),
+              _settingsTile(
+                Icons.edit_rounded,
+                'Edit name',
+                u.name,
+                () => _editAccountName(context),
+              ),
               if (!auth.isRemote)
                 _settingsTile(
                   Icons.cloud_off_rounded,
@@ -538,8 +644,15 @@ class AccountScreen extends StatelessWidget {
               const SizedBox(height: 10),
               TextButton.icon(
                 onPressed: () => _confirmDeleteAccount(context),
-                icon: const Icon(Icons.delete_forever_rounded, size: 18, color: HrColors.dangerText),
-                label: Text('Delete account', style: HrText.body.copyWith(color: HrColors.dangerText)),
+                icon: const Icon(
+                  Icons.delete_forever_rounded,
+                  size: 18,
+                  color: HrColors.dangerText,
+                ),
+                label: Text(
+                  'Delete account',
+                  style: HrText.body.copyWith(color: HrColors.dangerText),
+                ),
               ),
             ],
           ),
@@ -607,7 +720,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_page >= _onbSlides.length - 1) {
       _finish();
     } else {
-      _pc.nextPage(duration: const Duration(milliseconds: 280), curve: Curves.easeOut);
+      _pc.nextPage(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -646,14 +762,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: HrColors.surface,
-                            border: Border.all(color: HrColors.accent, width: 2),
+                            border: Border.all(
+                              color: HrColors.accent,
+                              width: 2,
                           ),
-                          child: Image.asset(s.imageAsset, fit: BoxFit.cover, semanticLabel: s.title),
+                          ),
+                          child: Image.asset(
+                            s.imageAsset,
+                            fit: BoxFit.cover,
+                            semanticLabel: s.title,
+                          ),
                         ),
                         const SizedBox(height: 32),
-                        Text(s.title, textAlign: TextAlign.center, style: HrText.display),
+                        Text(
+                          s.title,
+                          textAlign: TextAlign.center,
+                          style: HrText.display,
+                        ),
                         const SizedBox(height: 14),
-                        Text(s.body, textAlign: TextAlign.center, style: HrText.bodyS.copyWith(height: 1.5)),
+                        Text(
+                          s.body,
+                          textAlign: TextAlign.center,
+                          style: HrText.bodyS.copyWith(height: 1.5),
+                        ),
                       ],
                     ),
                   );
@@ -678,7 +809,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             Padding(
               padding: const EdgeInsets.all(28),
-              child: HrButton(label: last ? 'Get started' : 'Next', onPressed: _next),
+              child: HrButton(
+                label: last ? 'Get started' : 'Next',
+                onPressed: _next,
+              ),
             ),
           ],
         ),
@@ -697,7 +831,8 @@ const List<(String, String, String)> _kAreas = [
   ('productivity', 'Productivity', '💻'),
 ];
 
-String _areaLabel(String id) => _kAreas.firstWhere((a) => a.$1 == id, orElse: () => (id, id, '')).$2;
+String _areaLabel(String id) =>
+    _kAreas.firstWhere((a) => a.$1 == id, orElse: () => (id, id, '')).$2;
 
 class OnboardingQuizScreen extends StatefulWidget {
   const OnboardingQuizScreen({super.key});
@@ -734,7 +869,8 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
       case 2:
         return (int.tryParse(_age.text.trim()) ?? 0) > 0;
       case 3:
-        return (double.tryParse(_height.text.trim()) ?? 0) > 0 && (double.tryParse(_weight.text.trim()) ?? 0) > 0;
+        return (double.tryParse(_height.text.trim()) ?? 0) > 0 &&
+            (double.tryParse(_weight.text.trim()) ?? 0) > 0;
       default:
         return true;
     }
@@ -748,7 +884,14 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     final w = double.tryParse(_weight.text.trim()) ?? 0;
     if (a > 0 && h > 0 && w > 0) {
       appState.setBodyProfile(
-        BodyProfile(weight: w, height: h, age: a, gender: _gender, activity: _activity, goal: _goal),
+        BodyProfile(
+          weight: w,
+          height: h,
+          age: a,
+          gender: _gender,
+          activity: _activity,
+          goal: _goal,
+        ),
       );
     }
     appState.seedHabitsForAreas(_areas);
@@ -759,7 +902,10 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     if (_page >= _last) {
       _finish();
     } else {
-      _pc.nextPage(duration: const Duration(milliseconds: 260), curve: Curves.easeOut);
+      _pc.nextPage(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -778,9 +924,14 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
                     width: 44,
                     child: _page > 0
                         ? IconButton(
-                            icon: const Icon(Icons.arrow_back_rounded, color: HrColors.text2),
-                            onPressed: () =>
-                                _pc.previousPage(duration: const Duration(milliseconds: 240), curve: Curves.easeOut),
+                            icon: const Icon(
+                              Icons.arrow_back_rounded,
+                              color: HrColors.text2,
+                            ),
+                            onPressed: () => _pc.previousPage(
+                              duration: const Duration(milliseconds: 240),
+                              curve: Curves.easeOut,
+                            ),
                           )
                         : null,
                   ),
@@ -825,7 +976,10 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
             ),
             Padding(
               padding: const EdgeInsets.all(20),
-              child: HrButton(label: last ? "Let's go" : 'Continue', onPressed: _canAdvance ? _next : null),
+              child: HrButton(
+                label: last ? "Let's go" : 'Continue',
+                onPressed: _canAdvance ? _next : null,
+              ),
             ),
           ],
         ),
@@ -837,7 +991,10 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 12, HrSpace.gutter, 16),
     children: [
       Text(title, style: HrText.display.copyWith(height: 1.1)),
-      if (subtitle != null) ...[const SizedBox(height: 8), Text(subtitle, style: HrText.bodyS)],
+      if (subtitle != null) ...[
+        const SizedBox(height: 8),
+        Text(subtitle, style: HrText.bodyS),
+      ],
       const SizedBox(height: 24),
       content,
     ],
@@ -846,7 +1003,11 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
   Widget _areasPage() => _quizPage(
     'What do you want to work on?',
     "Pick a few — we'll set up starter habits for each.",
-    Wrap(spacing: 10, runSpacing: 10, children: [for (final a in _kAreas) _areaChip(a.$1, a.$2, a.$3)]),
+    Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [for (final a in _kAreas) _areaChip(a.$1, a.$2, a.$3)],
+    ),
   );
 
   Widget _areaChip(String id, String label, String emoji) {
@@ -866,7 +1027,10 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
             const SizedBox(width: 8),
             Text(
               label,
-              style: HrText.body.copyWith(color: on ? HrColors.bg : HrColors.text, fontWeight: FontWeight.w700),
+              style: HrText.body.copyWith(
+                color: on ? HrColors.bg : HrColors.text,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -879,14 +1043,33 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     'Used only to personalize your nutrition targets.',
     Column(
       children: [
-        _choiceRow('male', 'Male', '♂️', _gender, (v) => setState(() => _gender = v)),
-        _choiceRow('female', 'Female', '♀️', _gender, (v) => setState(() => _gender = v)),
-        _choiceRow('other', 'Other / prefer not to say', '⚧️', _gender, (v) => setState(() => _gender = v)),
+        _choiceRow(
+          'male',
+          'Male',
+          '♂️',
+          _gender,
+          (v) => setState(() => _gender = v),
+        ),
+        _choiceRow(
+          'female',
+          'Female',
+          '♀️',
+          _gender,
+          (v) => setState(() => _gender = v),
+        ),
+        _choiceRow(
+          'other',
+          'Other / prefer not to say',
+          '⚧️',
+          _gender,
+          (v) => setState(() => _gender = v),
+        ),
       ],
     ),
   );
 
-  Widget _agePage() => _quizPage('How old are you?', null, _numberField(_age, 'Age', 'years'));
+  Widget _agePage() =>
+      _quizPage('How old are you?', null, _numberField(_age, 'Age', 'years'));
 
   Widget _bodyPage() => _quizPage(
     'Your height & weight',
@@ -905,8 +1088,20 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     null,
     Column(
       children: [
-        _choiceRow('sedentary', 'Sedentary — little exercise', '🪑', _activity, (v) => setState(() => _activity = v)),
-        _choiceRow('light', 'Lightly active — 1–3 days/wk', '🚶', _activity, (v) => setState(() => _activity = v)),
+        _choiceRow(
+          'sedentary',
+          'Sedentary — little exercise',
+          '🪑',
+          _activity,
+          (v) => setState(() => _activity = v),
+        ),
+        _choiceRow(
+          'light',
+          'Lightly active — 1–3 days/wk',
+          '🚶',
+          _activity,
+          (v) => setState(() => _activity = v),
+        ),
         _choiceRow(
           'moderate',
           'Moderately active — 3–5 days/wk',
@@ -914,8 +1109,20 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
           _activity,
           (v) => setState(() => _activity = v),
         ),
-        _choiceRow('active', 'Very active — 6–7 days/wk', '🏋️', _activity, (v) => setState(() => _activity = v)),
-        _choiceRow('very_active', 'Athlete — intense daily', '🔥', _activity, (v) => setState(() => _activity = v)),
+        _choiceRow(
+          'active',
+          'Very active — 6–7 days/wk',
+          '🏋️',
+          _activity,
+          (v) => setState(() => _activity = v),
+        ),
+        _choiceRow(
+          'very_active',
+          'Athlete — intense daily',
+          '🔥',
+          _activity,
+          (v) => setState(() => _activity = v),
+        ),
       ],
     ),
   );
@@ -925,9 +1132,27 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     'This sets your daily calorie target.',
     Column(
       children: [
-        _choiceRow('cut', 'Lose weight', '📉', _goal, (v) => setState(() => _goal = v)),
-        _choiceRow('maintain', 'Maintain', '⚖️', _goal, (v) => setState(() => _goal = v)),
-        _choiceRow('bulk', 'Build muscle', '📈', _goal, (v) => setState(() => _goal = v)),
+        _choiceRow(
+          'cut',
+          'Lose weight',
+          '📉',
+          _goal,
+          (v) => setState(() => _goal = v),
+        ),
+        _choiceRow(
+          'maintain',
+          'Maintain',
+          '⚖️',
+          _goal,
+          (v) => setState(() => _goal = v),
+        ),
+        _choiceRow(
+          'bulk',
+          'Build muscle',
+          '📈',
+          _goal,
+          (v) => setState(() => _goal = v),
+        ),
       ],
     ),
   );
@@ -939,7 +1164,14 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     final hasBody = a > 0 && h > 0 && w > 0;
     final cals = hasBody
         ? computeMacroTargets(
-            BodyProfile(weight: w, height: h, age: a, gender: _gender, activity: _activity, goal: _goal),
+            BodyProfile(
+              weight: w,
+              height: h,
+              age: a,
+              gender: _gender,
+              activity: _activity,
+              goal: _goal,
+            ),
           ).calories.round()
         : null;
     final comp = companionByType(appState.activeCompanion);
@@ -958,7 +1190,9 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
           _summaryTile(
             Icons.checklist_rounded,
             'Starter habits',
-            _areas.isEmpty ? 'Default starter habits' : _areas.map(_areaLabel).join(' · '),
+            _areas.isEmpty
+                ? 'Default starter habits'
+                : _areas.map(_areaLabel).join(' · '),
           ),
           const SizedBox(height: 28),
           Row(
@@ -973,7 +1207,12 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
                 imageAsset: comp.imageAsset,
               ),
               const SizedBox(width: 10),
-              const Flexible(child: SpeechBubble("Let's see if you last a week.", maxWidth: 200)),
+              const Flexible(
+                child: SpeechBubble(
+                  "Let's see if you last a week.",
+                  maxWidth: 200,
+                ),
+              ),
             ],
           ),
         ],
@@ -994,7 +1233,10 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
           width: 36,
           height: 36,
           alignment: Alignment.center,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: HrColors.accent),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: HrColors.accent,
+          ),
           child: Icon(icon, color: HrColors.bg, size: 18),
         ),
         const SizedBox(width: 14),
@@ -1004,7 +1246,10 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
             children: [
               Text(title, style: HrText.caption),
               const SizedBox(height: 2),
-              Text(value, style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                value,
+                style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+              ),
             ],
           ),
         ),
@@ -1012,7 +1257,8 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     ),
   );
 
-  Widget _numberField(TextEditingController c, String hint, String suffix) => TextField(
+  Widget _numberField(TextEditingController c, String hint, String suffix) =>
+      TextField(
     controller: c,
     keyboardType: TextInputType.number,
     onChanged: (_) => setState(() {}),
@@ -1024,9 +1270,18 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
       suffixStyle: HrText.caption,
       filled: true,
       fillColor: HrColors.surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            borderSide: BorderSide.none,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            borderSide: BorderSide.none,
+          ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(HrRadius.md),
         borderSide: const BorderSide(color: HrColors.text, width: 1.5),
@@ -1034,7 +1289,13 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     ),
   );
 
-  Widget _choiceRow(String id, String label, String emoji, String group, ValueChanged<String> onTap) {
+  Widget _choiceRow(
+    String id,
+    String label,
+    String emoji,
+    String group,
+    ValueChanged<String> onTap,
+  ) {
     final on = group == id;
     return GestureDetector(
       onTap: () => onTap(id),
@@ -1045,7 +1306,10 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
           borderRadius: BorderRadius.circular(HrRadius.md),
           color: HrColors.surface,
           border: Border(
-            top: BorderSide(color: on ? HrColors.accent : HrColors.hairline, width: on ? 2 : 1),
+            top: BorderSide(
+              color: on ? HrColors.accent : HrColors.hairline,
+              width: on ? 2 : 1,
+            ),
           ),
         ),
         child: Row(
@@ -1053,9 +1317,17 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
             Text(emoji, style: const TextStyle(fontSize: 20)),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(label, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+              child: Text(
+                label,
+                style: HrText.body.copyWith(fontWeight: FontWeight.w600),
             ),
-            if (on) Icon(Icons.check_circle_rounded, color: HrColors.accent, size: 22),
+            ),
+            if (on)
+              Icon(
+                Icons.check_circle_rounded,
+                color: HrColors.accent,
+                size: 22,
+              ),
           ],
         ),
       ),
@@ -1072,10 +1344,19 @@ Widget _authScaffold(
 }) {
   return Scaffold(
     backgroundColor: Colors.transparent,
-    appBar: AppBar(backgroundColor: Colors.transparent, foregroundColor: HrColors.text, elevation: 0),
+    appBar: AppBar(
+      backgroundColor: Colors.transparent,
+      foregroundColor: HrColors.text,
+      elevation: 0,
+    ),
     body: SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
+        padding: const EdgeInsets.fromLTRB(
+          HrSpace.gutter,
+          8,
+          HrSpace.gutter,
+          24,
+        ),
         children: [
           Text(title, style: HrText.display),
           const SizedBox(height: 6),
@@ -1116,12 +1397,18 @@ Widget _authField(
             hintStyle: HrText.body.copyWith(color: HrColors.text3),
             filled: true,
             fillColor: HrColors.surface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 16,
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(HrRadius.md),
               borderSide: BorderSide.none,
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(HrRadius.md),
+              borderSide: BorderSide.none,
+            ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(HrRadius.md),
               borderSide: const BorderSide(color: HrColors.text, width: 1.5),
@@ -1139,13 +1426,23 @@ Widget _authSubmit(String label, bool busy, VoidCallback onTap) =>
 Widget _authError(String msg) => Container(
   margin: const EdgeInsets.only(bottom: 12),
   padding: const EdgeInsets.all(11),
-  decoration: BoxDecoration(color: HrColors.dangerSurface, borderRadius: BorderRadius.circular(HrRadius.sm)),
+  decoration: BoxDecoration(
+    color: HrColors.dangerSurface,
+    borderRadius: BorderRadius.circular(HrRadius.sm),
+  ),
   child: Row(
     children: [
-      const Icon(Icons.error_outline_rounded, color: HrColors.dangerText, size: 17),
+      const Icon(
+        Icons.error_outline_rounded,
+        color: HrColors.dangerText,
+        size: 17,
+      ),
       const SizedBox(width: 8),
       Expanded(
-        child: Text(msg, style: HrText.caption.copyWith(color: HrColors.dangerText)),
+        child: Text(
+          msg,
+          style: HrText.caption.copyWith(color: HrColors.dangerText),
+        ),
       ),
     ],
   ),
@@ -1164,7 +1461,12 @@ Widget _authDivider() => Row(
 
 Widget _appleButton() => Column(
   children: [
-    const HrButton(label: 'Continue with Apple', icon: Icons.apple, kind: HrButtonKind.secondary, onPressed: null),
+    const HrButton(
+      label: 'Continue with Apple',
+      icon: Icons.apple,
+      kind: HrButtonKind.secondary,
+      onPressed: null,
+    ),
     const SizedBox(height: 6),
     Text('Available on iOS', style: HrText.micro),
   ],
@@ -1202,7 +1504,20 @@ Widget _statChip(String label, String value) => Container(
 String _memberSince(String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return '';
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return 'Member since ${months[d.month - 1]} ${d.year}';
 }
 
@@ -1220,7 +1535,10 @@ Future<void> _editAccountName(BuildContext context) async {
         decoration: const InputDecoration(hintText: 'Display name'),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kPlasma),
           onPressed: () => Navigator.pop(ctx, c.text.trim()),
@@ -1240,15 +1558,24 @@ Future<void> _confirmDeleteAccount(BuildContext context) async {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: kCard,
-      title: const Text('Delete account?', style: TextStyle(color: kTextPrimary)),
+      title: const Text(
+        'Delete account?',
+        style: TextStyle(color: kTextPrimary),
+      ),
       content: const Text(
         'This removes your account and signs you out. Your habits and progress stay on this device — use "Reset all progress" to clear those. This cannot be undone.',
         style: TextStyle(color: kTextSecondary),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: kRed, foregroundColor: Colors.white),
+          style: FilledButton.styleFrom(
+            backgroundColor: kRed,
+            foregroundColor: Colors.white,
+          ),
           onPressed: () => Navigator.pop(ctx, true),
           child: const Text('Delete'),
         ),
@@ -1281,7 +1608,10 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     shellTab.addListener(_onShellTab);
-    _reminderTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkReminders());
+    _reminderTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _checkReminders(),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkReminders());
   }
 
@@ -1336,24 +1666,39 @@ class _HomeShellState extends State<HomeShell> {
       listenable: appState,
       builder: (context, _) {
         if (appState.loading) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (!_briefingChecked && appState.needsBriefing) {
           _briefingChecked = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            showDialog<void>(context: context, barrierDismissible: false, builder: (_) => const _DailyBriefing());
+            showDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => const _DailyBriefing(),
+            );
           });
         }
         // Build fresh instances each time so the screens reflect state changes.
         // (A const list would canonicalize them and Flutter would skip rebuilds,
         // which is why completed habits weren't showing their checked state.)
         // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
-        final screens = <Widget>[HomeScreen(), FocusScreen(), ProgressScreen(), FriendsScreen(), SettingsScreen()];
+        final screens = <Widget>[
+          HomeScreen(),
+          FocusScreen(),
+          ProgressScreen(),
+          FriendsScreen(),
+          SettingsScreen(),
+        ];
         return Scaffold(
           body: IndexedStack(index: _index, children: screens),
           floatingActionButton: _fab(),
-          bottomNavigationBar: HrTabBar(index: _index, onTap: (i) => shellTab.value = i),
+          bottomNavigationBar: HrTabBar(
+            index: _index,
+            onTap: (i) => shellTab.value = i,
+          ),
         );
       },
     );
@@ -1366,38 +1711,83 @@ class _HomeShellState extends State<HomeShell> {
 // A circular profile picture (or the user's initial) wrapped in the selected
 // border. Used in the app bar and on the account/settings screens.
 class _Avatar extends StatelessWidget {
-  const _Avatar({this.size = 40});
+  const _Avatar({this.size = 40, this.showBorder = true});
   final double size;
+  final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
     final b = borderById(appState.selectedBorder);
-    final hasBorder = b.id != 'none';
+    final hasBorder = showBorder && b.id != 'none';
     // Thicker, glowing ring with a thin dark gap so the colour reads as a
     // distinct border against both the avatar and the cosmic background.
-    final ringW = hasBorder ? (size * 0.11).clamp(3.0, 7.0) : (size * 0.06).clamp(2.0, 4.0);
-    final gapW = hasBorder ? (size * 0.03).clamp(1.5, 3.0) : 0.0;
-    final inner = size - (ringW + gapW) * 2;
+    final ringW = hasBorder
+        ? (size * 0.11).clamp(3.0, 7.0)
+        : (size * 0.06).clamp(2.0, 4.0);
+    final gapW = hasBorder && b.frameAsset == null
+        ? (size * 0.03).clamp(1.5, 3.0)
+        : 0.0;
+    final frameAsset = showBorder ? b.frameAsset : null;
+    final inner = frameAsset != null
+        ? size * 0.72
+        : (showBorder ? size - (ringW + gapW) * 2 : size);
     final name = appState.displayName;
     final Widget pic = appState.pfpBytes != null
-        ? Image.memory(appState.pfpBytes!, width: inner, height: inner, fit: BoxFit.cover, gaplessPlayback: true)
+        ? Image.memory(
+            appState.pfpBytes!,
+            width: inner,
+            height: inner,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          )
         : Container(
             width: inner,
             height: inner,
             alignment: Alignment.center,
-            decoration: BoxDecoration(gradient: LinearGradient(colors: [kPlasma, kBlue])),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [kPlasma, kBlue]),
+            ),
             child: Text(
               name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: inner * 0.42, fontWeight: FontWeight.w800),
+              style: GoogleFonts.spaceGrotesk(
+                color: Colors.white,
+                fontSize: inner * 0.42,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           );
     Widget avatar = ClipOval(child: pic);
     // Dark separator ring between the colour and the avatar.
     if (gapW > 0) {
       avatar = Container(
-        decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF140B2B)),
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Color(0xFF140B2B),
+        ),
         padding: EdgeInsets.all(gapW),
         child: avatar,
+      );
+    }
+    if (!showBorder) {
+      return SizedBox(width: size, height: size, child: avatar);
+    }
+    if (frameAsset != null) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(width: inner, height: inner, child: avatar),
+            Image.asset(
+              frameAsset,
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+            ),
+          ],
+        ),
       );
     }
     return Container(
@@ -1407,9 +1797,17 @@ class _Avatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: b.colors.length == 1 ? b.colors.first : null,
-        gradient: b.colors.length > 1 ? SweepGradient(colors: [...b.colors, b.colors.first]) : null,
+        gradient: b.colors.length > 1
+            ? SweepGradient(colors: [...b.colors, b.colors.first])
+            : null,
         boxShadow: b.glow
-            ? [BoxShadow(color: b.colors.first.withValues(alpha: 0.75), blurRadius: size * 0.3, spreadRadius: 1.0)]
+            ? [
+                BoxShadow(
+                  color: b.colors.first.withValues(alpha: 0.75),
+                  blurRadius: size * 0.3,
+                  spreadRadius: 1.0,
+                ),
+              ]
             : null,
       ),
       child: avatar,
@@ -1420,6 +1818,32 @@ class _Avatar extends StatelessWidget {
 // A preview ring of a specific border (for the Shop), independent of the
 // currently-selected one.
 Widget _borderPreview(BorderDef b, {double size = 42}) {
+  if (b.frameAsset != null) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: size * 0.56,
+            height: size * 0.56,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: kElevated,
+            ),
+          ),
+          Image.asset(
+            b.frameAsset!,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+          ),
+        ],
+      ),
+    );
+  }
   final ringW = (size * 0.1).clamp(2.0, 5.0);
   return Container(
     width: size,
@@ -1428,8 +1852,17 @@ Widget _borderPreview(BorderDef b, {double size = 42}) {
     decoration: BoxDecoration(
       shape: BoxShape.circle,
       color: b.colors.length == 1 ? b.colors.first : null,
-      gradient: b.colors.length > 1 ? SweepGradient(colors: [...b.colors, b.colors.first]) : null,
-      boxShadow: b.glow ? [BoxShadow(color: b.colors.first.withValues(alpha: 0.5), blurRadius: 8)] : null,
+      gradient: b.colors.length > 1
+          ? SweepGradient(colors: [...b.colors, b.colors.first])
+          : null,
+      boxShadow: b.glow
+          ? [
+              BoxShadow(
+                color: b.colors.first.withValues(alpha: 0.5),
+                blurRadius: 8,
+              ),
+            ]
+          : null,
     ),
     child: const DecoratedBox(
       decoration: BoxDecoration(shape: BoxShape.circle, color: kElevated),
@@ -1440,7 +1873,11 @@ Widget _borderPreview(BorderDef b, {double size = 42}) {
 // Pick a photo, center-crop + downscale to a tiny JPEG, and store it.
 Future<void> _pickProfilePhoto(BuildContext context) async {
   try {
-    final x = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 512, imageQuality: 85);
+    final x = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      imageQuality: 85,
+    );
     if (x == null) return;
     final bytes = await x.readAsBytes();
     final decoded = img.decodeImage(bytes);
@@ -1448,7 +1885,9 @@ Future<void> _pickProfilePhoto(BuildContext context) async {
       if (context.mounted) _toast(context, "Couldn't read that image.");
       return;
     }
-    final side = decoded.width < decoded.height ? decoded.width : decoded.height;
+    final side = decoded.width < decoded.height
+        ? decoded.width
+        : decoded.height;
     final cropped = img.copyCrop(
       decoded,
       x: (decoded.width - side) ~/ 2,
@@ -1491,11 +1930,18 @@ const LinearGradient _kGlassSheen = LinearGradient(
   colors: [Color(0xE02A1B4F), Color(0xCC170B2E)],
 );
 
-BoxDecoration glassDecoration({double radius = 18, Color? border}) => BoxDecoration(
+BoxDecoration glassDecoration({double radius = 18, Color? border}) =>
+    BoxDecoration(
   borderRadius: BorderRadius.circular(radius),
   gradient: _kGlassSheen,
   border: Border.all(color: border ?? kBorder),
-  boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 18, offset: Offset(0, 8))],
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x40000000),
+          blurRadius: 18,
+          offset: Offset(0, 8),
+        ),
+      ],
 );
 
 const List<Color> _kAccentGradient = [Color(0xFF8B5CF6), Color(0xFF22D3EE)];
@@ -1544,10 +1990,17 @@ class GradientButton extends StatelessWidget {
               mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (icon != null) ...[Icon(icon, size: 18, color: Colors.white), const SizedBox(width: 8)],
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: Colors.white),
+                  const SizedBox(width: 8),
+                ],
                 Text(
                   label,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
                 ),
               ],
             ),
@@ -1579,14 +2032,21 @@ class GlowBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(height),
           child: Stack(
             children: [
-              const Positioned.fill(child: ColoredBox(color: Color(0x22FFFFFF))),
+              const Positioned.fill(
+                child: ColoredBox(color: Color(0x22FFFFFF)),
+              ),
               FractionallySizedBox(
                 alignment: Alignment.centerLeft,
                 widthFactor: value,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: c),
-                    boxShadow: [BoxShadow(color: c.last.withValues(alpha: 0.5), blurRadius: 6)],
+                    boxShadow: [
+                      BoxShadow(
+                        color: c.last.withValues(alpha: 0.5),
+                        blurRadius: 6,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1600,7 +2060,13 @@ class GlowBar extends StatelessWidget {
 
 // Luminous gradient progress ring.
 class GlowRing extends StatelessWidget {
-  const GlowRing({required this.value, required this.size, this.stroke = 6, this.colors, super.key});
+  const GlowRing({
+    required this.value,
+    required this.size,
+    this.stroke = 6,
+    this.colors,
+    super.key,
+  });
   final double value;
   final double size;
   final double stroke;
@@ -1615,7 +2081,13 @@ class GlowRing extends StatelessWidget {
       builder: (context, animatedValue, _) => SizedBox(
         width: size,
         height: size,
-        child: CustomPaint(painter: _RingPainter(animatedValue, stroke, colors ?? _kAccentGradient)),
+        child: CustomPaint(
+          painter: _RingPainter(
+            animatedValue,
+            stroke,
+            colors ?? _kAccentGradient,
+          ),
+        ),
       ),
     );
   }
@@ -1666,7 +2138,8 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.value != value || old.colors != colors || old.stroke != stroke;
+  bool shouldRepaint(_RingPainter old) =>
+      old.value != value || old.colors != colors || old.stroke != stroke;
 }
 
 // Dashboard app bar: profile picture + level on the LEFT, coins + shop RIGHT.
@@ -1703,7 +2176,10 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     'Habit complete  ·  +$reward XP',
-                    style: const TextStyle(color: kTextPrimary, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      color: kTextPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -1735,7 +2211,9 @@ class HomeScreen extends StatelessWidget {
           appState.setCompanionLine(companionLine(who, 'elite_day'));
         }
         // A perfect day just completed → a little confetti.
-        if (total > 0 && doneBefore < total && appState.doneTodayCount == total) {
+        if (total > 0 &&
+            doneBefore < total &&
+            appState.doneTodayCount == total) {
           celebrate(context);
         }
       }
@@ -1761,7 +2239,10 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 16),
             const _TodayHero(),
             const SizedBox(height: 18),
-            if (appState.habits.isEmpty) _todayEmpty(context) else _FiveCard(onToggle: onToggle),
+            if (appState.habits.isEmpty)
+              _todayEmpty(context)
+            else
+              _FiveCard(onToggle: onToggle),
             const SizedBox(height: 14),
             const _VictoryCard(),
             const _CompanionCard(),
@@ -1777,8 +2258,29 @@ class HomeScreen extends StatelessWidget {
 }
 
 // ── TODAY primitives (redesign) ──────────────────────────────────────────────
-const _kWeekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const _kMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const _kWeekdays = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+const _kMonths = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 String _prettyToday() {
   final d = DateTime.now();
   return '${_kWeekdays[d.weekday - 1]}, ${_kMonths[d.month - 1]} ${d.day}';
@@ -1786,25 +2288,42 @@ String _prettyToday() {
 
 // Small tappable coins chip (opens the Shop) — replaces the old violet pill.
 Widget _coinChip(BuildContext context) => GestureDetector(
-  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShopScreen())),
+  onTap: () =>
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
   child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-    decoration: BoxDecoration(color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.full)),
+    decoration: BoxDecoration(
+      color: HrColors.surface2,
+      borderRadius: BorderRadius.circular(HrRadius.full),
+    ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (appState.xpBoostActive) ...[
           Text(
             '2×',
-            style: HrText.caption.copyWith(color: HrColors.gold, fontWeight: FontWeight.w800),
+            style: HrText.caption.copyWith(
+              color: HrColors.gold,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(width: 6),
         ],
-        Image.asset('assets/shop/coin_stack.png', width: 19, height: 19, fit: BoxFit.contain, semanticLabel: 'Coins'),
+        Image.asset(
+          'assets/shop/coin_stack.png',
+          width: 19,
+          height: 19,
+          fit: BoxFit.contain,
+          semanticLabel: 'Coins',
+        ),
         const SizedBox(width: 5),
         Text(
           '${appState.coins}',
-          style: HrText.caption.copyWith(color: HrColors.text, fontWeight: FontWeight.w700),
+          style: HrText.caption.copyWith(
+            color: HrColors.text,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     ),
@@ -1814,6 +2333,10 @@ Widget _coinChip(BuildContext context) => GestureDetector(
 // Header: date, "Today", a completion sticker, coins + add, and the level rail.
 Widget _todayHeader(BuildContext context) {
   final ld = levelFromXp(appState.totalXp);
+  final remainingXp = (ld.requiredXp - ld.currentXp).toString().replaceAllMapped(
+    RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+    (match) => '${match[1]},',
+  );
   final done = appState.doneTodayCount;
   final total = appState.habits.length;
   final allDone = total > 0 && done == total;
@@ -1850,11 +2373,12 @@ Widget _todayHeader(BuildContext context) {
               ),
             ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _coinChip(context),
-                const SizedBox(height: 8),
+                const SizedBox(width: 8),
                 Tooltip(
                   message: 'Add habit',
                   child: Material(
@@ -1866,7 +2390,11 @@ Widget _todayHeader(BuildContext context) {
                       child: const SizedBox(
                         width: 38,
                         height: 38,
-                        child: Icon(Icons.add_rounded, color: HrColors.text, size: 22),
+                        child: Icon(
+                          Icons.add_rounded,
+                          color: HrColors.text,
+                          size: 22,
+                        ),
                       ),
                     ),
                   ),
@@ -1880,23 +2408,110 @@ Widget _todayHeader(BuildContext context) {
           children: [
             Text(
               'Lv ${ld.level}',
-              style: HrText.caption.copyWith(color: HrColors.text2, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(HrRadius.full),
-                child: LinearProgressIndicator(
-                  value: ld.progress.clamp(0.0, 1.0).toDouble(),
-                  minHeight: 6,
-                  backgroundColor: HrColors.surface3,
-                  valueColor: const AlwaysStoppedAnimation(HrColors.text),
-                ),
+              style: HrText.caption.copyWith(
+                color: HrColors.text2,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: 10),
+            const Spacer(),
             Text(levelTitle(ld.level), style: HrText.caption),
           ],
+        ),
+        const SizedBox(height: 7),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const markerSize = 13.0;
+            final progress = ld.progress.clamp(0.0, 1.0).toDouble();
+            final markerLeft = (constraints.maxWidth * progress - markerSize / 2)
+                .clamp(0.0, constraints.maxWidth - markerSize)
+                .toDouble();
+            return SizedBox(
+              height: 14,
+              child: Stack(
+                alignment: Alignment.centerLeft,
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF17171C),
+                      borderRadius: BorderRadius.circular(HrRadius.full),
+                      border: Border.all(color: const Color(0xFF393940), width: 1),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x66000000),
+                          blurRadius: 5,
+                          offset: Offset(0, 2),
+                        ),
+                        BoxShadow(
+                          color: Color(0x1AFFFFFF),
+                          blurRadius: 1,
+                          offset: Offset(0, -1),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(HrRadius.full),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        width: constraints.maxWidth * progress,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(HrRadius.full),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF9D4EFF), Color(0xFF38D8F2)],
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x663B9DF5),
+                              blurRadius: 7,
+                              spreadRadius: 0.5,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: markerLeft,
+                    child: Transform.rotate(
+                      angle: pi / 4,
+                      child: Container(
+                        width: markerSize,
+                        height: markerSize,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFFE6C7FF), Color(0xFF8D4BFF), Color(0xFF5426B8)],
+                          ),
+                          border: Border.all(color: const Color(0xFFC99BFF), width: 0.8),
+                          borderRadius: BorderRadius.circular(3),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0xAA8D4BFF),
+                              blurRadius: 9,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 3),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            '$remainingXp XP to next level',
+            style: HrText.micro.copyWith(color: HrColors.text3),
+          ),
         ),
       ],
     ),
@@ -1914,7 +2529,9 @@ class _TodayHero extends StatelessWidget {
     final comp = companionByType(appState.activeCompanion);
     final streak = appState.bestStreak;
     final segs = total == 0 ? 1 : (total <= 12 ? total : 1);
-    final val = total == 0 ? 0.0 : (total <= 12 ? done.toDouble() : done / total);
+    final val = total == 0
+        ? 0.0
+        : (total <= 12 ? done.toDouble() : done / total);
     final line = appState.lastCompanionLine.isNotEmpty
         ? appState.lastCompanionLine
         : total == 0
@@ -1950,7 +2567,12 @@ class _TodayHero extends StatelessWidget {
                       imageAsset: comp.imageAsset,
                     ),
                   ),
-                  if (streak > 0) Positioned(top: 0, right: -4, child: StreakPill(count: streak, big: true)),
+                  if (streak > 0)
+                    Positioned(
+                      top: 0,
+                      right: -4,
+                      child: StreakPill(count: streak, big: true),
+                    ),
                 ],
               ),
             ),
@@ -2000,7 +2622,9 @@ class _FiveCardState extends State<_FiveCard> {
                     const SizedBox(width: 4),
                     Text(
                       _reorder ? 'DONE' : 'REORDER',
-                      style: HrText.labelCaps.copyWith(color: _reorder ? HrColors.accent : HrColors.text3),
+                      style: HrText.labelCaps.copyWith(
+                        color: _reorder ? HrColors.accent : HrColors.text3,
+                      ),
                     ),
                   ],
                 ),
@@ -2017,7 +2641,10 @@ class _FiveCardState extends State<_FiveCard> {
                   final h = habits[i];
                   return Padding(
                     key: ValueKey('reorder-${h.id}'),
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
@@ -2030,7 +2657,10 @@ class _FiveCardState extends State<_FiveCard> {
                         ),
                         ReorderableDragStartListener(
                           index: i,
-                          child: const Icon(Icons.drag_handle_rounded, color: HrColors.text3),
+                          child: const Icon(
+                            Icons.drag_handle_rounded,
+                            color: HrColors.text3,
+                          ),
                         ),
                       ],
                     ),
@@ -2044,7 +2674,11 @@ class _FiveCardState extends State<_FiveCard> {
                   direction: DismissDirection.endToStart,
                   onDismissed: (_) {
                     appState.deleteHabit(h);
-                    hrToast(context, 'Habit removed', icon: Icons.delete_outline_rounded);
+                    hrToast(
+                      context,
+                      'Habit removed',
+                      icon: Icons.delete_outline_rounded,
+                    );
                   },
                   background: Container(
                     alignment: Alignment.centerRight,
@@ -2054,7 +2688,10 @@ class _FiveCardState extends State<_FiveCard> {
                       color: HrColors.dangerSurface,
                       borderRadius: BorderRadius.circular(HrRadius.sm),
                     ),
-                    child: const Icon(Icons.delete_outline_rounded, color: HrColors.dangerText),
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: HrColors.dangerText,
+                    ),
                   ),
                   child: HabitRow(
                     title: h.name,
@@ -2062,7 +2699,9 @@ class _FiveCardState extends State<_FiveCard> {
                     rarity: h.rarity,
                     done: appState.doneToday(h),
                     streak: h.streak,
-                    reminder: h.reminderMinutes != null ? _fmtReminder(h.reminderMinutes!) : null,
+                    reminder: h.reminderMinutes != null
+                        ? _fmtReminder(h.reminderMinutes!)
+                        : null,
                     onToggle: () => widget.onToggle(h),
                     onEdit: () => showHabitEditor(context, h),
                   ),
@@ -2085,9 +2724,18 @@ Widget _todayEmpty(BuildContext context) => Padding(
         const SizedBox(height: 12),
         Text('No habits yet', style: HrText.title2),
         const SizedBox(height: 6),
-        Text('Add your first habit to start your rail.', textAlign: TextAlign.center, style: HrText.bodyS),
+        Text(
+          'Add your first habit to start your rail.',
+          textAlign: TextAlign.center,
+          style: HrText.bodyS,
+        ),
         const SizedBox(height: 18),
-        HrButton(label: 'Add habit', icon: Icons.add_rounded, expand: false, onPressed: () => showHabitEditor(context)),
+        HrButton(
+          label: 'Add habit',
+          icon: Icons.add_rounded,
+          expand: false,
+          onPressed: () => showHabitEditor(context),
+        ),
       ],
     ),
   ),
@@ -2115,7 +2763,10 @@ class _VictoryCard extends StatelessWidget {
             value: v.score / 100,
             stroke: 6,
             color: color,
-            center: Text('${v.score}', style: HrText.stat.copyWith(fontSize: 20)),
+            center: Text(
+              '${v.score}',
+              style: HrText.stat.copyWith(fontSize: 20),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -2124,7 +2775,10 @@ class _VictoryCard extends StatelessWidget {
               children: [
                 Text('VICTORY SCORE', style: HrText.labelCaps),
                 const SizedBox(height: 3),
-                Text(victoryLabel(v.score), style: HrText.headline.copyWith(color: color)),
+                Text(
+                  victoryLabel(v.score),
+                  style: HrText.headline.copyWith(color: color),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   'Habits ${v.habits} · Nutr ${v.nutrition} · Focus ${v.focus} · Sleep ${v.sleep}',
@@ -2151,7 +2805,9 @@ class _BossCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: HrColors.surface,
         borderRadius: BorderRadius.circular(HrRadius.md),
-        border: Border(top: BorderSide(color: defeated ? HrColors.gold : HrColors.hairline)),
+        border: Border(
+          top: BorderSide(color: defeated ? HrColors.gold : HrColors.hairline),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2167,7 +2823,10 @@ class _BossCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(kBossTitle, style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+                child: Text(
+                  kBossTitle,
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                ),
               ),
               Text(
                 defeated ? 'DEFEATED' : '$count/$kBossGoal',
@@ -2198,7 +2857,10 @@ class _BossCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Season ${appState.currentSeason + 1} · ${appState.seasonBossDefeats}/4 bosses',
-            style: HrText.caption.copyWith(color: HrColors.info, fontWeight: FontWeight.w700),
+            style: HrText.caption.copyWith(
+              color: HrColors.info,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -2226,7 +2888,10 @@ class _QuestsPanel extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('DAILY QUESTS', style: HrText.labelCaps),
-              Text('${claimed.length}/${kQuests.length}', style: HrText.labelCaps.copyWith(color: HrColors.accent)),
+              Text(
+                '${claimed.length}/${kQuests.length}',
+                style: HrText.labelCaps.copyWith(color: HrColors.accent),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -2295,7 +2960,13 @@ void _showMoment(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label.toUpperCase(), style: HrText.labelCaps.copyWith(color: labelColor, letterSpacing: 2)),
+            Text(
+              label.toUpperCase(),
+              style: HrText.labelCaps.copyWith(
+                color: labelColor,
+                letterSpacing: 2,
+              ),
+            ),
             const SizedBox(height: 16),
             emblem,
             const SizedBox(height: 18),
@@ -2304,10 +2975,16 @@ void _showMoment(
               const SizedBox(height: 6),
               Text(subtitle, textAlign: TextAlign.center, style: HrText.bodyS),
             ],
-            if (bubble != null) ...[const SizedBox(height: 14), SpeechBubble(bubble, maxWidth: 240)],
+            if (bubble != null) ...[
+              const SizedBox(height: 14),
+              SpeechBubble(bubble, maxWidth: 240),
+            ],
             if (rewards.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: rewards),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: rewards,
+              ),
             ],
             const SizedBox(height: 22),
             HrButton(label: buttonLabel, onPressed: () => Navigator.pop(ctx)),
@@ -2321,7 +2998,10 @@ void _showMoment(
 Widget _momentReward(String value, String label, Color color) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
   margin: const EdgeInsets.symmetric(horizontal: 5),
-  decoration: BoxDecoration(color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
+  decoration: BoxDecoration(
+    color: HrColors.surface2,
+    borderRadius: BorderRadius.circular(HrRadius.md),
+  ),
   child: Column(
     children: [
       Text(value, style: HrText.title2.copyWith(color: color)),
@@ -2342,11 +3022,20 @@ void _showBossDefeat(BuildContext context) {
       value: 1,
       stroke: 9,
       color: HrColors.gold,
-      center: Image.asset(kBossImageAsset, width: 76, height: 76, fit: BoxFit.contain, semanticLabel: 'Weekly boss'),
+      center: Image.asset(
+        kBossImageAsset,
+        width: 76,
+        height: 76,
+        fit: BoxFit.contain,
+        semanticLabel: 'Weekly boss',
+      ),
     ),
     title: 'Weekly Sovereignty\nChallenge',
     bubble: companionLine(appState.activeCompanion, 'boss_defeat'),
-    rewards: [_momentReward('+$kBossXp', 'XP', HrColors.gold), _momentReward('+$kBossCoins', 'Coins', HrColors.text)],
+    rewards: [
+      _momentReward('+$kBossXp', 'XP', HrColors.gold),
+      _momentReward('+$kBossCoins', 'Coins', HrColors.text),
+    ],
     buttonLabel: 'Claim',
   );
 }
@@ -2440,7 +3129,12 @@ class _FocusScreenState extends State<FocusScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+              padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter,
+                4,
+                HrSpace.gutter,
+                0,
+              ),
               child: Row(
                 children: [
                   Text('Focus', style: HrText.display),
@@ -2449,7 +3143,9 @@ class _FocusScreenState extends State<FocusScreen> {
                 ],
               ),
             ),
-            Expanded(child: _complete ? _completeView(context) : _timerView(context)),
+            Expanded(
+              child: _complete ? _completeView(context) : _timerView(context),
+            ),
           ],
         ),
       ),
@@ -2459,28 +3155,62 @@ class _FocusScreenState extends State<FocusScreen> {
   Widget _timerView(BuildContext context) {
     final mm = (_remaining ~/ 60).toString().padLeft(2, '0');
     final ss = (_remaining % 60).toString().padLeft(2, '0');
-    // Ring drains as time passes; empty (grey) when idle.
-    final frac = _started ? _remaining / (_minutes * 60) : 0.0;
+    // The dial stays quiet while idle, then fills clockwise as focus time passes.
+    final frac = _started ? 1 - _remaining / (_minutes * 60) : 0.0;
     final sub = !_started
-        ? '$_minutes min session'
+        ? '$_minutes MIN SESSION'
         : _running
-        ? 'Deep work'
-        : 'Paused';
+        ? 'DEEP WORK · $_minutes MIN'
+        : 'PAUSED · $_minutes MIN';
     return Column(
       children: [
         const Spacer(),
-        SegmentedRing(
+        _FocusTimerDial(
           size: 260,
-          segments: 1,
           value: frac,
-          stroke: 10,
           color: HrColors.accent,
           center: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('$mm:$ss', style: HrText.numeralXl),
-              const SizedBox(height: 4),
-              Text(sub, style: HrText.caption),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: mm,
+                      style: HrText.numeralXl.copyWith(
+                        fontSize: 62,
+                        letterSpacing: -1.8,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ':',
+                      style: HrText.numeralXl.copyWith(
+                        color: HrColors.accent,
+                        fontSize: 56,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ss,
+                      style: HrText.numeralXl.copyWith(
+                        color: HrColors.text2,
+                        fontSize: 62,
+                        letterSpacing: -1.8,
+                      ),
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 7),
+              Text(
+                sub,
+                style: HrText.micro.copyWith(
+                  color: HrColors.text2,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                ),
+              ),
             ],
           ),
         ),
@@ -2490,7 +3220,9 @@ class _FocusScreenState extends State<FocusScreen> {
             padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
             child: HrSegmented(
               items: _durations.map((m) => '$m').toList(),
-              index: _durations.indexOf(_minutes).clamp(0, _durations.length - 1),
+              index: _durations
+                  .indexOf(_minutes)
+                  .clamp(0, _durations.length - 1),
               onChanged: (i) => _setMinutes(_durations[i]),
             ),
           ),
@@ -2498,12 +3230,7 @@ class _FocusScreenState extends State<FocusScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
           child: !_started
-              ? HrButton(
-                  label: 'Start focus',
-                  icon: Icons.play_arrow_rounded,
-                  kind: HrButtonKind.accent,
-                  onPressed: _start,
-                )
+              ? _FocusStartButton(onPressed: _start, minutes: _minutes)
               : Row(
                   children: [
                     Expanded(
@@ -2575,12 +3302,24 @@ class _FocusScreenState extends State<FocusScreen> {
           padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
           child: Row(
             children: [
-              Expanded(child: _rewardTile('+$_lastGain', 'XP', HrColors.streak)),
-              const SizedBox(width: 10),
-              Expanded(child: _rewardTile('${appState.focusMinutesToday}', 'Min today', HrColors.text)),
+              Expanded(
+                child: _rewardTile('+$_lastGain', 'XP', HrColors.streak),
+              ),
               const SizedBox(width: 10),
               Expanded(
-                child: _rewardTile(questDone ? '1/1' : '0/1', 'Quest', questDone ? HrColors.accent : HrColors.text3),
+                child: _rewardTile(
+                  '${appState.focusMinutesToday}',
+                  'Min today',
+                  HrColors.text,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _rewardTile(
+                  questDone ? '1/1' : '0/1',
+                  'Quest',
+                  questDone ? HrColors.accent : HrColors.text3,
+                ),
               ),
             ],
           ),
@@ -2619,6 +3358,305 @@ class _FocusScreenState extends State<FocusScreen> {
 }
 
 // ── STATS ───────────────────────────────────────────────────────────────────
+class _FocusStartButton extends StatelessWidget {
+  const _FocusStartButton({required this.onPressed, required this.minutes});
+
+  final VoidCallback onPressed;
+  final int minutes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Start focus',
+      child: Container(
+        height: 68,
+        decoration: BoxDecoration(
+          color: HrColors.surface,
+          borderRadius: BorderRadius.circular(HrRadius.lg),
+          border: Border.all(color: HrColors.accent.withValues(alpha: 0.42)),
+          boxShadow: [
+            BoxShadow(
+              color: HrColors.accent.withValues(alpha: 0.16),
+              blurRadius: 16,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(HrRadius.lg),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(HrRadius.lg),
+            onTap: onPressed,
+            child: Ink(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [HrColors.accentSurface, HrColors.surface],
+                ),
+                borderRadius: BorderRadius.circular(HrRadius.lg),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 1,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      height: 1,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: HrColors.accentSurface,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: HrColors.accent.withValues(alpha: 0.55),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: HrColors.accent.withValues(alpha: 0.16),
+                                blurRadius: 9,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.play_arrow_rounded,
+                            size: 25,
+                            color: HrColors.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Start focus',
+                                style: HrText.body.copyWith(
+                                  color: HrColors.text,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                '$minutes min · +${minutes * 2} XP',
+                                style: HrText.micro.copyWith(
+                                  color: HrColors.text2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 18,
+                          color: HrColors.accent.withValues(alpha: 0.86),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FocusTimerDial extends StatelessWidget {
+  const _FocusTimerDial({
+    required this.size,
+    required this.value,
+    required this.color,
+    required this.center,
+  });
+
+  final double size, value;
+  final Color color;
+  final Widget center;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween<double>(end: value),
+    duration: const Duration(milliseconds: 450),
+    curve: Curves.easeOutCubic,
+    builder: (context, progress, _) => SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _FocusDialPainter(progress, color),
+        child: Center(child: center),
+      ),
+    ),
+  );
+}
+
+class _FocusDialPainter extends CustomPainter {
+  const _FocusDialPainter(this.value, this.color);
+
+  final double value;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.width / 2 - 18;
+    final ringRect = Rect.fromCircle(center: center, radius: radius);
+    final ringPath = Path()..addOval(ringRect);
+
+    canvas.drawShadow(ringPath, const Color(0xB8000000), 14, true);
+    canvas.drawCircle(
+      center,
+      radius + 8,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 17
+        ..color = const Color(0xFF17171C),
+    );
+    canvas.drawCircle(
+      center,
+      radius + 15,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = const Color(0x44FFFFFF),
+    );
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 12
+        ..color = const Color(0xFF303039),
+    );
+    canvas.drawCircle(
+      center,
+      radius - 9,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = const Color(0x22FFFFFF),
+    );
+    canvas.drawCircle(
+      center,
+      radius - 17,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: [Color(0xFF18151F), Color(0xFF09090B)],
+        ).createShader(Rect.fromCircle(center: center, radius: radius - 17)),
+    );
+
+    for (var i = 0; i < 12; i++) {
+      final angle = -pi / 2 + i * (2 * pi / 12);
+      final outer = radius - 19;
+      final inner = radius - (i % 3 == 0 ? 27 : 24);
+      final tickPaint = Paint()
+        ..color = i % 3 == 0
+            ? const Color(0x668E83A6)
+            : const Color(0x338E83A6)
+        ..strokeWidth = i % 3 == 0 ? 1.5 : 1
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        center + Offset(cos(angle) * inner, sin(angle) * inner),
+        center + Offset(cos(angle) * outer, sin(angle) * outer),
+        tickPaint,
+      );
+    }
+
+    final sweep = 2 * pi * value.clamp(0.0, 1.0).toDouble();
+    if (sweep > 0) {
+      final glowPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 13
+        ..strokeCap = StrokeCap.round
+        ..shader = SweepGradient(
+          startAngle: -pi / 2,
+          endAngle: 3 * pi / 2,
+          colors: [
+            color,
+            Color(0xFF7278FF),
+            Color(0xFF4DD6E5),
+            color,
+          ],
+        ).createShader(ringRect)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+      canvas.drawArc(ringRect, -pi / 2, sweep, false, glowPaint);
+
+      final arcPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 10
+        ..strokeCap = StrokeCap.round
+        ..shader = SweepGradient(
+          startAngle: -pi / 2,
+          endAngle: 3 * pi / 2,
+          colors: [
+            color,
+            Color(0xFF8D72FF),
+            Color(0xFF54D8E8),
+            color,
+          ],
+        ).createShader(ringRect);
+      canvas.drawArc(ringRect, -pi / 2, sweep, false, arcPaint);
+    }
+
+    final markerAngle = -pi / 2 + sweep;
+    final markerCenter = center +
+        Offset(cos(markerAngle) * radius, sin(markerAngle) * radius);
+    final gem = Path()
+      ..moveTo(markerCenter.dx, markerCenter.dy - 10)
+      ..lineTo(markerCenter.dx + 7, markerCenter.dy)
+      ..lineTo(markerCenter.dx, markerCenter.dy + 10)
+      ..lineTo(markerCenter.dx - 7, markerCenter.dy)
+      ..close();
+    canvas.drawShadow(
+      gem,
+      const Color(0xAA8D5AFF),
+      value > 0 ? 9 : 3,
+      true,
+    );
+    canvas.drawPath(
+      gem,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF0DFFF), Color(0xFFAA78FF), Color(0xFF6335C9)],
+        ).createShader(Rect.fromCircle(center: markerCenter, radius: 11)),
+    );
+    final facet = Path()
+      ..moveTo(markerCenter.dx, markerCenter.dy - 8)
+      ..lineTo(markerCenter.dx, markerCenter.dy + 1)
+      ..lineTo(markerCenter.dx - 5, markerCenter.dy)
+      ..close();
+    canvas.drawPath(facet, Paint()..color = const Color(0x99FFFFFF));
+    canvas.drawPath(
+      gem,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8
+        ..color = const Color(0xFFDCC3FF),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FocusDialPainter oldDelegate) =>
+      oldDelegate.value != value || oldDelegate.color != color;
+}
+
 // ── PROGRESS (Stats · Awards · Journal) ─────────────────────────────────────
 // Folds the old Stats, Awards and Journal tabs behind one segmented control.
 class ProgressScreen extends StatefulWidget {
@@ -2638,22 +3676,38 @@ class _ProgressScreenState extends State<ProgressScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+              padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter,
+                4,
+                HrSpace.gutter,
+                0,
+              ),
               child: Row(
                 children: [
                   Text('Progress', style: HrText.display),
                   const Spacer(),
                   IconButton(
-                    onPressed: () =>
-                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShareCardScreen())),
-                    icon: const Icon(Icons.ios_share_rounded, color: HrColors.text2),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ShareCardScreen(),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.ios_share_rounded,
+                      color: HrColors.text2,
+                    ),
                     tooltip: 'Share progress',
                   ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 10),
+              padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter,
+                8,
+                HrSpace.gutter,
+                10,
+              ),
               child: HrSegmented(
                 items: const ['Calendar', 'Stats', 'Awards', 'Journal'],
                 index: _seg,
@@ -2718,7 +3772,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _month = DateTime(now.year, now.month, 1);
   }
 
-  void _shift(int d) => setState(() => _month = DateTime(_month.year, _month.month + d, 1));
+  void _shift(int d) =>
+      setState(() => _month = DateTime(_month.year, _month.month + d, 1));
 
   @override
   Widget build(BuildContext context) {
@@ -2726,7 +3781,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final week = appState.perfectDaysThisWeek();
     final comp = companionByType(appState.activeCompanion);
     final streak = appState.bestStreak;
-    final line = '$week of 7 this week. ${week >= 6 ? 'Close.' : 'Keep going.'}';
+    final line =
+        '$week of 7 this week. ${week >= 6 ? 'Close.' : 'Keep going.'}';
     return ListView(
       padding: const EdgeInsets.fromLTRB(0, 4, 0, 100),
       children: [
@@ -2760,7 +3816,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       left: 0,
                       right: 0,
                       child: Center(
-                        child: StreakPill(count: streak, big: true, label: '$streak DAY STREAK'),
+                        child: StreakPill(
+                          count: streak,
+                          big: true,
+                          label: '$streak DAY STREAK',
+                        ),
                       ),
                     ),
                 ],
@@ -2791,17 +3851,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           Row(
             children: [
-              Text('${_kMonthsFull[first.month - 1]} ${first.year}', style: HrText.headline),
+              Text(
+                '${_kMonthsFull[first.month - 1]} ${first.year}',
+                style: HrText.headline,
+              ),
               const Spacer(),
               IconButton(
                 onPressed: () => _shift(-1),
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.chevron_left_rounded, color: HrColors.text2),
+                icon: const Icon(
+                  Icons.chevron_left_rounded,
+                  color: HrColors.text2,
+                ),
               ),
               IconButton(
                 onPressed: atCurrentMonth ? null : () => _shift(1),
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.chevron_right_rounded, color: HrColors.text2),
+                icon: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: HrColors.text2,
+                ),
               ),
             ],
           ),
@@ -2824,7 +3893,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
             children: [
               for (int i = 0; i < leading; i++) const SizedBox.shrink(),
               for (int day = 1; day <= daysInMonth; day++)
-                _dayCell(context, DateTime(first.year, first.month, day), todayK, now),
+                _dayCell(
+                  context,
+                  DateTime(first.year, first.month, day),
+                  todayK,
+                  now,
+                ),
             ],
           ),
         ],
@@ -2832,7 +3906,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _dayCell(BuildContext context, DateTime date, String todayK, DateTime now) {
+  Widget _dayCell(
+    BuildContext context,
+    DateTime date,
+    String todayK,
+    DateTime now,
+  ) {
     final k = dateKey(date);
     final score = appState.dailyScore[k];
     final perfect = appState.perfectDays.contains(k);
@@ -2855,7 +3934,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(HrRadius.xs),
-            border: isToday ? Border.all(color: HrColors.text, width: 1.5) : null,
+            border: isToday
+                ? Border.all(color: HrColors.text, width: 1.5)
+                : null,
           ),
           alignment: Alignment.center,
           child:
@@ -2876,7 +3957,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: HrColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl)),
+      ),
       builder: (_) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
         child: Column(
@@ -2888,24 +3971,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 width: 36,
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(color: HrColors.surface3, borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(
+                  color: HrColors.surface3,
+                  borderRadius: BorderRadius.circular(2),
               ),
             ),
-            Text('${_kWeekdays[date.weekday - 1]}, ${_kMonthsFull[date.month - 1]} ${date.day}', style: HrText.title2),
+            ),
+            Text(
+              '${_kWeekdays[date.weekday - 1]}, ${_kMonthsFull[date.month - 1]} ${date.day}',
+              style: HrText.title2,
+            ),
             const SizedBox(height: 14),
             if (score == null)
               Text('No activity recorded for this day.', style: HrText.bodyS)
             else
               Row(
                 children: [
-                  CountSticker('$score', size: 30, fill: HrColors.victory(score)),
+                  CountSticker(
+                    '$score',
+                    size: 30,
+                    fill: HrColors.victory(score),
+                  ),
                   const SizedBox(width: 16),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(victoryLabel(score), style: HrText.headline.copyWith(color: HrColors.victory(score))),
+                      Text(
+                        victoryLabel(score),
+                        style: HrText.headline.copyWith(
+                          color: HrColors.victory(score),
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text('Victory score${perfect ? ' · Perfect day' : ''}', style: HrText.caption),
+                      Text(
+                        'Victory score${perfect ? ' · Perfect day' : ''}',
+                        style: HrText.caption,
+                      ),
                     ],
                   ),
                 ],
@@ -2918,7 +4019,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.value, this.sub, required this.color});
+  const _StatTile({
+    required this.label,
+    required this.value,
+    this.sub,
+    required this.color,
+  });
   final String label, value;
   final String? sub;
   final Color color;
@@ -2943,7 +4049,12 @@ class _StatTile extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.caption,
+            ),
             if (sub != null)
               Text(
                 sub!,
@@ -2959,15 +4070,23 @@ class _StatTile extends StatelessWidget {
 }
 
 Widget _legacyLink(BuildContext context) => HrCard(
-  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LegacyScreen())),
+  onTap: () =>
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const LegacyScreen())),
   child: Row(
     children: [
       const Icon(Icons.history_rounded, color: HrColors.text2, size: 20),
       const SizedBox(width: 12),
       Expanded(
-        child: Text('Legacy timeline', style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+        child: Text(
+          'Legacy timeline',
+          style: HrText.body.copyWith(fontWeight: FontWeight.w600),
       ),
-      Text('${appState.milestoneLog.length}', style: HrText.body.copyWith(color: HrColors.text3)),
+      ),
+      Text(
+        '${appState.milestoneLog.length}',
+        style: HrText.body.copyWith(color: HrColors.text3),
+      ),
       const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
     ],
   ),
@@ -2985,11 +4104,21 @@ class StatsScreen extends StatelessWidget {
       ('Total XP', _compactNum(appState.totalXp), null, HrColors.accent),
       ('Best streak', '${appState.bestStreak}', null, HrColors.streak),
       ('Perfect days', '${appState.totalPerfectDays}', null, HrColors.text),
-      ('Avg score 7d', '${appState.avgScoreLastDays(7).round()}', null, HrColors.text),
+      (
+        'Avg score 7d',
+        '${appState.avgScoreLastDays(7).round()}',
+        null,
+        HrColors.text,
+      ),
       ('Coins', '${appState.coins}', null, HrColors.gold),
     ];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+      padding: const EdgeInsets.fromLTRB(
+        HrSpace.gutter,
+        4,
+        HrSpace.gutter,
+        100,
+      ),
       children: [
         GridView.count(
           shrinkWrap: true,
@@ -2998,7 +4127,12 @@ class StatsScreen extends StatelessWidget {
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
           childAspectRatio: 0.9,
-          children: tiles.map((t) => _StatTile(label: t.$1, value: t.$2, sub: t.$3, color: t.$4)).toList(),
+          children: tiles
+              .map(
+                (t) =>
+                    _StatTile(label: t.$1, value: t.$2, sub: t.$3, color: t.$4),
+              )
+              .toList(),
         ),
         const SizedBox(height: 14),
         const _WeekTrendCard(),
@@ -3019,7 +4153,8 @@ class _HabitStreaksCard extends StatelessWidget {
   const _HabitStreaksCard();
   @override
   Widget build(BuildContext context) {
-    final habits = [...appState.habits]..sort((a, b) => b.streak.compareTo(a.streak));
+    final habits = [...appState.habits]
+      ..sort((a, b) => b.streak.compareTo(a.streak));
     if (habits.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
@@ -3032,7 +4167,10 @@ class _HabitStreaksCard extends StatelessWidget {
                 .take(8)
                 .map(
                   (h) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 6,
+                      horizontal: 4,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
@@ -3046,7 +4184,10 @@ class _HabitStreaksCard extends StatelessWidget {
                         if (h.streak > 0)
                           StreakPill(count: h.streak, quiet: true)
                         else
-                          Text('—', style: HrText.body.copyWith(color: HrColors.text3)),
+                          Text(
+                            '—',
+                            style: HrText.body.copyWith(color: HrColors.text3),
+                          ),
                       ],
                     ),
                   ),
@@ -3072,13 +4213,18 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
   Future<void> _share() async {
     setState(() => _busy = true);
     try {
-      final boundary = _cardKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final boundary =
+          _cardKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       final box = context.findRenderObject() as RenderBox?;
-      final origin = box != null ? (box.localToGlobal(Offset.zero) & box.size) : null;
+      final origin = box != null
+          ? (box.localToGlobal(Offset.zero) & box.size)
+          : null;
       final image = await boundary.toImage(pixelRatio: 3);
       final data = await image.toByteData(format: ImageByteFormat.png);
       if (data == null) throw 'encode failed';
-      final file = File('${Directory.systemTemp.path}/habitrail_progress_${DateTime.now().millisecondsSinceEpoch}.png');
+      final file = File(
+        '${Directory.systemTemp.path}/habitrail_progress_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
       await file.writeAsBytes(data.buffer.asUint8List());
       await SharePlus.instance.share(
         ShareParams(
@@ -3102,6 +4248,10 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
       builder: (context, _) {
         final ld = levelFromXp(appState.totalXp);
         final v = appState.victory();
+        final cardWidth = min(
+          360.0,
+          MediaQuery.sizeOf(context).width - HrSpace.gutter * 2,
+        );
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
@@ -3111,59 +4261,192 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
             title: Text('Share progress', style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 32),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              32,
+            ),
             children: [
               Center(
                 child: RepaintBoundary(
                   key: _cardKey,
-                  child: Container(
-                    width: 340,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: HrColors.surface,
-                      borderRadius: BorderRadius.circular(HrRadius.xl),
-                      border: Border.all(color: HrColors.surface3),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('🔥', style: TextStyle(fontSize: 22)),
-                            const SizedBox(width: 8),
-                            Text('Habitrail', style: HrText.title2),
-                          ],
+                  child: SizedBox(
+                    width: cardWidth,
+                    height: cardWidth * 16 / 9,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 24,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF17151E), Color(0xFF0A0A0D)],
                         ),
-                        const SizedBox(height: 22),
-                        _Avatar(size: 92),
-                        const SizedBox(height: 14),
-                        Text(appState.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.title1),
-                        const SizedBox(height: 3),
-                        Text('Level ${ld.level} · ${levelTitle(ld.level)}', style: HrText.caption),
-                        const SizedBox(height: 22),
-                        Row(
-                          children: [
-                            _shareStat('🔥', 'Streak', '${appState.bestStreak}'),
-                            _shareStat('🏆', 'Victory', '${v.score}'),
-                            _shareStat('⭐', 'Level', '${ld.level}'),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            _shareStat('⚡', 'Total XP', '${appState.totalXp}'),
-                            _shareStat('✅', 'Habits', '${appState.habits.length}'),
-                            _shareStat('👑', 'Prestige', '${appState.prestige}'),
-                          ],
-                        ),
-                        const SizedBox(height: 22),
-                        Text(
-                          'Build habits. Earn XP. Level up your life.',
-                          textAlign: TextAlign.center,
-                          style: HrText.micro,
-                        ),
-                      ],
+                        borderRadius: BorderRadius.circular(HrRadius.xl),
+                        border: Border.all(color: const Color(0xFF34313D)),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x553E2B65),
+                            blurRadius: 24,
+                            spreadRadius: -10,
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: -70,
+                            right: -80,
+                            child: Container(
+                              width: 180,
+                              height: 180,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Color(0x182C87FF),
+                                    blurRadius: 70,
+                                    spreadRadius: 18,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.route_rounded,
+                                    size: 17,
+                                    color: Color(0xFF8B73FF),
+                                  ),
+                                  const SizedBox(width: 7),
+                                  Text(
+                                    'HABITRAIL',
+                                    style: HrText.caption.copyWith(
+                                      color: HrColors.text,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 2.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  Image.asset(
+                                    'assets/streaks/enamel_flame.png',
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${appState.bestStreak}',
+                                    style: const TextStyle(
+                                      color: Color(0xFFFFB547),
+                                      fontSize: 48,
+                                      height: 1,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -1.5,
+                                    ),
+                                  ),
+                                  Text(
+                                    appState.bestStreak == 1
+                                        ? 'DAY IN A ROW'
+                                        : 'DAYS IN A ROW',
+                                    style: HrText.micro.copyWith(
+                                      color: const Color(0xFFFFC979),
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _Avatar(size: 64),
+                                  const SizedBox(width: 12),
+                                  Flexible(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          appState.displayName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: HrText.title2,
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          'Level ${ld.level} · ${levelTitle(ld.level)}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: HrText.caption,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      _shareStat(
+                                        Icons.emoji_events_rounded,
+                                        HrColors.gold,
+                                        'Daily Score',
+                                        '${v.score}',
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _shareStat(
+                                        Icons.bolt_rounded,
+                                        const Color(0xFF79DCFF),
+                                        'Total XP',
+                                        '${appState.totalXp}',
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      _shareStat(
+                                        Icons.check_circle_rounded,
+                                        const Color(0xFF7FE2B0),
+                                        'Habits',
+                                        '${appState.habits.length}',
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _shareStat(
+                                        Icons.workspace_premium_rounded,
+                                        const Color(0xFFC49BFF),
+                                        'Prestige',
+                                        '${appState.prestige}',
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'Build your own streak with Habitrail.',
+                                textAlign: TextAlign.center,
+                                style: HrText.bodyS.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: HrColors.text2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -3189,22 +4472,43 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
   }
 }
 
-Widget _shareStat(String emoji, String label, String value) => Expanded(
-  child: Column(
-    children: [
-      Text(emoji, style: const TextStyle(fontSize: 18)),
-      const SizedBox(height: 4),
-      Text(value, style: HrText.headline),
-      Text(label, style: HrText.micro),
-    ],
-  ),
-);
+Widget _shareStat(IconData icon, Color tint, String label, String value) =>
+    Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1B1A20),
+          borderRadius: BorderRadius.circular(HrRadius.md),
+          border: Border.all(color: const Color(0xFF302E37)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 17, color: tint),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.headline.copyWith(color: HrColors.text),
+            ),
+            Text(label, style: HrText.micro),
+          ],
+        ),
+      ),
+    );
 
 // ── FRIENDS & LEADERBOARD ────────────────────────────────────────────────────
 
 // A ranked entry (you or a friend) for the leaderboard.
 class _Ranked {
-  _Ranked(this.name, this.totalXp, this.streak, this.borderId, this.isMe, {this.friendId});
+  _Ranked(
+    this.name,
+    this.totalXp,
+    this.streak,
+    this.borderId,
+    this.isMe, {
+    this.friendId,
+  });
   final String name;
   final int totalXp;
   final int streak;
@@ -3228,8 +4532,23 @@ class _FriendsScreenState extends State<FriendsScreen> {
       builder: (context, _) {
         // Leaderboard = you + your friends, ranked by total XP.
         final board = <_Ranked>[
-          _Ranked(appState.displayName, appState.totalXp, appState.bestStreak, appState.selectedBorder, true),
-          ...friends.friends.map((f) => _Ranked(f.name, f.totalXp, f.streak, f.borderId, false, friendId: f.id)),
+          _Ranked(
+            appState.displayName,
+            appState.totalXp,
+            appState.bestStreak,
+            appState.selectedBorder,
+            true,
+          ),
+          ...friends.friends.map(
+            (f) => _Ranked(
+              f.name,
+              f.totalXp,
+              f.streak,
+              f.borderId,
+              false,
+              friendId: f.id,
+            ),
+          ),
         ]..sort((a, b) => b.totalXp.compareTo(a.totalXp));
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -3238,7 +4557,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 0),
+                  padding: const EdgeInsets.fromLTRB(
+                    HrSpace.gutter,
+                    4,
+                    HrSpace.gutter,
+                    0,
+                  ),
                   child: Row(
                     children: [
                       Text('Friends', style: HrText.display),
@@ -3254,7 +4578,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
                             child: const SizedBox(
                               width: 38,
                               height: 38,
-                              child: Icon(Icons.person_add_alt_1_rounded, color: HrColors.text, size: 20),
+                              child: Icon(
+                                Icons.person_add_alt_1_rounded,
+                                color: HrColors.text,
+                                size: 20,
+                              ),
                             ),
                           ),
                         ),
@@ -3263,14 +4591,23 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 10, HrSpace.gutter, 10),
+                  padding: const EdgeInsets.fromLTRB(
+                    HrSpace.gutter,
+                    10,
+                    HrSpace.gutter,
+                    10,
+                  ),
                   child: HrSegmented(
                     items: const ['Leaderboard', 'Friends'],
                     index: _seg,
                     onChanged: (i) => setState(() => _seg = i),
                   ),
                 ),
-                Expanded(child: _seg == 0 ? _leaderboardTab(context, board) : _friendsTab(context)),
+                Expanded(
+                  child: _seg == 0
+                      ? _leaderboardTab(context, board)
+                      : _friendsTab(context),
+                ),
               ],
             ),
           ),
@@ -3280,28 +4617,198 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Widget _leaderboardTab(BuildContext context, List<_Ranked> board) {
-    final leader = board.first;
     final myXp = appState.totalXp;
-    final quip = leader.isMe
-        ? "You're on top. Keep it there."
-        : '${leader.name} leads you by ${leader.totalXp - myXp} XP. Do something about it.';
+    final myIndex = board.indexWhere((entry) => entry.isMe);
+    final rank = myIndex >= 0 ? myIndex + 1 : board.length + 1;
+    final isLeading = rank == 1;
+    final opponent = isLeading
+        ? (board.length > 1 ? board[1] : null)
+        : (board.isNotEmpty ? board.first : null);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+      padding: const EdgeInsets.fromLTRB(
+        HrSpace.gutter,
+        4,
+        HrSpace.gutter,
+        100,
+      ),
       children: [
         _podium(context, board),
         const SizedBox(height: 16),
-        Center(child: SpeechBubble(quip, maxWidth: 290)),
+        _leaderboardStatusCard(
+          rank: rank,
+          myXp: myXp,
+          opponent: opponent,
+          isLeading: isLeading,
+        ),
         const SizedBox(height: 22),
-        for (int i = 0; i < board.length; i++) _leaderRow(context, i + 1, board[i]),
+        for (int i = 0; i < board.length; i++)
+          _leaderRow(context, i + 1, board[i]),
       ],
     );
   }
+
+  Widget _leaderboardStatusCard({
+    required int rank,
+    required int myXp,
+    required _Ranked? opponent,
+    required bool isLeading,
+  }) {
+    final gap = opponent == null ? 0 : (opponent.totalXp - myXp).abs();
+    final targetXp = opponent?.totalXp ?? myXp;
+    final progress = isLeading || targetXp <= 0
+        ? 1.0
+        : (myXp / targetXp).clamp(0.0, 1.0).toDouble();
+    final lead = opponent == null
+        ? (isLeading ? "You're leading—" : 'Keep climbing—')
+        : isLeading
+        ? "You're ${_groupedNum(gap)} XP ahead of ${opponent.name}—"
+        : '${opponent.name} is ${_groupedNum(gap)} XP ahead—';
+    final nudge = isLeading ? 'keep it going!' : 'catch up!';
+    final comparison = opponent == null
+        ? 'You: ${_groupedNum(myXp)} XP'
+        : isLeading
+        ? 'You: ${_groupedNum(myXp)} XP · Next: ${opponent.name} ${_groupedNum(opponent.totalXp)} XP'
+        : 'You: ${_groupedNum(myXp)} XP · ${opponent.name}: ${_groupedNum(opponent.totalXp)} XP';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 11),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18171B),
+        borderRadius: BorderRadius.circular(HrRadius.lg),
+        border: Border.all(color: const Color(0xFF302D38), width: 0.8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 38,
+            height: 38,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.star_rounded,
+                  size: 38,
+                  color: HrColors.gold,
+                  shadows: [
+                    Shadow(
+                      color: HrColors.gold.withValues(alpha: 0.28),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Text(
+                    '#$rank',
+                    style: const TextStyle(
+                      color: Color(0xFF302400),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '#$rank IN THE RACE',
+                  style: HrText.micro.copyWith(
+                    color: HrColors.gold.withValues(alpha: 0.88),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: lead,
+                        style: HrText.body.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      TextSpan(
+                        text: nudge,
+                        style: HrText.body.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          fontStyle: FontStyle.italic,
+                          color: const Color(0xFFC08BFF),
+                        ),
+                      ),
+                    ],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(HrRadius.full),
+                  child: SizedBox(
+                    height: 6,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => Stack(
+                        children: [
+                          const Positioned.fill(
+                            child: ColoredBox(color: HrColors.surface3),
+                          ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              width: constraints.maxWidth * progress,
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFFA44DFF),
+                                    Color(0xFF36C9F4),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  comparison,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.micro.copyWith(color: HrColors.text2),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _groupedNum(int value) => value.toString().replaceAllMapped(
+    RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+    (match) => '${match[1]},',
+  );
 
   Widget _friendsTab(BuildContext context) {
     final list = friends.friends;
     final suggestions = friends.suggestions();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+      padding: const EdgeInsets.fromLTRB(
+        HrSpace.gutter,
+        4,
+        HrSpace.gutter,
+        100,
+      ),
       children: [
         const _AddFriendField(),
         const SizedBox(height: 16),
@@ -3334,11 +4841,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
             imageAsset: comp.imageAsset,
           ),
           const SizedBox(height: 14),
-          const SpeechBubble('Habits are easier with witnesses.', maxWidth: 240),
+          const SpeechBubble(
+            'Habits are easier with witnesses.',
+            maxWidth: 240,
+          ),
           const SizedBox(height: 20),
           Text('No friends yet', style: HrText.title2),
           const SizedBox(height: 6),
-          Text('Add a friend by username to compare XP and streaks.', textAlign: TextAlign.center, style: HrText.bodyS),
+          Text(
+            'Add a friend by username to compare XP and streaks.',
+            textAlign: TextAlign.center,
+            style: HrText.bodyS,
+          ),
         ],
       ),
     );
@@ -3347,18 +4861,67 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
 // Avatar for an arbitrary name + border (friends have no photo of their own).
 class _FriendAvatar extends StatelessWidget {
-  const _FriendAvatar({required this.name, required this.borderId, this.size = 44});
+  const _FriendAvatar({
+    required this.name,
+    required this.borderId,
+    this.size = 44,
+    this.showBorder = true,
+  });
   final String name;
   final String borderId;
   final double size;
+  final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
     final b = borderById(borderId);
-    final hasBorder = b.id != 'none';
-    final ringW = hasBorder ? (size * 0.1).clamp(3.0, 6.0) : (size * 0.06).clamp(2.0, 4.0);
-    final inner = size - ringW * 2;
+    final hasBorder = showBorder && b.id != 'none';
+    final ringW = hasBorder
+        ? (size * 0.1).clamp(3.0, 6.0)
+        : (size * 0.06).clamp(2.0, 4.0);
+    final frameAsset = showBorder ? b.frameAsset : null;
+    final inner = frameAsset != null
+        ? size * 0.72
+        : (showBorder ? size - ringW * 2 : size);
     final letter = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final avatar = ClipOval(
+      child: Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [kPlasma, kBlue]),
+        ),
+        child: Text(
+          letter,
+          style: GoogleFonts.spaceGrotesk(
+            color: Colors.white,
+            fontSize: inner * 0.42,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+    if (!showBorder) {
+      return SizedBox(width: size, height: size, child: avatar);
+    }
+    if (frameAsset != null) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(width: inner, height: inner, child: avatar),
+            Image.asset(
+              frameAsset,
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       width: size,
       height: size,
@@ -3366,19 +4929,19 @@ class _FriendAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: b.colors.length == 1 ? b.colors.first : null,
-        gradient: b.colors.length > 1 ? SweepGradient(colors: [...b.colors, b.colors.first]) : null,
-        boxShadow: b.glow ? [BoxShadow(color: b.colors.first.withValues(alpha: 0.6), blurRadius: size * 0.22)] : null,
+        gradient: b.colors.length > 1
+            ? SweepGradient(colors: [...b.colors, b.colors.first])
+            : null,
+        boxShadow: b.glow
+            ? [
+                BoxShadow(
+                  color: b.colors.first.withValues(alpha: 0.6),
+                  blurRadius: size * 0.22,
       ),
-      child: ClipOval(
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(gradient: LinearGradient(colors: [kPlasma, kBlue])),
-          child: Text(
-            letter,
-            style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: inner * 0.42, fontWeight: FontWeight.w800),
+              ]
+            : null,
           ),
-        ),
-      ),
+      child: avatar,
     );
   }
 }
@@ -3391,7 +4954,11 @@ Widget _youTag() => Container(
   ),
   child: Text(
     'YOU',
-    style: HrText.micro.copyWith(color: HrColors.accent, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+    style: HrText.micro.copyWith(
+      color: HrColors.accent,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.5,
+    ),
   ),
 );
 
@@ -3402,16 +4969,29 @@ Widget _podium(BuildContext context, List<_Ranked> board) {
   const order = [2, 1, 3];
   void openProfile(_Ranked? entry) {
     if (entry?.friendId == null) return;
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: entry!.friendId!)));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FriendProfileScreen(friendId: entry!.friendId!),
+      ),
+    );
   }
 
   Widget avatarFor(int rank, double size) {
     final entry = at(rank);
     if (entry == null) return SizedBox(width: size, height: size);
     final avatar = entry.isMe
-        ? _Avatar(size: size)
-        : _FriendAvatar(name: entry.name, borderId: entry.borderId, size: size);
-    return GestureDetector(behavior: HitTestBehavior.opaque, onTap: () => openProfile(entry), child: avatar);
+        ? _Avatar(size: size, showBorder: false)
+        : _FriendAvatar(
+            name: entry.name,
+            borderId: entry.borderId,
+            size: size,
+            showBorder: false,
+          );
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => openProfile(entry),
+      child: avatar,
+    );
   }
 
   Color rankColor(int rank) => switch (rank) {
@@ -3439,7 +5019,12 @@ Widget _podium(BuildContext context, List<_Ranked> board) {
             children: [
               Text(
                 label,
-                style: HrText.micro.copyWith(color: rankColor(rank), fontWeight: FontWeight.w800),
+                style: HrText.micro.copyWith(
+                  fontSize: 12,
+                  height: 16 / 12,
+                  color: rankColor(rank),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -3447,9 +5032,19 @@ Widget _podium(BuildContext context, List<_Ranked> board) {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: HrText.caption.copyWith(fontWeight: FontWeight.w700),
+                style: HrText.caption.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
               ),
-              Text('${entry.totalXp} XP', style: HrText.micro.copyWith(color: HrColors.text2)),
+              ),
+              Text(
+                '${entry.totalXp} XP',
+                style: HrText.micro.copyWith(
+                  fontSize: 12,
+                  height: 16 / 12,
+                  color: HrColors.text2,
+                ),
+              ),
             ],
           ),
         ),
@@ -3467,9 +5062,9 @@ Widget _podium(BuildContext context, List<_Ranked> board) {
           // podium_stands.png is 1536x1024 (3:2) — same aspect as this box, so
           // BoxFit.contain adds no letterbox and these image-fraction centres
           // land in each ring frame's dark hole. Avatars scale with the width.
-          final d1 = width * 0.145;
-          final d2 = width * 0.145;
-          final d3 = width * 0.137;
+          final d1 = width * 0.164;
+          final d2 = width * 0.148;
+          final d3 = width * 0.136;
           return SizedBox(
             width: width,
             height: height,
@@ -3482,9 +5077,21 @@ Widget _podium(BuildContext context, List<_Ranked> board) {
                   fit: BoxFit.contain,
                   semanticLabel: 'Three 3D leaderboard podium stands',
                 ),
-                Positioned(left: width * 0.499 - d1 / 2, top: height * 0.277 - d1 / 2, child: avatarFor(1, d1)),
-                Positioned(left: width * 0.223 - d2 / 2, top: height * 0.527 - d2 / 2, child: avatarFor(2, d2)),
-                Positioned(left: width * 0.808 - d3 / 2, top: height * 0.573 - d3 / 2, child: avatarFor(3, d3)),
+                Positioned(
+                  left: width * 0.4991 - d1 / 2,
+                  top: height * 0.305 - d1 / 2,
+                  child: avatarFor(1, d1),
+                ),
+                Positioned(
+                  left: width * 0.2247 - d2 / 2,
+                  top: height * 0.5447 - d2 / 2,
+                  child: avatarFor(2, d2),
+                ),
+                Positioned(
+                  left: width * 0.8015 - d3 / 2,
+                  top: height * 0.5635 - d3 / 2,
+                  child: avatarFor(3, d3),
+                ),
               ],
             ),
           );
@@ -3498,6 +5105,13 @@ Widget _podium(BuildContext context, List<_Ranked> board) {
 
 Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
   final ld = levelFromXp(e.totalXp);
+  final rankColor = switch (rank) {
+    1 => HrColors.gold,
+    2 => HrColors.text2,
+    3 => const Color(0xFFD98A5A),
+    _ => HrColors.text3,
+  };
+  final topThree = rank <= 3;
   final row = Container(
     margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -3505,21 +5119,68 @@ Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
       color: e.isMe ? HrColors.accentSurface : HrColors.surface,
       borderRadius: BorderRadius.circular(HrRadius.md),
       border: Border(
-        top: BorderSide(color: e.isMe ? HrColors.accent : HrColors.hairline, width: e.isMe ? 2 : 1),
+        top: BorderSide(
+          color: e.isMe
+              ? HrColors.accent
+              : topThree
+              ? rankColor.withValues(alpha: rank == 1 ? 0.36 : 0.2)
+              : HrColors.hairline,
+          width: e.isMe ? 2 : 1,
       ),
+      ),
+      boxShadow: !e.isMe && rank == 1
+          ? [
+              BoxShadow(
+                color: rankColor.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ]
+          : null,
     ),
     child: Row(
       children: [
         SizedBox(
-          width: 24,
+          width: 28,
+          height: 30,
+          child: topThree
+              ? Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.hexagon_rounded,
+                      size: 27,
+                      color: rankColor.withValues(alpha: 0.16),
+                    ),
+                    Icon(
+                      Icons.hexagon_outlined,
+                      size: 27,
+                      color: rankColor.withValues(alpha: 0.55),
+                    ),
+                    Text(
+                      '$rank',
+                      style: HrText.caption.copyWith(
+                        color: rankColor,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                )
+              : Center(
           child: Text(
             '$rank',
             textAlign: TextAlign.center,
-            style: HrText.body.copyWith(color: rank <= 3 ? HrColors.text : HrColors.text3, fontWeight: FontWeight.w800),
+                    style: HrText.body.copyWith(
+                      color: HrColors.text3,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
           ),
         ),
         const SizedBox(width: 8),
-        e.isMe ? _Avatar(size: 40) : _FriendAvatar(name: e.name, borderId: e.borderId, size: 40),
+        e.isMe
+            ? _Avatar(size: 40)
+            : _FriendAvatar(name: e.name, borderId: e.borderId, size: 40),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -3549,11 +5210,20 @@ Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
           ),
         ),
         const SizedBox(width: 8),
-        if (e.streak > 0) ...[StreakPill(count: e.streak, quiet: true), const SizedBox(width: 10)],
+        if (e.streak > 0) ...[
+          StreakPill(count: e.streak, quiet: true, leaderboard: true),
+          const SizedBox(width: 10),
+        ],
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text('${e.totalXp}', style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              '${e.totalXp}',
+              style: HrText.body.copyWith(
+                color: topThree ? rankColor : HrColors.text,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             Text('XP', style: HrText.micro),
           ],
         ),
@@ -3564,8 +5234,11 @@ Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
       ? row
       : GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () =>
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: e.friendId!))),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => FriendProfileScreen(friendId: e.friendId!),
+            ),
+          ),
           child: row,
         );
 }
@@ -3575,7 +5248,9 @@ Widget _friendCard(BuildContext context, Friend f) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: HrCard(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: f.id))),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => FriendProfileScreen(friendId: f.id)),
+      ),
       padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
       child: Row(
         children: [
@@ -3592,14 +5267,19 @@ Widget _friendCard(BuildContext context, Friend f) {
                         f.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                        style: HrText.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     if (f.prestige > 0) ...[
                       const SizedBox(width: 6),
                       Text(
                         '★${f.prestige}',
-                        style: HrText.caption.copyWith(color: HrColors.gold, fontWeight: FontWeight.w800),
+                        style: HrText.caption.copyWith(
+                          color: HrColors.gold,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ],
                   ],
@@ -3617,7 +5297,11 @@ Widget _friendCard(BuildContext context, Friend f) {
           const SizedBox(width: 8),
           if (f.streak > 0) StreakPill(count: f.streak, quiet: true),
           IconButton(
-            icon: const Icon(Icons.more_horiz_rounded, color: HrColors.text3, size: 20),
+            icon: const Icon(
+              Icons.more_horiz_rounded,
+              color: HrColors.text3,
+              size: 20,
+            ),
             tooltip: 'Remove',
             onPressed: () => _confirmRemoveFriend(context, f),
           ),
@@ -3681,10 +5365,19 @@ void _confirmRemoveFriend(BuildContext context, Friend f) {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: kElevated,
-      title: Text('Remove ${f.name}?', style: const TextStyle(color: kTextPrimary)),
-      content: Text('You can add @${f.username} again any time.', style: const TextStyle(color: kTextSecondary)),
+      title: Text(
+        'Remove ${f.name}?',
+        style: const TextStyle(color: kTextPrimary),
+      ),
+      content: Text(
+        'You can add @${f.username} again any time.',
+        style: const TextStyle(color: kTextSecondary),
+      ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kRed),
           onPressed: () {
@@ -3741,9 +5434,19 @@ class _AddFriendFieldState extends State<_AddFriendField> {
               hintStyle: HrText.body.copyWith(color: HrColors.text3),
               filled: true,
               fillColor: HrColors.surface,
-              prefixIcon: const Icon(Icons.alternate_email_rounded, size: 18, color: HrColors.text3),
-              contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+              prefixIcon: const Icon(
+                Icons.alternate_email_rounded,
+                size: 18,
+                color: HrColors.text3,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 14,
+                horizontal: 8,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(HrRadius.md),
+                borderSide: BorderSide.none,
+              ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(HrRadius.md),
                 borderSide: BorderSide.none,
@@ -3809,12 +5512,18 @@ Widget _compareRow(String label, int friendVal, int myVal) {
           Expanded(child: Text(label, style: HrText.caption)),
           Text(
             '$friendVal',
-            style: HrText.caption.copyWith(color: HrColors.text2, fontWeight: FontWeight.w700),
+            style: HrText.caption.copyWith(
+              color: HrColors.text2,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           Text('  vs  ', style: HrText.caption),
           Text(
             '$myVal',
-            style: HrText.caption.copyWith(color: HrColors.accent, fontWeight: FontWeight.w700),
+            style: HrText.caption.copyWith(
+              color: HrColors.accent,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -3841,15 +5550,22 @@ class FriendProfileScreen extends StatelessWidget {
         if (f == null) {
           return Scaffold(
             backgroundColor: Colors.transparent,
-            appBar: AppBar(backgroundColor: Colors.transparent, foregroundColor: kTextPrimary),
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              foregroundColor: kTextPrimary,
+            ),
             body: const Center(
-              child: Text('This friend was removed.', style: TextStyle(color: kTextTertiary)),
+              child: Text(
+                'This friend was removed.',
+                style: TextStyle(color: kTextTertiary),
+              ),
             ),
           );
         }
         final ld = levelFromXp(f.totalXp);
         final myXp = appState.totalXp;
-        final ranked = [myXp, ...friends.friends.map((x) => x.totalXp)]..sort((a, b) => b.compareTo(a));
+        final ranked = [myXp, ...friends.friends.map((x) => x.totalXp)]
+          ..sort((a, b) => b.compareTo(a));
         final rank = ranked.indexOf(f.totalXp) + 1;
         final diff = f.totalXp - myXp;
         final cmp = diff == 0
@@ -3866,7 +5582,12 @@ class FriendProfileScreen extends StatelessWidget {
             title: Text(f.name, style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 32),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              32,
+            ),
             children: [
               Column(
                 children: [
@@ -3876,26 +5597,47 @@ class FriendProfileScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Flexible(
-                        child: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.title1),
+                        child: Text(
+                          f.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: HrText.title1,
+                        ),
                       ),
                       if (f.prestige > 0) ...[
                         const SizedBox(width: 8),
-                        Text('★${f.prestige}', style: HrText.title2.copyWith(color: HrColors.gold)),
+                        Text(
+                          '★${f.prestige}',
+                          style: HrText.title2.copyWith(color: HrColors.gold),
+                        ),
                       ],
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text('@${f.username} · Lv ${ld.level} · ${levelTitle(ld.level)}', style: HrText.caption),
+                  Text(
+                    '@${f.username} · Lv ${ld.level} · ${levelTitle(ld.level)}',
+                    style: HrText.caption,
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
               Row(
                 children: [
-                  Expanded(child: _profileStat('${ld.level}', 'Level', HrColors.text)),
+                  Expanded(
+                    child: _profileStat('${ld.level}', 'Level', HrColors.text),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: _profileStat('${f.streak}', 'Streak', HrColors.streak)),
+                  Expanded(
+                    child: _profileStat(
+                      '${f.streak}',
+                      'Streak',
+                      HrColors.streak,
+                    ),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: _profileStat('#$rank', 'Rank', HrColors.accent)),
+                  Expanded(
+                    child: _profileStat('#$rank', 'Rank', HrColors.accent),
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -3929,11 +5671,19 @@ class FriendProfileScreen extends StatelessWidget {
                   builder: (ctx) => AlertDialog(
                     backgroundColor: HrColors.surface,
                     title: Text('Remove ${f.name}?', style: HrText.title2),
-                    content: Text('You can add @${f.username} again any time.', style: HrText.bodyS),
+                    content: Text(
+                      'You can add @${f.username} again any time.',
+                      style: HrText.bodyS,
+                    ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel'),
+                      ),
                       FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: HrColors.danger),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: HrColors.danger,
+                        ),
                         onPressed: () {
                           friends.remove(f.id);
                           Navigator.pop(ctx);
@@ -3960,12 +5710,22 @@ class AwardsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unlocked = kAchievements.where((a) => appState.isAchievementEarned(a)).length;
+    final unlocked = kAchievements
+        .where((a) => appState.isAchievementEarned(a))
+        .length;
     final total = kAchievements.length;
     final allDone = unlocked >= total;
-    final next = kAchievements.firstWhere((a) => !appState.isAchievementEarned(a), orElse: () => kAchievements.last);
+    final next = kAchievements.firstWhere(
+      (a) => !appState.isAchievementEarned(a),
+      orElse: () => kAchievements.last,
+    );
     return ListView(
-      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+      padding: const EdgeInsets.fromLTRB(
+        HrSpace.gutter,
+        4,
+        HrSpace.gutter,
+        100,
+      ),
       children: [
         HrCard(
           child: Row(
@@ -3983,7 +5743,10 @@ class AwardsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('$unlocked of $total unlocked', style: HrText.headline),
+                    Text(
+                      '$unlocked of $total unlocked',
+                      style: HrText.headline,
+                    ),
                     const SizedBox(height: 3),
                     Text(
                       allDone ? 'Every award earned.' : 'Next: ${next.title}',
@@ -4027,7 +5790,10 @@ class _AchievementCard extends StatelessWidget {
         color: HrColors.surface,
         borderRadius: BorderRadius.circular(HrRadius.lg),
         border: Border(
-          top: BorderSide(color: on ? color : HrColors.hairline, width: on ? 2 : 1),
+          top: BorderSide(
+            color: on ? color : HrColors.hairline,
+            width: on ? 2 : 1,
+          ),
         ),
       ),
       child: Column(
@@ -4056,7 +5822,11 @@ class _AchievementCard extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: HrColors.hairline),
                       ),
-                      child: const Icon(Icons.lock_rounded, size: 12, color: HrColors.text2),
+                      child: const Icon(
+                        Icons.lock_rounded,
+                        size: 12,
+                        color: HrColors.text2,
+                      ),
                     ),
                   ),
               ],
@@ -4068,19 +5838,29 @@ class _AchievementCard extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: HrText.bodyS.copyWith(color: on ? HrColors.text : HrColors.text2, fontWeight: FontWeight.w700),
+            style: HrText.bodyS.copyWith(
+              color: on ? HrColors.text : HrColors.text2,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 6),
           on
               ? Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(HrRadius.xs),
                   ),
                   child: Text(
                     rarity.toUpperCase(),
-                    style: HrText.micro.copyWith(color: color, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+                    style: HrText.micro.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
                   ),
                 )
               : Text(
@@ -4112,10 +5892,17 @@ class JournalScreen extends StatelessWidget {
     final items = appState.reflections;
     final reflectedToday = items.any((r) => r.date == dateKey(DateTime.now()));
     return ListView(
-      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+      padding: const EdgeInsets.fromLTRB(
+        HrSpace.gutter,
+        4,
+        HrSpace.gutter,
+        100,
+      ),
       children: [
         HrButton(
-          label: reflectedToday ? 'Add another reflection · +20 XP' : 'Reflect on today · +20 XP',
+          label: reflectedToday
+              ? 'Add another reflection · +20 XP'
+              : 'Reflect on today · +20 XP',
           icon: Icons.edit_rounded,
           kind: HrButtonKind.accent,
           onPressed: () => showAddReflection(context),
@@ -4130,7 +5917,11 @@ class JournalScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text('No reflections yet', style: HrText.title2),
                 const SizedBox(height: 6),
-                Text('Write your first one to earn +20 XP.', textAlign: TextAlign.center, style: HrText.bodyS),
+                Text(
+                  'Write your first one to earn +20 XP.',
+                  textAlign: TextAlign.center,
+                  style: HrText.bodyS,
+                ),
               ],
             ),
           )
@@ -4145,24 +5936,37 @@ class JournalScreen extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(_journalDate(r.date).toUpperCase(), style: HrText.labelCaps),
+                        Text(
+                          _journalDate(r.date).toUpperCase(),
+                          style: HrText.labelCaps,
+                        ),
                         const Spacer(),
                         if (score != null)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
-                              color: HrColors.victory(score).withValues(alpha: 0.16),
+                              color: HrColors.victory(score)
+                                  .withValues(alpha: 0.16),
                               borderRadius: BorderRadius.circular(HrRadius.xs),
                             ),
                             child: Text(
                               'Score $score',
-                              style: HrText.micro.copyWith(color: HrColors.victory(score), fontWeight: FontWeight.w800),
+                              style: HrText.micro.copyWith(
+                                color: HrColors.victory(score),
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(r.text, style: HrText.body.copyWith(color: HrColors.text2)),
+                    Text(
+                      r.text,
+                      style: HrText.body.copyWith(color: HrColors.text2),
+                    ),
                   ],
                 ),
               ),
@@ -4175,7 +5979,11 @@ class JournalScreen extends StatelessWidget {
 
 // ── Shared bits ─────────────────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.emoji, required this.title, required this.subtitle});
+  const _EmptyState({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+  });
   final String emoji;
   final String title;
   final String subtitle;
@@ -4198,7 +6006,11 @@ class _EmptyState extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: const LinearGradient(colors: _kAccentGradient),
                 boxShadow: [
-                  BoxShadow(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4), blurRadius: 22, spreadRadius: 1),
+                  BoxShadow(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
+                    blurRadius: 22,
+                    spreadRadius: 1,
+                  ),
                 ],
               ),
               child: Text(emoji, style: const TextStyle(fontSize: 36)),
@@ -4207,13 +6019,21 @@ class _EmptyState extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.spaceGrotesk(color: kTextPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+              style: GoogleFonts.spaceGrotesk(
+                color: kTextPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: kTextTertiary, fontSize: 13, height: 1.4),
+              style: const TextStyle(
+                color: kTextTertiary,
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
           ],
         ),
@@ -4260,7 +6080,9 @@ void _showAchievementUnlocked(BuildContext context, List<Achievement> items) {
       child: Image.asset(a.imageAsset, fit: BoxFit.cover),
     ),
     title: a.title,
-    subtitle: items.length > 1 ? '${a.description}\n+${items.length - 1} more unlocked' : a.description,
+    subtitle: items.length > 1
+        ? '${a.description}\n+${items.length - 1} more unlocked'
+        : a.description,
     buttonLabel: 'Nice',
   );
 }
@@ -4279,19 +6101,42 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
   // The current difficulty decision — the AI (or heuristic) owns this; the user
   // no longer picks it. It's frozen onto the habit when they tap Add/Save.
   DifficultyVerdict verdict = existing != null
-      ? DifficultyVerdict(existing.rarity, existing.difficultyReason, fromAi: existing.aiRated)
+      ? DifficultyVerdict(
+          existing.rarity,
+          existing.difficultyReason,
+          fromAi: existing.aiRated,
+        )
       : heuristicVerdict(controller.text);
   bool analyzing = false;
   Timer? debounce;
   int reqSeq = 0; // drops stale async results from earlier keystrokes
   String icon = existing?.icon ?? '';
   int? reminderMinutes = existing?.reminderMinutes; // daily reminder time
-  const emojis = ['💧', '📖', '🏋️', '😴', '🧘', '🏃', '🥗', '💻', '🎯', '✍️', '🎸', '☀️', '🧠', '💰', '🌱', '🚭'];
+  const emojis = [
+    '💧',
+    '📖',
+    '🏋️',
+    '😴',
+    '🧘',
+    '🏃',
+    '🥗',
+    '💻',
+    '🎯',
+    '✍️',
+    '🎸',
+    '☀️',
+    '🧠',
+    '💰',
+    '🌱',
+    '🚭',
+  ];
   await showModalBottomSheet<void>(
     context: context,
     backgroundColor: HrColors.surface,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl)),
+    ),
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setLocal) {
         // Re-rate the habit: show the instant heuristic now, then let the local
@@ -4327,7 +6172,12 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
         }
 
         return Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20 + MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -4337,10 +6187,16 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                   width: 36,
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(color: HrColors.surface3, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(
+                    color: HrColors.surface3,
+                    borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              Text(existing == null ? 'New habit' : 'Edit habit', style: HrText.title2),
+              ),
+              Text(
+                existing == null ? 'New habit' : 'Edit habit',
+                style: HrText.title2,
+              ),
               const SizedBox(height: 14),
               TextField(
                 controller: controller,
@@ -4352,7 +6208,10 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                   hintStyle: HrText.body.copyWith(color: HrColors.text3),
                   filled: true,
                   fillColor: HrColors.surface2,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(HrRadius.md),
                     borderSide: BorderSide.none,
@@ -4363,7 +6222,10 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(HrRadius.md),
-                    borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+                    borderSide: const BorderSide(
+                      color: HrColors.text,
+                      width: 1.5,
+                    ),
                   ),
                 ),
                 onChanged: analyze,
@@ -4403,13 +6265,18 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 2, 6, 2),
-                decoration: BoxDecoration(color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
+                decoration: BoxDecoration(
+                  color: HrColors.surface2,
+                  borderRadius: BorderRadius.circular(HrRadius.md),
+                ),
                 child: Row(
                   children: [
                     Icon(
                       Icons.notifications_active_rounded,
                       size: 18,
-                      color: reminderMinutes != null ? HrColors.accent : HrColors.text3,
+                      color: reminderMinutes != null
+                          ? HrColors.accent
+                          : HrColors.text3,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -4423,23 +6290,39 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                     TextButton(
                       onPressed: () async {
                         final init = reminderMinutes != null
-                            ? TimeOfDay(hour: reminderMinutes! ~/ 60, minute: reminderMinutes! % 60)
+                            ? TimeOfDay(
+                                hour: reminderMinutes! ~/ 60,
+                                minute: reminderMinutes! % 60,
+                              )
                             : const TimeOfDay(hour: 20, minute: 0);
-                        final picked = await showTimePicker(context: ctx, initialTime: init);
+                        final picked = await showTimePicker(
+                          context: ctx,
+                          initialTime: init,
+                        );
                         if (picked != null) {
-                          setLocal(() => reminderMinutes = picked.hour * 60 + picked.minute);
+                          setLocal(
+                            () => reminderMinutes =
+                                picked.hour * 60 + picked.minute,
+                          );
                         }
                       },
                       child: Text(
                         reminderMinutes == null ? 'Set' : 'Change',
-                        style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w700),
+                        style: HrText.bodyS.copyWith(
+                          color: HrColors.text,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     if (reminderMinutes != null)
                       IconButton(
                         visualDensity: VisualDensity.compact,
                         onPressed: () => setLocal(() => reminderMinutes = null),
-                        icon: const Icon(Icons.close, size: 18, color: HrColors.text3),
+                        icon: const Icon(
+                          Icons.close,
+                          size: 18,
+                          color: HrColors.text3,
+                        ),
                       ),
                   ],
                 ),
@@ -4453,8 +6336,14 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                         appState.deleteHabit(existing);
                         Navigator.pop(ctx);
                       },
-                      icon: const Icon(Icons.delete_outline, color: HrColors.dangerText),
-                      label: Text('Delete', style: HrText.body.copyWith(color: HrColors.dangerText)),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: HrColors.dangerText,
+                      ),
+                      label: Text(
+                        'Delete',
+                        style: HrText.body.copyWith(color: HrColors.dangerText),
+                      ),
                     ),
                   const Spacer(),
                   SizedBox(
@@ -4509,7 +6398,10 @@ Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
   final color = HrColors.rarity[v.rarity] ?? HrColors.text3;
   return Container(
     padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
+    decoration: BoxDecoration(
+      color: HrColors.surface2,
+      borderRadius: BorderRadius.circular(HrRadius.md),
+    ),
     child: Row(
       children: [
         Icon(Icons.auto_awesome_rounded, size: 18, color: color),
@@ -4523,7 +6415,10 @@ Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
                   Flexible(
                     child: Text(
                       '${v.label} · ×${v.multiplier} · ~${estimatedXp(v.rarity)} XP',
-                      style: HrText.bodyS.copyWith(color: color, fontWeight: FontWeight.w700),
+                      style: HrText.bodyS.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -4532,7 +6427,11 @@ Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
               ),
               const SizedBox(height: 3),
               Text(
-                analyzing ? 'Reading your habit…' : (v.reason.isEmpty ? 'Difficulty set automatically' : v.reason),
+                analyzing
+                    ? 'Reading your habit…'
+                    : (v.reason.isEmpty
+                          ? 'Difficulty set automatically'
+                          : v.reason),
                 style: HrText.caption,
               ),
             ],
@@ -4545,14 +6444,21 @@ Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
 
 Widget _ratingChip(DifficultyVerdict v, bool analyzing) {
   if (analyzing) {
-    return const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2));
+    return const SizedBox(
+      width: 13,
+      height: 13,
+      child: CircularProgressIndicator(strokeWidth: 2),
+    );
   }
   final ai = v.fromAi;
   final label = ai ? '🤖 AI' : '✨ Auto';
   final c = ai ? HrColors.info : HrColors.text3;
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-    decoration: BoxDecoration(color: c.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(HrRadius.xs)),
+    decoration: BoxDecoration(
+      color: c.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(HrRadius.xs),
+    ),
     child: Text(
       label,
       style: HrText.micro.copyWith(color: c, fontWeight: FontWeight.w700),
@@ -4576,7 +6482,10 @@ Future<void> showAddReflection(BuildContext context) async {
         decoration: const InputDecoration(hintText: 'How did today go?'),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kPlasma),
           onPressed: () => Navigator.pop(ctx, controller.text.trim()),
@@ -4599,7 +6508,8 @@ class _NutritionCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       child: HrCard(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NutritionScreen())),
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const NutritionScreen())),
         child: Row(
           children: [
             Icon(Icons.restaurant_rounded, color: HrColors.accent, size: 22),
@@ -4617,7 +6527,13 @@ class _NutritionCard extends StatelessWidget {
                 ],
               ),
             ),
-            Text('$score', style: HrText.stat.copyWith(fontSize: 20, color: HrColors.victory(score))),
+            Text(
+              '$score',
+              style: HrText.stat.copyWith(
+                fontSize: 20,
+                color: HrColors.victory(score),
+              ),
+            ),
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
           ],
@@ -4656,7 +6572,12 @@ class NutritionScreen extends StatelessWidget {
             label: const Text('Log food'),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 96),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              96,
+            ),
             children: [
               HrCard(
                 padding: const EdgeInsets.all(18),
@@ -4669,16 +6590,37 @@ class NutritionScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('NUTRITION SCORE', style: HrText.labelCaps),
-                              Text('$score / 100', style: HrText.stat.copyWith(color: HrColors.victory(score))),
+                              Text(
+                                '$score / 100',
+                                style: HrText.stat.copyWith(
+                                  color: HrColors.victory(score),
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        Icon(Icons.restaurant_rounded, color: HrColors.victory(score), size: 32),
+                        Icon(
+                          Icons.restaurant_rounded,
+                          color: HrColors.victory(score),
+                          size: 32,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    _macroBar('Calories', n.calories, t.calories, 'kcal', HrColors.gold),
-                    _macroBar('Protein', n.protein, t.protein, 'g', HrColors.danger),
+                    _macroBar(
+                      'Calories',
+                      n.calories,
+                      t.calories,
+                      'kcal',
+                      HrColors.gold,
+                    ),
+                    _macroBar(
+                      'Protein',
+                      n.protein,
+                      t.protein,
+                      'g',
+                      HrColors.danger,
+                    ),
                     _macroBar('Carbs', n.carbs, t.carbs, 'g', HrColors.info),
                     _macroBar('Fat', n.fat, t.fat, 'g', HrColors.accent),
                     const SizedBox(height: 12),
@@ -4686,17 +6628,29 @@ class NutritionScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            p == null ? 'Targets: defaults' : 'TDEE ${computeTDEE(p).round()} kcal · ${p.goal}',
+                            p == null
+                                ? 'Targets: defaults'
+                                : 'TDEE ${computeTDEE(p).round()} kcal · ${p.goal}',
                             style: HrText.caption,
                           ),
                         ),
                         TextButton.icon(
-                          onPressed: () =>
-                              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BodyProfileScreen())),
-                          icon: const Icon(Icons.person_rounded, size: 16, color: HrColors.text2),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const BodyProfileScreen(),
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.person_rounded,
+                            size: 16,
+                            color: HrColors.text2,
+                          ),
                           label: Text(
                             p == null ? 'Set body profile' : 'Edit profile',
-                            style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600),
+                            style: HrText.bodyS.copyWith(
+                              color: HrColors.text,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -4724,7 +6678,13 @@ class NutritionScreen extends StatelessWidget {
   }
 }
 
-Widget _macroBar(String label, double value, double target, String unit, Color color) {
+Widget _macroBar(
+  String label,
+  double value,
+  double target,
+  String unit,
+  Color color,
+) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 5),
     child: Column(
@@ -4734,14 +6694,19 @@ Widget _macroBar(String label, double value, double target, String unit, Color c
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: HrText.caption.copyWith(color: HrColors.text2)),
-            Text('${value.round()} / ${target.round()} $unit', style: HrText.caption),
+            Text(
+              '${value.round()} / ${target.round()} $unit',
+              style: HrText.caption,
+            ),
           ],
         ),
         const SizedBox(height: 5),
         ClipRRect(
           borderRadius: BorderRadius.circular(HrRadius.full),
           child: LinearProgressIndicator(
-            value: (target <= 0 ? 0.0 : value / target).clamp(0.0, 1.0).toDouble(),
+            value: (target <= 0 ? 0.0 : value / target)
+                .clamp(0.0, 1.0)
+                .toDouble(),
             minHeight: 7,
             backgroundColor: HrColors.surface3,
             valueColor: AlwaysStoppedAnimation(color),
@@ -4767,7 +6732,10 @@ class _FoodTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(e.name, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    e.name,
+                    style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     '${e.calories.round()} kcal · P${e.protein.round()} C${e.carbs.round()} F${e.fat.round()}',
@@ -4789,7 +6757,12 @@ class _FoodTile extends StatelessWidget {
 
 double _parseNum(String s) => double.tryParse(s.trim()) ?? 0;
 
-Widget _numField(TextEditingController c, String label, TextInputType kb, {ValueChanged<String>? onChanged}) => Padding(
+Widget _numField(
+  TextEditingController c,
+  String label,
+  TextInputType kb, {
+  ValueChanged<String>? onChanged,
+}) => Padding(
   padding: const EdgeInsets.symmetric(vertical: 6),
   child: TextField(
     controller: c,
@@ -4800,8 +6773,14 @@ Widget _numField(TextEditingController c, String label, TextInputType kb, {Value
       labelStyle: HrText.caption,
       filled: true,
       fillColor: HrColors.surface,
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: BorderSide.none,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: BorderSide.none,
+      ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(HrRadius.md),
         borderSide: const BorderSide(color: HrColors.text, width: 1.5),
@@ -4878,11 +6857,19 @@ Future<void> showAddFood(BuildContext context) async {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.auto_awesome_rounded, size: 15, color: kCyan),
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 15,
+                            color: kCyan,
+                          ),
                           const SizedBox(width: 6),
                           const Text(
                             'Describe your meal',
-                            style: TextStyle(color: kTextSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: kTextSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -4893,7 +6880,10 @@ Future<void> showAddFood(BuildContext context) async {
                         textCapitalization: TextCapitalization.sentences,
                         minLines: 1,
                         maxLines: 3,
-                        decoration: const InputDecoration(hintText: 'e.g. 2 eggs, toast with butter, black coffee'),
+                        decoration: const InputDecoration(
+                          hintText:
+                              'e.g. 2 eggs, toast with butter, black coffee',
+                        ),
                         onSubmitted: (_) => runAi(),
                       ),
                       const SizedBox(height: 8),
@@ -4909,10 +6899,18 @@ Future<void> showAddFood(BuildContext context) async {
                               ? const SizedBox(
                                   width: 15,
                                   height: 15,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 )
-                              : const Icon(Icons.auto_awesome_rounded, size: 16),
-                          label: Text(busy ? 'Calculating…' : 'Calculate macros with AI'),
+                              : const Icon(
+                                  Icons.auto_awesome_rounded,
+                                  size: 16,
+                                ),
+                          label: Text(
+                            busy ? 'Calculating…' : 'Calculate macros with AI',
+                          ),
                         ),
                       ),
                     ],
@@ -4922,7 +6920,10 @@ Future<void> showAddFood(BuildContext context) async {
                 if (aiFilled)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 2),
-                    child: Text('🤖 AI estimate — adjust anything below', style: TextStyle(color: kCyan, fontSize: 11)),
+                    child: Text(
+                      '🤖 AI estimate — adjust anything below',
+                      style: TextStyle(color: kCyan, fontSize: 11),
+                    ),
                   ),
                 _numField(name, 'Food name', TextInputType.text),
                 _numField(cal, 'Calories (kcal)', TextInputType.number),
@@ -4933,7 +6934,10 @@ Future<void> showAddFood(BuildContext context) async {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: kPlasma),
               onPressed: () => Navigator.pop(ctx, true),
@@ -4946,13 +6950,24 @@ Future<void> showAddFood(BuildContext context) async {
   );
   if (ok == true) {
     final nm = name.text.trim().isEmpty ? 'Food' : name.text.trim();
-    appState.addFood(nm, _parseNum(cal.text), _parseNum(p.text), _parseNum(c.text), _parseNum(f.text));
+    appState.addFood(
+      nm,
+      _parseNum(cal.text),
+      _parseNum(p.text),
+      _parseNum(c.text),
+      _parseNum(f.text),
+    );
   }
 }
 
 // ── COMPANIONS ───────────────────────────────────────────────────────────────
 class _CompanionOrb extends StatelessWidget {
-  const _CompanionOrb({required this.color, required this.icon, required this.size, this.imageAsset});
+  const _CompanionOrb({
+    required this.color,
+    required this.icon,
+    required this.size,
+    this.imageAsset,
+  });
   final Color color;
   final IconData icon;
   final double size;
@@ -4967,9 +6982,17 @@ class _CompanionOrb extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: imageAsset == null ? null : Colors.black,
-        gradient: imageAsset == null ? RadialGradient(colors: [color, color.withValues(alpha: 0.25)]) : null,
+        gradient: imageAsset == null
+            ? RadialGradient(colors: [color, color.withValues(alpha: 0.25)])
+            : null,
         boxShadow: imageAsset == null
-            ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 16, spreadRadius: 1)]
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.5),
+                  blurRadius: 16,
+                  spreadRadius: 1,
+                ),
+              ]
             : null,
       ),
       clipBehavior: Clip.antiAlias,
@@ -4986,14 +7009,22 @@ class _CompanionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = companionByType(appState.activeCompanion);
     final stage = companionStage(appState.level);
-    final line = appState.lastCompanionLine.isEmpty ? c.tagline : appState.lastCompanionLine;
+    final line = appState.lastCompanionLine.isEmpty
+        ? c.tagline
+        : appState.lastCompanionLine;
     return Padding(
       padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       child: HrCard(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CompanionsScreen())),
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const CompanionsScreen())),
         child: Row(
           children: [
-            _CompanionOrb(color: c.color, icon: c.icon, size: 46, imageAsset: c.imageAsset),
+            _CompanionOrb(
+              color: c.color,
+              icon: c.icon,
+              size: 46,
+              imageAsset: c.imageAsset,
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -5006,19 +7037,27 @@ class _CompanionCard extends StatelessWidget {
                           c.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                          style: HrText.body.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: HrColors.accentSurface,
                           borderRadius: BorderRadius.circular(HrRadius.xs),
                         ),
                         child: Text(
                           'Stage $stage',
-                          style: HrText.micro.copyWith(color: HrColors.accent, fontWeight: FontWeight.w800),
+                          style: HrText.micro.copyWith(
+                            color: HrColors.accent,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ],
@@ -5057,7 +7096,12 @@ class CompanionsScreen extends StatelessWidget {
             title: Text('Companions', style: HrText.title2),
           ),
           body: GridView.count(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              24,
+            ),
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
@@ -5073,7 +7117,10 @@ class CompanionsScreen extends StatelessWidget {
                     color: HrColors.surface,
                     borderRadius: BorderRadius.circular(HrRadius.md),
                     border: Border(
-                      top: BorderSide(color: active ? HrColors.accent : HrColors.hairline, width: active ? 2 : 1),
+                      top: BorderSide(
+                        color: active ? HrColors.accent : HrColors.hairline,
+                        width: active ? 2 : 1,
+                      ),
                     ),
                   ),
                   child: Column(
@@ -5088,7 +7135,12 @@ class CompanionsScreen extends StatelessWidget {
                             Positioned.fill(
                               child: Opacity(
                                 opacity: unlocked ? 1 : 0.48,
-                                child: _CompanionOrb(color: c.color, icon: c.icon, size: 54, imageAsset: c.imageAsset),
+                                child: _CompanionOrb(
+                                  color: c.color,
+                                  icon: c.icon,
+                                  size: 54,
+                                  imageAsset: c.imageAsset,
+                                ),
                               ),
                             ),
                             if (!unlocked)
@@ -5097,8 +7149,15 @@ class CompanionsScreen extends StatelessWidget {
                                 bottom: -2,
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(color: HrColors.surface2, shape: BoxShape.circle),
-                                  child: const Icon(Icons.lock_rounded, size: 12, color: HrColors.text3),
+                                  decoration: const BoxDecoration(
+                                    color: HrColors.surface2,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.lock_rounded,
+                                    size: 12,
+                                    color: HrColors.text3,
+                                  ),
                                 ),
                               ),
                           ],
@@ -5153,11 +7212,19 @@ class _PrestigeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: HrColors.surface,
         borderRadius: BorderRadius.circular(HrRadius.md),
-        border: Border(top: BorderSide(color: appState.prestige > 0 ? HrColors.gold : HrColors.hairline)),
+        border: Border(
+          top: BorderSide(
+            color: appState.prestige > 0 ? HrColors.gold : HrColors.hairline,
+          ),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.auto_awesome_rounded, color: HrColors.gold, size: 22),
+          const Icon(
+            Icons.auto_awesome_rounded,
+            color: HrColors.gold,
+            size: 22,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -5168,13 +7235,18 @@ class _PrestigeCard extends StatelessWidget {
                     Text('PRESTIGE', style: HrText.labelCaps),
                     if (appState.prestige > 0) ...[
                       const SizedBox(width: 8),
-                      Text('★' * appState.prestige, style: HrText.caption.copyWith(color: HrColors.gold)),
+                      Text(
+                        '★' * appState.prestige,
+                        style: HrText.caption.copyWith(color: HrColors.gold),
+                      ),
                     ],
                   ],
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  can ? 'Rebirth to Lv 1 for a permanent ★ (+5% XP each)' : 'Unlocks at Level $kPrestigeMinLevel',
+                  can
+                      ? 'Rebirth to Lv 1 for a permanent ★ (+5% XP each)'
+                      : 'Unlocks at Level $kPrestigeMinLevel',
                   style: HrText.caption,
                 ),
               ],
@@ -5183,7 +7255,11 @@ class _PrestigeCard extends StatelessWidget {
           const SizedBox(width: 10),
           SizedBox(
             width: 110,
-            child: HrButton(label: 'Prestige', small: true, onPressed: can ? () => _confirmPrestige(context) : null),
+            child: HrButton(
+              label: 'Prestige',
+              small: true,
+              onPressed: can ? () => _confirmPrestige(context) : null,
+            ),
           ),
         ],
       ),
@@ -5196,15 +7272,24 @@ Future<void> _confirmPrestige(BuildContext context) async {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: HrColors.surface,
-      title: Text('Prestige to ★${appState.prestige + 1}?', style: HrText.title2),
+      title: Text(
+        'Prestige to ★${appState.prestige + 1}?',
+        style: HrText.title2,
+      ),
       content: Text(
         'You go back to Level 1 and your XP resets. You keep a permanent ★ and +5% XP per star. Habits, streaks and coins stay.',
         style: HrText.bodyS,
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not yet')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Not yet'),
+        ),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: HrColors.btnPrimary, foregroundColor: HrColors.onBtnPrimary),
+          style: FilledButton.styleFrom(
+            backgroundColor: HrColors.btnPrimary,
+            foregroundColor: HrColors.onBtnPrimary,
+          ),
           onPressed: () => Navigator.pop(ctx, true),
           child: const Text('Prestige'),
         ),
@@ -5212,7 +7297,9 @@ Future<void> _confirmPrestige(BuildContext context) async {
     ),
   );
   if (ok == true && context.mounted) {
-    appState.setCompanionLine(companionLine(appState.activeCompanion, 'prestige'));
+    appState.setCompanionLine(
+      companionLine(appState.activeCompanion, 'prestige'),
+    );
     appState.doPrestige();
     if (context.mounted) _showPrestige(context, appState.prestige);
   }
@@ -5224,7 +7311,12 @@ void _showPrestige(BuildContext context, int prestige) {
     context,
     label: 'Prestige',
     labelColor: HrColors.gold,
-    emblem: CompanionSticker(icon: comp.icon, color: comp.color, size: 104, semanticLabel: comp.name),
+    emblem: CompanionSticker(
+      icon: comp.icon,
+      color: comp.color,
+      size: 104,
+      semanticLabel: comp.name,
+    ),
     title: 'Reborn.  ${'★' * prestige}',
     subtitle: 'Reborn as Initiate — stronger than before. +5% XP per star.',
     bubble: companionLine(appState.activeCompanion, 'prestige'),
@@ -5247,13 +7339,19 @@ void _showSeasonIntro(BuildContext context) {
       center: Text('4/4', style: HrText.stat),
     ),
     title: 'Season $s',
-    subtitle: 'Four bosses fell. A new season begins — new boss, fresh leaderboard.',
+    subtitle:
+        'Four bosses fell. A new season begins — new boss, fresh leaderboard.',
     buttonLabel: 'Begin',
   );
 }
 
 // ── BODY PROFILE ─────────────────────────────────────────────────────────────
-Widget _dropdown(String label, String value, Map<String, String> opts, ValueChanged<String> onChanged) => Padding(
+Widget _dropdown(
+  String label,
+  String value,
+  Map<String, String> opts,
+  ValueChanged<String> onChanged,
+) => Padding(
   padding: const EdgeInsets.symmetric(vertical: 6),
   child: DropdownButtonFormField<String>(
     initialValue: value,
@@ -5264,8 +7362,14 @@ Widget _dropdown(String label, String value, Map<String, String> opts, ValueChan
       labelStyle: HrText.caption,
       filled: true,
       fillColor: HrColors.surface,
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: BorderSide.none,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        borderSide: BorderSide.none,
+      ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(HrRadius.md),
         borderSide: const BorderSide(color: HrColors.text, width: 1.5),
@@ -5303,8 +7407,12 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
   void initState() {
     super.initState();
     final p = appState.bodyProfile;
-    _weight = TextEditingController(text: p != null ? p.weight.toStringAsFixed(0) : '');
-    _height = TextEditingController(text: p != null ? p.height.toStringAsFixed(0) : '');
+    _weight = TextEditingController(
+      text: p != null ? p.weight.toStringAsFixed(0) : '',
+    );
+    _height = TextEditingController(
+      text: p != null ? p.height.toStringAsFixed(0) : '',
+    );
     _age = TextEditingController(text: p != null ? p.age.toString() : '');
     if (p != null) {
       _gender = p.gender;
@@ -5326,12 +7434,20 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
     final h = double.tryParse(_height.text.trim()) ?? 0;
     final a = int.tryParse(_age.text.trim()) ?? 0;
     if (w <= 0 || h <= 0 || a <= 0) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Enter a valid weight, height, and age')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid weight, height, and age')),
+      );
       return;
     }
     appState.setBodyProfile(
-      BodyProfile(weight: w, height: h, age: a, gender: _gender, activity: _activity, goal: _goal),
+      BodyProfile(
+        weight: w,
+        height: h,
+        age: a,
+        gender: _gender,
+        activity: _activity,
+        goal: _goal,
+      ),
     );
     Navigator.of(context).pop();
   }
@@ -5343,7 +7459,14 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
     final a = int.tryParse(_age.text) ?? 0;
     final preview = (w > 0 && h > 0 && a > 0)
         ? computeMacroTargets(
-            BodyProfile(weight: w, height: h, age: a, gender: _gender, activity: _activity, goal: _goal),
+            BodyProfile(
+              weight: w,
+              height: h,
+              age: a,
+              gender: _gender,
+              activity: _activity,
+              goal: _goal,
+            ),
           )
         : null;
     return Scaffold(
@@ -5355,11 +7478,31 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
         title: Text('Body profile', style: HrText.title2),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
+        padding: const EdgeInsets.fromLTRB(
+          HrSpace.gutter,
+          8,
+          HrSpace.gutter,
+          24,
+        ),
         children: [
-          _numField(_weight, 'Weight (kg)', TextInputType.number, onChanged: (_) => setState(() {})),
-          _numField(_height, 'Height (cm)', TextInputType.number, onChanged: (_) => setState(() {})),
-          _numField(_age, 'Age', TextInputType.number, onChanged: (_) => setState(() {})),
+          _numField(
+            _weight,
+            'Weight (kg)',
+            TextInputType.number,
+            onChanged: (_) => setState(() {}),
+          ),
+          _numField(
+            _height,
+            'Height (cm)',
+            TextInputType.number,
+            onChanged: (_) => setState(() {}),
+          ),
+          _numField(
+            _age,
+            'Age',
+            TextInputType.number,
+            onChanged: (_) => setState(() {}),
+          ),
           _dropdown('Gender', _gender, const {
             'male': 'Male',
             'female': 'Female',
@@ -5384,7 +7527,10 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const HrLabel('Computed targets'),
-                  Text('${preview.calories.round()} kcal', style: HrText.title1),
+                  Text(
+                    '${preview.calories.round()} kcal',
+                    style: HrText.title1,
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     'Protein ${preview.protein.round()}g · Carbs ${preview.carbs.round()}g · Fat ${preview.fat.round()}g',
@@ -5434,7 +7580,20 @@ Color _milestoneColor(String type) {
 String _fmtDate(String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return '';
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   final hh = d.hour.toString().padLeft(2, '0');
   final mm = d.minute.toString().padLeft(2, '0');
   return '${months[d.month - 1]} ${d.day} · $hh:$mm';
@@ -5442,7 +7601,10 @@ String _fmtDate(String iso) {
 
 Widget _bestChip(String label, String value) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-  decoration: BoxDecoration(color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.md)),
+  decoration: BoxDecoration(
+    color: HrColors.surface2,
+    borderRadius: BorderRadius.circular(HrRadius.md),
+  ),
   child: Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -5469,7 +7631,12 @@ class LegacyScreen extends StatelessWidget {
             title: Text('Legacy', style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              24,
+            ),
             children: [
               HrCard(
                 padding: const EdgeInsets.all(18),
@@ -5531,7 +7698,10 @@ class _MilestoneTile extends StatelessWidget {
             width: 36,
             height: 36,
             alignment: Alignment.center,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.15)),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.15),
+            ),
             child: Icon(_milestoneIcon(m.type), color: color, size: 18),
           ),
           const SizedBox(width: 12),
@@ -5539,7 +7709,10 @@ class _MilestoneTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(m.description, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  m.description,
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 2),
                 Text(_fmtDate(m.date), style: HrText.caption),
               ],
@@ -5548,7 +7721,10 @@ class _MilestoneTile extends StatelessWidget {
           if (m.xp > 0)
             Text(
               '+${m.xp}',
-              style: HrText.caption.copyWith(color: color, fontWeight: FontWeight.w800),
+              style: HrText.caption.copyWith(
+                color: color,
+                fontWeight: FontWeight.w800,
+              ),
             ),
         ],
       ),
@@ -5557,7 +7733,13 @@ class _MilestoneTile extends StatelessWidget {
 }
 
 // ── SETTINGS & ACCOUNT ───────────────────────────────────────────────────────
-Widget _settingsTile(IconData icon, String title, String subtitle, VoidCallback? onTap, {bool danger = false}) {
+Widget _settingsTile(
+  IconData icon,
+  String title,
+  String subtitle,
+  VoidCallback? onTap, {
+  bool danger = false,
+}) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Material(
@@ -5570,7 +7752,11 @@ Widget _settingsTile(IconData icon, String title, String subtitle, VoidCallback?
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Icon(icon, color: danger ? HrColors.dangerText : HrColors.text2, size: 20),
+              Icon(
+                icon,
+                color: danger ? HrColors.dangerText : HrColors.text2,
+                size: 20,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -5588,7 +7774,8 @@ Widget _settingsTile(IconData icon, String title, String subtitle, VoidCallback?
                   ],
                 ),
               ),
-              if (onTap != null) const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+              if (onTap != null)
+                const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
             ],
           ),
         ),
@@ -5604,7 +7791,13 @@ Widget _sectionLabel(String s) => Padding(
 
 // ── "You" hub rows (redesign) ────────────────────────────────────────────────
 class _YouRow {
-  const _YouRow(this.icon, this.title, this.subtitle, this.onTap, {this.danger = false});
+  const _YouRow(
+    this.icon,
+    this.title,
+    this.subtitle,
+    this.onTap, {
+    this.danger = false,
+  });
   final IconData icon;
   final String title, subtitle;
   final VoidCallback? onTap;
@@ -5619,7 +7812,11 @@ Widget _youRowWidget(_YouRow r) => Material(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       child: Row(
         children: [
-          Icon(r.icon, size: 20, color: r.danger ? HrColors.dangerText : HrColors.text2),
+          Icon(
+            r.icon,
+            size: 20,
+            color: r.danger ? HrColors.dangerText : HrColors.text2,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -5634,12 +7831,18 @@ Widget _youRowWidget(_YouRow r) => Material(
                 ),
                 if (r.subtitle.isNotEmpty) ...[
                   const SizedBox(height: 2),
-                  Text(r.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
+                  Text(
+                    r.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: HrText.caption,
+                  ),
                 ],
               ],
             ),
           ),
-          if (r.onTap != null && !r.danger) const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+          if (r.onTap != null && !r.danger)
+            const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
         ],
       ),
     ),
@@ -5653,7 +7856,13 @@ Widget _youGroup(List<_YouRow> rows) => HrCard(
     child: Column(
       children: [
         for (int i = 0; i < rows.length; i++) ...[
-          if (i > 0) const Divider(height: 1, thickness: 1, color: HrColors.hairline, indent: 48),
+          if (i > 0)
+            const Divider(
+              height: 1,
+              thickness: 1,
+              color: HrColors.hairline,
+              indent: 48,
+            ),
           _youRowWidget(rows[i]),
         ],
       ],
@@ -5700,7 +7909,12 @@ Widget _youQuickCard({
               overflow: TextOverflow.ellipsis,
               style: HrText.body.copyWith(fontWeight: FontWeight.w700),
             ),
-            Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: HrText.caption),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.caption,
+            ),
           ],
         ),
       ),
@@ -5718,7 +7932,9 @@ class SettingsScreen extends StatelessWidget {
         final ld = levelFromXp(appState.totalXp);
         final authed = auth.isAuthed;
         final u = auth.user;
-        final handle = (u != null && u.username.isNotEmpty) ? '@${u.username} · ' : '';
+        final handle = (u != null && u.username.isNotEmpty)
+            ? '@${u.username} · '
+            : '';
         final p = appState.bodyProfile;
         final n = appState.todayNutrition();
         final t = appState.targets();
@@ -5731,7 +7947,12 @@ class SettingsScreen extends StatelessWidget {
           body: SafeArea(
             bottom: false,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 100),
+              padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter,
+                4,
+                HrSpace.gutter,
+                100,
+              ),
               children: [
                 Row(
                   children: [
@@ -5744,11 +7965,19 @@ class SettingsScreen extends StatelessWidget {
                 HrCard(
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (_) => authed ? const AccountScreen() : const LoginScreen())),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => authed
+                            ? const AccountScreen()
+                            : const LoginScreen(),
+                      ),
+                    ),
                     child: Row(
                       children: [
-                        GestureDetector(onTap: () => _pickProfilePhoto(context), child: _Avatar(size: 54)),
+                        GestureDetector(
+                          onTap: () => _pickProfilePhoto(context),
+                          child: _Avatar(size: 54),
+                        ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -5769,12 +7998,16 @@ class SettingsScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 10),
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(HrRadius.full),
+                                borderRadius: BorderRadius.circular(
+                                  HrRadius.full,
+                                ),
                                 child: LinearProgressIndicator(
                                   value: ld.progress.clamp(0.0, 1.0).toDouble(),
                                   minHeight: 6,
                                   backgroundColor: HrColors.surface3,
-                                  valueColor: const AlwaysStoppedAnimation(HrColors.text),
+                                  valueColor: const AlwaysStoppedAnimation(
+                                    HrColors.text,
+                                  ),
                                 ),
                               ),
                             ],
@@ -5782,7 +8015,11 @@ class SettingsScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: const Icon(Icons.edit_rounded, color: HrColors.text3, size: 18),
+                          icon: const Icon(
+                            Icons.edit_rounded,
+                            color: HrColors.text3,
+                            size: 18,
+                          ),
                           tooltip: 'Edit name',
                           onPressed: () => _editName(context),
                         ),
@@ -5800,8 +8037,11 @@ class SettingsScreen extends StatelessWidget {
                         title: comp.name,
                         subtitle: 'Companion',
                         imageAsset: comp.imageAsset,
-                        onTap: () =>
-                            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CompanionsScreen())),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const CompanionsScreen(),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -5813,7 +8053,9 @@ class SettingsScreen extends StatelessWidget {
                         subtitle: '${appState.coins} coins',
                         imageAsset: 'assets/shop/coin_stack.png',
                         imageSize: 44,
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShopScreen())),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const ShopScreen()),
+                        ),
                       ),
                     ),
                   ],
@@ -5824,15 +8066,26 @@ class SettingsScreen extends StatelessWidget {
                   _YouRow(
                     authed ? Icons.person_rounded : Icons.login_rounded,
                     authed ? 'Account' : 'Sign in or create account',
-                    authed ? (u?.email ?? 'Manage your account') : 'Back up progress & sync devices',
-                    () => Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (_) => authed ? const AccountScreen() : const LoginScreen())),
+                    authed
+                        ? (u?.email ?? 'Manage your account')
+                        : 'Back up progress & sync devices',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => authed
+                            ? const AccountScreen()
+                            : const LoginScreen(),
+                      ),
+                    ),
                   ),
                   _YouRow(
                     Icons.ios_share_rounded,
                     'Share progress',
                     'Level · streak · score',
-                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShareCardScreen())),
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ShareCardScreen(),
+                      ),
+                    ),
                   ),
                 ]),
                 const SizedBox(height: 18),
@@ -5842,25 +8095,43 @@ class SettingsScreen extends StatelessWidget {
                     Icons.palette_rounded,
                     'Appearance',
                     'Rings, checks & progress colour',
-                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AppearanceScreen())),
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AppearanceScreen(),
+                      ),
+                    ),
                   ),
                   _YouRow(
                     Icons.monitor_heart_rounded,
                     'Body profile',
                     bodySub,
-                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BodyProfileScreen())),
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const BodyProfileScreen(),
+                      ),
+                    ),
                   ),
                   _YouRow(
                     Icons.restaurant_rounded,
                     'Nutrition',
                     '${n.calories.round()} / ${t.calories.round()} kcal today',
-                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NutritionScreen())),
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const NutritionScreen(),
+                      ),
+                    ),
                   ),
                   _YouRow(
                     Icons.auto_awesome_rounded,
                     'AI difficulty',
-                    appState.aiEnabled ? 'Ollama · ${appState.aiModel}' : 'Built-in estimate',
-                    () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AiSettingsScreen())),
+                    appState.aiEnabled
+                        ? 'Ollama · ${appState.aiModel}'
+                        : 'Built-in estimate',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AiSettingsScreen(),
+                      ),
+                    ),
                   ),
                 ]),
                 const SizedBox(height: 18),
@@ -5876,11 +8147,14 @@ class SettingsScreen extends StatelessWidget {
                   if (authed)
                     _YouRow(Icons.logout_rounded, 'Log out', '', () async {
                       await auth.signOut();
-                      if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+                      if (context.mounted)
+                        Navigator.of(context).popUntil((r) => r.isFirst);
                     }, danger: true),
                 ]),
                 const SizedBox(height: 22),
-                Center(child: Text('Habitrail · v1.0.0', style: HrText.caption)),
+                Center(
+                  child: Text('Habitrail · v1.0.0', style: HrText.caption),
+                ),
               ],
             ),
           ),
@@ -5904,7 +8178,10 @@ Future<void> _editName(BuildContext context) async {
         decoration: const InputDecoration(hintText: 'Display name'),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: kPlasma),
           onPressed: () => Navigator.pop(ctx, c.text.trim()),
@@ -5927,9 +8204,15 @@ Future<void> _confirmReset(BuildContext context) async {
         style: HrText.bodyS,
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: HrColors.danger, foregroundColor: Colors.white),
+          style: FilledButton.styleFrom(
+            backgroundColor: HrColors.danger,
+            foregroundColor: Colors.white,
+          ),
           onPressed: () => Navigator.pop(ctx, true),
           child: const Text('Reset everything'),
         ),
@@ -5950,8 +8233,12 @@ class AiSettingsScreen extends StatefulWidget {
 }
 
 class _AiSettingsScreenState extends State<AiSettingsScreen> {
-  late final TextEditingController _url = TextEditingController(text: appState.aiBaseUrl);
-  late final TextEditingController _model = TextEditingController(text: appState.aiModel);
+  late final TextEditingController _url = TextEditingController(
+    text: appState.aiBaseUrl,
+  );
+  late final TextEditingController _model = TextEditingController(
+    text: appState.aiModel,
+  );
   bool _testing = false;
   bool _testOk = false;
   String? _testResult;
@@ -5994,7 +8281,12 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
             title: Text('AI difficulty', style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              24,
+            ),
             children: [
               HrCard(
                 child: Column(
@@ -6002,7 +8294,11 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.auto_awesome_rounded, color: HrColors.text2, size: 20),
+                        const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: HrColors.text2,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text('How it works', style: HrText.headline),
                       ],
@@ -6025,9 +8321,18 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 child: SwitchListTile(
                   value: on,
                   activeThumbColor: HrColors.accent,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                  title: Text('Use Ollama', style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
-                  subtitle: Text('Rate new habits with a local model', style: HrText.caption),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 2,
+                  ),
+                  title: Text(
+                    'Use Ollama',
+                    style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    'Rate new habits with a local model',
+                    style: HrText.caption,
+                  ),
                   onChanged: (v) => appState.setAiConfig(enabled: v),
                 ),
               ),
@@ -6060,13 +8365,16 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: (_testOk ? HrColors.accent : HrColors.danger).withValues(alpha: 0.14),
+                    color: (_testOk ? HrColors.accent : HrColors.danger)
+                        .withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(HrRadius.md),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        _testOk ? Icons.check_circle_rounded : Icons.error_rounded,
+                        _testOk
+                            ? Icons.check_circle_rounded
+                            : Icons.error_rounded,
                         color: _testOk ? HrColors.accent : HrColors.dangerText,
                         size: 18,
                       ),
@@ -6074,7 +8382,11 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       Expanded(
                         child: Text(
                           _testResult!,
-                          style: HrText.caption.copyWith(color: _testOk ? HrColors.accent : HrColors.dangerText),
+                          style: HrText.caption.copyWith(
+                            color: _testOk
+                                ? HrColors.accent
+                                : HrColors.dangerText,
+                          ),
                         ),
                       ),
                     ],
@@ -6127,12 +8439,18 @@ Widget _aiField(
           hintStyle: HrText.body.copyWith(color: HrColors.text3),
           filled: true,
           fillColor: HrColors.surface,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(HrRadius.md),
             borderSide: BorderSide.none,
           ),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(HrRadius.md), borderSide: BorderSide.none),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            borderSide: BorderSide.none,
+          ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(HrRadius.md),
             borderSide: const BorderSide(color: HrColors.text, width: 1.5),
@@ -6153,7 +8471,8 @@ Widget _swatch(Color c) => Container(
 );
 
 void _toast(BuildContext context, String msg) =>
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: kElevated));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg), backgroundColor: kElevated));
 
 // Gold affordability-aware buy pill. Affordable → glowing gold; otherwise a
 // muted pill that still taps through to show the "not enough coins" toast.
@@ -6168,7 +8487,11 @@ Widget _buyPill({required int cost, required VoidCallback onTap}) {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          gradient: canAfford ? const LinearGradient(colors: [Color(0xFFFFD873), Color(0xFFF5A623)]) : null,
+          gradient: canAfford
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFD873), Color(0xFFF5A623)],
+                )
+              : null,
           color: canAfford ? null : kElevated,
           border: canAfford ? null : Border.all(color: kBorder),
           boxShadow: canAfford
@@ -6184,7 +8507,11 @@ Widget _buyPill({required int cost, required VoidCallback onTap}) {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.bolt, size: 15, color: canAfford ? const Color(0xFF3A2A05) : kGold),
+            Icon(
+              Icons.bolt,
+              size: 15,
+              color: canAfford ? const Color(0xFF3A2A05) : kGold,
+            ),
             const SizedBox(width: 3),
             Text(
               '$cost',
@@ -6204,7 +8531,10 @@ Widget _buyPill({required int cost, required VoidCallback onTap}) {
 // Small status chip for an owned/active cosmetic (check + label).
 Widget _stateChip(String label, Color color) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-  decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(HrRadius.sm)),
+  decoration: BoxDecoration(
+    color: color.withValues(alpha: 0.15),
+    borderRadius: BorderRadius.circular(HrRadius.sm),
+  ),
   child: Row(
     mainAxisSize: MainAxisSize.min,
     children: [
@@ -6212,7 +8542,11 @@ Widget _stateChip(String label, Color color) => Container(
       const SizedBox(width: 4),
       Text(
         label,
-        style: HrText.micro.copyWith(color: color, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+        style: HrText.micro.copyWith(
+          color: color,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
+        ),
       ),
     ],
   ),
@@ -6229,7 +8563,10 @@ Widget _secondaryPill(String label, VoidCallback onTap) => Material(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
       child: Text(
         label,
-        style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w700),
+        style: HrText.bodyS.copyWith(
+          color: HrColors.text,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     ),
   ),
@@ -6274,7 +8611,13 @@ Widget _balanceHero() => Container(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text('${appState.coins}', style: HrText.numeralXl.copyWith(color: HrColors.gold, fontSize: 34)),
+                Text(
+                  '${appState.coins}',
+                  style: HrText.numeralXl.copyWith(
+                    color: HrColors.gold,
+                    fontSize: 34,
+                  ),
+                ),
                 const SizedBox(width: 6),
                 Text('coins', style: HrText.caption),
               ],
@@ -6285,18 +8628,27 @@ Widget _balanceHero() => Container(
       if (appState.xpBoostActive)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-          decoration: BoxDecoration(color: HrColors.accentSurface, borderRadius: BorderRadius.circular(HrRadius.sm)),
+          decoration: BoxDecoration(
+            color: HrColors.accentSurface,
+            borderRadius: BorderRadius.circular(HrRadius.sm),
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 '2×',
-                style: HrText.bodyS.copyWith(color: HrColors.accent, fontWeight: FontWeight.w800),
+                style: HrText.bodyS.copyWith(
+                  color: HrColors.accent,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(width: 4),
               Text(
                 'XP',
-                style: HrText.micro.copyWith(color: HrColors.accent, fontWeight: FontWeight.w700),
+                style: HrText.micro.copyWith(
+                  color: HrColors.accent,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -6334,14 +8686,19 @@ Widget _shopItem({
             borderRadius: BorderRadius.circular(HrRadius.sm),
             color: color.withValues(alpha: 0.16),
           ),
-          child: imageAsset == null ? Icon(icon, color: color, size: 22) : Image.asset(imageAsset, fit: BoxFit.cover),
+          child: imageAsset == null
+              ? Icon(icon, color: color, size: 22)
+              : Image.asset(imageAsset, fit: BoxFit.cover),
         ),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: HrText.body.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                title,
+                style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 3),
               Text(desc, style: HrText.caption),
             ],
@@ -6366,8 +8723,12 @@ class ShopScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) {
-        final ownedBorders = kBorders.where((b) => appState.ownsBorder(b.id)).length;
-        final ownedThemes = kThemes.where((t) => appState.ownsTheme(t.id)).length;
+        final ownedBorders = kBorders
+            .where((b) => appState.ownsBorder(b.id))
+            .length;
+        final ownedThemes = kThemes
+            .where((t) => appState.ownsTheme(t.id))
+            .length;
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
@@ -6377,7 +8738,12 @@ class ShopScreen extends StatelessWidget {
             title: Text('Shop', style: HrText.title2),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 28),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              28,
+            ),
             children: [
               _balanceHero(),
               Padding(
@@ -6393,11 +8759,18 @@ class ShopScreen extends StatelessWidget {
                 color: kGold,
                 imageAsset: 'assets/powerups/xp_booster.png',
                 title: '2× XP Booster',
-                desc: appState.xpBoostActive ? 'Active for the rest of today' : 'Double all XP you earn today',
+                desc: appState.xpBoostActive
+                    ? 'Active for the rest of today'
+                    : 'Double all XP you earn today',
                 cost: 150,
                 onBuy: appState.xpBoostActive
                     ? null
-                    : () => _toast(context, appState.buyXpBoost() ? '2× XP active for today!' : 'Not enough coins'),
+                    : () => _toast(
+                        context,
+                        appState.buyXpBoost()
+                            ? '2× XP active for today!'
+                            : 'Not enough coins',
+                      ),
                 activeLabel: appState.xpBoostActive ? 'ACTIVE' : null,
               ),
               _shopItem(
@@ -6405,11 +8778,20 @@ class ShopScreen extends StatelessWidget {
                 color: kCyan,
                 imageAsset: 'assets/powerups/streak_shield.png',
                 title: 'Streak Shield',
-                desc: 'Saves a streak from one missed day · owned: ${appState.streakShields}',
+                desc:
+                    'Saves a streak from one missed day · owned: ${appState.streakShields}',
                 cost: 100,
-                onBuy: () => _toast(context, appState.buyStreakShield() ? 'Streak Shield added!' : 'Not enough coins'),
+                onBuy: () => _toast(
+                  context,
+                  appState.buyStreakShield()
+                      ? 'Streak Shield added!'
+                      : 'Not enough coins',
               ),
-              _shopSectionHeader('PROFILE BORDERS', '$ownedBorders / ${kBorders.length}'),
+              ),
+              _shopSectionHeader(
+                'PROFILE BORDERS',
+                '$ownedBorders / ${kBorders.length}',
+              ),
               ...kBorders.map((b) => _borderShopTile(context, b)),
               _shopSectionHeader('THEMES', '$ownedThemes / ${kThemes.length}'),
               ...kThemes.map((t) => _themeShopTile(context, t)),
@@ -6431,7 +8813,10 @@ Widget _borderShopTile(BuildContext context, BorderDef b) {
       color: HrColors.surface,
       borderRadius: BorderRadius.circular(HrRadius.md),
       border: Border(
-        top: BorderSide(color: selected ? HrColors.accent : HrColors.hairline, width: selected ? 2 : 1),
+        top: BorderSide(
+          color: selected ? HrColors.accent : HrColors.hairline,
+          width: selected ? 2 : 1,
+        ),
       ),
     ),
     child: Row(
@@ -6439,10 +8824,15 @@ Widget _borderShopTile(BuildContext context, BorderDef b) {
         _borderPreview(b, size: 42),
         const SizedBox(width: 14),
         Expanded(
-          child: Text(b.name, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+          child: Text(
+            b.name,
+            style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+          ),
         ),
         if (owned)
-          selected ? _stateChip('SELECTED', HrColors.accent) : _secondaryPill('Select', () => appState.setBorder(b.id))
+          selected
+              ? _stateChip('SELECTED', HrColors.accent)
+              : _secondaryPill('Select', () => appState.setBorder(b.id))
         else
           _buyPill(
             cost: b.cost,
@@ -6471,18 +8861,29 @@ Widget _themeShopTile(BuildContext context, AppThemeDef t) {
       color: HrColors.surface,
       borderRadius: BorderRadius.circular(HrRadius.md),
       border: Border(
-        top: BorderSide(color: active ? HrColors.accent : HrColors.hairline, width: active ? 2 : 1),
+        top: BorderSide(
+          color: active ? HrColors.accent : HrColors.hairline,
+          width: active ? 2 : 1,
+        ),
       ),
     ),
     child: Row(
       children: [
-        Row(mainAxisSize: MainAxisSize.min, children: [_swatch(t.accent), _swatch(t.bright), _swatch(t.glow)]),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [_swatch(t.accent), _swatch(t.bright), _swatch(t.glow)],
+        ),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(t.name, style: HrText.body.copyWith(fontWeight: FontWeight.w600)),
+          child: Text(
+            t.name,
+            style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+          ),
         ),
         if (owned)
-          active ? _stateChip('ACTIVE', HrColors.accent) : _secondaryPill('Apply', () => appState.setTheme(t.id))
+          active
+              ? _stateChip('ACTIVE', HrColors.accent)
+              : _secondaryPill('Apply', () => appState.setTheme(t.id))
         else
           _buyPill(
             cost: themeCost(t.id),
@@ -6506,7 +8907,8 @@ void celebrate(BuildContext context) {
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
   entry = OverlayEntry(
-    builder: (_) => Positioned.fill(child: _Confetti(onDone: () => entry.remove())),
+    builder: (_) =>
+        Positioned.fill(child: _Confetti(onDone: () => entry.remove())),
   );
   overlay.insert(entry);
 }
@@ -6524,7 +8926,8 @@ class _Confetti extends StatefulWidget {
   State<_Confetti> createState() => _ConfettiState();
 }
 
-class _ConfettiState extends State<_Confetti> with SingleTickerProviderStateMixin {
+class _ConfettiState extends State<_Confetti>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   final List<_Confo> _p = [];
 
@@ -6532,7 +8935,14 @@ class _ConfettiState extends State<_Confetti> with SingleTickerProviderStateMixi
   void initState() {
     super.initState();
     final r = Random();
-    final colors = [kPlasma, kCyan, kGold, const Color(0xFFF472B6), kGreen, kBlue];
+    final colors = [
+      kPlasma,
+      kCyan,
+      kGold,
+      const Color(0xFFF472B6),
+      kGreen,
+      kBlue,
+    ];
     for (int i = 0; i < 80; i++) {
       _p.add(
         _Confo(
@@ -6546,7 +8956,11 @@ class _ConfettiState extends State<_Confetti> with SingleTickerProviderStateMixi
         ),
       );
     }
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1900))
+    _c =
+        AnimationController(
+            vsync: this,
+            duration: const Duration(milliseconds: 1900),
+          )
       ..addStatusListener((s) {
         if (s == AnimationStatus.completed) widget.onDone();
       })
@@ -6564,7 +8978,10 @@ class _ConfettiState extends State<_Confetti> with SingleTickerProviderStateMixi
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _c,
-        builder: (_, _) => CustomPaint(size: Size.infinite, painter: _ConfettiPainter(_p, _c.value)),
+        builder: (_, _) => CustomPaint(
+          size: Size.infinite,
+          painter: _ConfettiPainter(_p, _c.value),
+        ),
       ),
     );
   }
@@ -6591,7 +9008,11 @@ class _ConfettiPainter extends CustomPainter {
       canvas.rotate(c.rot + c.vr * t);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset.zero, width: c.size, height: c.size * 0.6),
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: c.size,
+            height: c.size * 0.6,
+          ),
           const Radius.circular(1.5),
         ),
         paint,
@@ -6635,9 +9056,12 @@ class _HeatmapCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(HrRadius.xs),
                     color: on
-                        ? HrColors.victory(c.score).withValues(alpha: 0.3 + c.score / 100 * 0.7)
+                        ? HrColors.victory(c.score)
+                              .withValues(alpha: 0.3 + c.score / 100 * 0.7)
                         : HrColors.surface2,
-                    border: c.today ? Border.all(color: HrColors.text, width: 1) : null,
+                    border: c.today
+                        ? Border.all(color: HrColors.text, width: 1)
+                        : null,
                   ),
                 );
               }).toList(),
@@ -6679,8 +9103,11 @@ class _WeekTrendCard extends StatelessWidget {
                         height: h,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(HrRadius.xs),
-                          color: HrColors.victory(d.score).withValues(alpha: d.today ? 1 : 0.5),
-                          border: d.today ? Border.all(color: HrColors.text, width: 1) : null,
+                          color: HrColors.victory(d.score)
+                              .withValues(alpha: d.today ? 1 : 0.5),
+                          border: d.today
+                              ? Border.all(color: HrColors.text, width: 1)
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 5),
@@ -6688,7 +9115,9 @@ class _WeekTrendCard extends StatelessWidget {
                         d.label,
                         style: HrText.micro.copyWith(
                           color: d.today ? HrColors.text : HrColors.text3,
-                          fontWeight: d.today ? FontWeight.w800 : FontWeight.w600,
+                          fontWeight: d.today
+                              ? FontWeight.w800
+                              : FontWeight.w600,
                         ),
                       ),
                     ],
@@ -6719,7 +9148,12 @@ class AppearanceScreen extends StatelessWidget {
             title: Text('Appearance', style: HrText.title2),
           ),
           body: GridView.count(
-            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 24),
+            padding: const EdgeInsets.fromLTRB(
+              HrSpace.gutter,
+              8,
+              HrSpace.gutter,
+              24,
+            ),
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
@@ -6735,7 +9169,10 @@ class AppearanceScreen extends StatelessWidget {
                     color: HrColors.surface,
                     borderRadius: BorderRadius.circular(HrRadius.md),
                     border: Border(
-                      top: BorderSide(color: active ? HrColors.accent : HrColors.hairline, width: active ? 2 : 1),
+                      top: BorderSide(
+                        color: active ? HrColors.accent : HrColors.hairline,
+                        width: active ? 2 : 1,
+                      ),
                     ),
                   ),
                   child: Column(
@@ -6745,14 +9182,20 @@ class AppearanceScreen extends StatelessWidget {
                         opacity: owned ? 1 : 0.5,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [_swatch(t.accent), _swatch(t.bright), _swatch(t.glow)],
+                          children: [
+                            _swatch(t.accent),
+                            _swatch(t.bright),
+                            _swatch(t.glow),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 12),
                       Text(
                         t.name,
                         textAlign: TextAlign.center,
-                        style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                        style: HrText.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 10),
                       if (active)
@@ -6792,13 +9235,22 @@ Widget _briefPanel(String tag, String title, Widget body) => Padding(
     children: [
       Text(
         tag,
-        style: const TextStyle(color: kCyan, letterSpacing: 3, fontSize: 12, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          color: kCyan,
+          letterSpacing: 3,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       const SizedBox(height: 10),
       Text(
         title,
         textAlign: TextAlign.center,
-        style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800),
+        style: GoogleFonts.spaceGrotesk(
+          color: Colors.white,
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
+        ),
       ),
       const SizedBox(height: 28),
       body,
@@ -6867,7 +9319,10 @@ class _DailyBriefingState extends State<_DailyBriefing> {
       appState.markBriefingSeen();
       Navigator.of(context).pop();
     } else {
-      _pc.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      _pc.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -6882,7 +9337,12 @@ class _DailyBriefingState extends State<_DailyBriefing> {
         'Your coach',
         Column(
           children: [
-            _CompanionOrb(color: who.color, icon: who.icon, size: 56, imageAsset: who.imageAsset),
+            _CompanionOrb(
+              color: who.color,
+              icon: who.icon,
+              size: 56,
+              imageAsset: who.imageAsset,
+            ),
             const SizedBox(height: 18),
             if (_coachLoading)
               Column(
@@ -6890,17 +9350,28 @@ class _DailyBriefingState extends State<_DailyBriefing> {
                   SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: kPlasmaBright),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: kPlasmaBright,
+                    ),
                   ),
                   const SizedBox(height: 10),
-                  const Text('Reading your day…', style: TextStyle(color: kTextTertiary, fontSize: 13)),
+                  const Text(
+                    'Reading your day…',
+                    style: TextStyle(color: kTextTertiary, fontSize: 13),
+                  ),
                 ],
               )
             else
               Text(
                 '"${_coach ?? _coachFallback()}"',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: kTextSecondary, fontSize: 15, fontStyle: FontStyle.italic, height: 1.5),
+                style: const TextStyle(
+                  color: kTextSecondary,
+                  fontSize: 15,
+                  fontStyle: FontStyle.italic,
+                  height: 1.5,
+                ),
               ),
           ],
         ),
@@ -6920,16 +9391,27 @@ class _DailyBriefingState extends State<_DailyBriefing> {
               ),
               child: Text(
                 '${ld.level}',
-                style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800),
+                style: GoogleFonts.spaceGrotesk(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
             const SizedBox(height: 12),
             Text(
               levelTitle(ld.level).toUpperCase(),
-              style: const TextStyle(color: kCyan, letterSpacing: 2, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: kCyan,
+                letterSpacing: 2,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 6),
-            Text('Best streak: ${appState.bestStreak} days', style: const TextStyle(color: kTextSecondary)),
+            Text(
+              'Best streak: ${appState.bestStreak} days',
+              style: const TextStyle(color: kTextSecondary),
+            ),
           ],
         ),
       ),
@@ -6948,11 +9430,18 @@ class _DailyBriefingState extends State<_DailyBriefing> {
                     value: v.score / 100,
                     size: 96,
                     stroke: 8,
-                    colors: [victoryColor(v.score), Color.lerp(victoryColor(v.score), Colors.white, 0.35)!],
+                    colors: [
+                      victoryColor(v.score),
+                      Color.lerp(victoryColor(v.score), Colors.white, 0.35)!,
+                    ],
                   ),
                   Text(
                     '${v.score}',
-                    style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800),
+                    style: GoogleFonts.spaceGrotesk(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ),
@@ -6960,7 +9449,11 @@ class _DailyBriefingState extends State<_DailyBriefing> {
             const SizedBox(height: 12),
             Text(
               victoryLabel(v.score),
-              style: TextStyle(color: victoryColor(v.score), fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(
+                color: victoryColor(v.score),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
@@ -6987,11 +9480,21 @@ class _DailyBriefingState extends State<_DailyBriefing> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(q.title, style: const TextStyle(color: kTextSecondary, fontSize: 13)),
+                    child: Text(
+                      q.title,
+                      style: const TextStyle(
+                        color: kTextSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                   Text(
                     '+${q.xp}',
-                    style: TextStyle(color: kPlasmaGlow, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: kPlasmaGlow,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -7004,12 +9507,20 @@ class _DailyBriefingState extends State<_DailyBriefing> {
         who.name,
         Column(
           children: [
-            _CompanionOrb(color: who.color, icon: who.icon, size: 60, imageAsset: who.imageAsset),
+            _CompanionOrb(
+              color: who.color,
+              icon: who.icon,
+              size: 60,
+              imageAsset: who.imageAsset,
+            ),
             const SizedBox(height: 14),
             Text(
               '"${companionLine(appState.activeCompanion, v.score >= 90 ? 'elite_day' : 'level_up')}"',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: kTextSecondary, fontStyle: FontStyle.italic),
+              style: const TextStyle(
+                color: kTextSecondary,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ),
@@ -7022,7 +9533,11 @@ class _DailyBriefingState extends State<_DailyBriefing> {
         child: Column(
           children: [
             Expanded(
-              child: PageView(controller: _pc, onPageChanged: (i) => setState(() => _page = i), children: panels),
+              child: PageView(
+                controller: _pc,
+                onPageChanged: (i) => setState(() => _page = i),
+                children: panels,
+              ),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -7045,7 +9560,10 @@ class _DailyBriefingState extends State<_DailyBriefing> {
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               child: SizedBox(
                 width: double.infinity,
-                child: GradientButton(label: _page >= last ? 'Start the day' : 'Next', onPressed: () => _next(last)),
+                child: GradientButton(
+                  label: _page >= last ? 'Start the day' : 'Next',
+                  onPressed: () => _next(last),
+                ),
               ),
             ),
           ],

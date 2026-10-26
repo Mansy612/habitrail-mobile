@@ -75,6 +75,18 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  assets:
+    - assets/companions/
+    - assets/achievements/
+    - assets/powerups/
+    - assets/habit_done/
+    - assets/bosses/
+    - assets/streaks/
+    - assets/shop/
+    - assets/profile_borders/
+    - assets/onboarding/
+    - assets/leaderboard/
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

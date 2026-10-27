@@ -595,6 +595,9 @@ class AppState extends ChangeNotifier {
   // is generated at most once per week.
   String weeklyReportText = '';
   String weeklyReportWeekKey = '';
+  // Weekly AI Plan (premium): forward-looking plan, cached per week.
+  String weeklyPlanText = '';
+  String weeklyPlanWeekKey = '';
   // Guided challenges (premium): one active program at a time.
   String activeChallengeId = '';
   String challengeStartDate = ''; // dateKey of the start day
@@ -898,6 +901,18 @@ class AppState extends ChangeNotifier {
       weeklyReportText.isNotEmpty &&
       weeklyReportWeekKey == _mondayKey(DateTime.now());
 
+  /// Cache the week's AI plan so it is generated at most once per week.
+  void saveWeeklyPlan(String text) {
+    weeklyPlanText = text;
+    weeklyPlanWeekKey = _mondayKey(DateTime.now());
+    notifyListeners();
+    _save();
+  }
+
+  bool get weeklyPlanIsCurrent =>
+      weeklyPlanText.isNotEmpty &&
+      weeklyPlanWeekKey == _mondayKey(DateTime.now());
+
   // ── Guided challenges ──────────────────────────────────────────────────────
   ChallengeDef? get activeChallenge =>
       activeChallengeId.isEmpty ? null : challengeById(activeChallengeId);
@@ -1065,6 +1080,8 @@ class AppState extends ChangeNotifier {
     coachWeekKey = '';
     weeklyReportText = '';
     weeklyReportWeekKey = '';
+    weeklyPlanText = '';
+    weeklyPlanWeekKey = '';
     activeChallengeId = '';
     challengeStartDate = '';
     challengeCheckIns.clear();
@@ -1261,6 +1278,8 @@ class AppState extends ChangeNotifier {
       premiumSince = (m['premiumSince'] as String?) ?? '';
       weeklyReportText = (m['weeklyReportText'] as String?) ?? '';
       weeklyReportWeekKey = (m['weeklyReportWeekKey'] as String?) ?? '';
+      weeklyPlanText = (m['weeklyPlanText'] as String?) ?? '';
+      weeklyPlanWeekKey = (m['weeklyPlanWeekKey'] as String?) ?? '';
       activeChallengeId = (m['activeChallengeId'] as String?) ?? '';
       challengeStartDate = (m['challengeStartDate'] as String?) ?? '';
       challengeCheckIns.addAll(((m['challengeCheckIns'] as List?) ?? const [])
@@ -1373,6 +1392,8 @@ class AppState extends ChangeNotifier {
           'premiumSince': premiumSince,
           'weeklyReportText': weeklyReportText,
           'weeklyReportWeekKey': weeklyReportWeekKey,
+          'weeklyPlanText': weeklyPlanText,
+          'weeklyPlanWeekKey': weeklyPlanWeekKey,
           'activeChallengeId': activeChallengeId,
           'challengeStartDate': challengeStartDate,
           'challengeCheckIns': challengeCheckIns.toList(),

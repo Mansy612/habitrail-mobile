@@ -328,6 +328,13 @@ const String _coachSystemPrompt =
     'encouraging suggestion for the rest of the day. Plain text, no lists, at '
     'most one emoji, speak directly to "you".';
 
+const String _planSystemPrompt =
+    'You are a concise, encouraging habit coach inside a gamified habit app. '
+    "Given the user's recent stats, write a short plan for the NEXT 7 days: 2-3 "
+    'specific, realistic focus actions tailored to their habits and weak spots, '
+    'each on its own line starting with "- ". Max 60 words total. Plain text, no '
+    'headings, speak directly to "you".';
+
 /// A short personalized coaching line from the local model, or null when AI is
 /// off / unreachable (the caller shows a templated line instead).
 Future<String?> aiCoachMessage(
@@ -351,6 +358,47 @@ Future<String?> aiCoachMessage(
             'options': {'temperature': 0.6},
             'messages': [
               {'role': 'system', 'content': _coachSystemPrompt},
+              {'role': 'user', 'content': statsSummary},
+            ],
+          }),
+        )
+        .timeout(timeout);
+    if (res.statusCode != 200) return null;
+    final body = jsonDecode(utf8.decode(res.bodyBytes));
+    final content = (body is Map && body['message'] is Map)
+        ? (body['message']['content'] ?? '').toString().trim()
+        : '';
+    return content.isEmpty ? null : content;
+  } catch (_) {
+    return null;
+  } finally {
+    if (client == null) c.close();
+  }
+}
+
+/// A short, forward-looking weekly plan from the local model, or null when AI
+/// is off / unreachable (the caller shows a templated plan instead).
+Future<String?> aiWeeklyPlan(
+  String statsSummary, {
+  required bool enabled,
+  required String baseUrl,
+  required String model,
+  Duration timeout = const Duration(seconds: 25),
+  http.Client? client,
+}) async {
+  if (!enabled || statsSummary.trim().isEmpty) return null;
+  final http.Client c = client ?? http.Client();
+  try {
+    final res = await c
+        .post(
+          Uri.parse('${_root(baseUrl)}/api/chat'),
+          headers: const {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'model': model.trim().isEmpty ? kDefaultAiModel : model.trim(),
+            'stream': false,
+            'options': {'temperature': 0.6},
+            'messages': [
+              {'role': 'system', 'content': _planSystemPrompt},
               {'role': 'user', 'content': statsSummary},
             ],
           }),

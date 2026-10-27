@@ -5181,6 +5181,8 @@ class StatsScreen extends StatelessWidget {
         const SizedBox(height: 14),
         const _WeeklyReportCard(),
         const SizedBox(height: 14),
+        const _WeeklyPlanCard(),
+        const SizedBox(height: 14),
         const _InsightsCard(),
         const SizedBox(height: 14),
         const _WeekTrendCard(),
@@ -5292,6 +5294,100 @@ class _WeeklyReportCardState extends State<_WeeklyReportCard> {
             const SizedBox(height: 12),
             HrButton(
                 label: "Generate this week's report",
+                icon: Icons.auto_awesome_rounded,
+                kind: HrButtonKind.secondary,
+                onPressed: _generate),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Premium: Weekly AI Plan ─────────────────────────────────────────────────
+// Forward-looking companion to the Weekly Report: a short plan for the week
+// ahead. Premium-only; cached per week.
+class _WeeklyPlanCard extends StatefulWidget {
+  const _WeeklyPlanCard();
+  @override
+  State<_WeeklyPlanCard> createState() => _WeeklyPlanCardState();
+}
+
+class _WeeklyPlanCardState extends State<_WeeklyPlanCard> {
+  bool _loading = false;
+
+  Future<void> _generate() async {
+    setState(() => _loading = true);
+    final ld = levelFromXp(appState.totalXp);
+    final habitNames = appState.habits.map((h) => h.name).take(8).join(', ');
+    final avg = appState.avgScoreLastDays(7).round();
+    final summary = 'Plan the week ahead. Habits: $habitNames. '
+        'Average victory score (last 7 days): $avg/100. '
+        'Best streak: ${appState.bestStreak} days. '
+        'Habits done today: ${appState.doneTodayCount}/${appState.habits.length}. '
+        'Level ${ld.level}.';
+    final msg = await aiWeeklyPlan(
+      summary,
+      enabled: appState.aiEnabled,
+      baseUrl: appState.aiBaseUrl,
+      model: appState.aiModel,
+    );
+    if (!mounted) return;
+    final text = msg ??
+        '- Protect your best streak every day\n'
+            '- Pick one habit you keep missing and do it first\n'
+            '- Aim for one perfect day this week';
+    appState.saveWeeklyPlan(text);
+    setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final premium = appState.isPremium;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+      child: HrCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.flag_circle_rounded, color: HrColors.accent, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Your Weekly Plan', style: HrText.headline)),
+            if (!premium) _lockPill(),
+          ]),
+          const SizedBox(height: 10),
+          if (!premium) ...[
+            Text(
+                'A personalized, AI-made plan for the week ahead — a few concrete '
+                'focus actions.',
+                style: HrText.bodyS.copyWith(color: HrColors.text2)),
+            const SizedBox(height: 12),
+            HrButton(
+                label: 'Unlock with Premium',
+                icon: Icons.workspace_premium_rounded,
+                kind: HrButtonKind.secondary,
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const PremiumScreen()))),
+          ] else if (_loading) ...[
+            Row(children: [
+              const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: 10),
+              Text('Building your plan…', style: HrText.bodyS),
+            ]),
+          ] else if (appState.weeklyPlanIsCurrent) ...[
+            Text(appState.weeklyPlanText,
+                style: HrText.bodyS
+                    .copyWith(color: HrColors.text2, height: 1.5)),
+            const SizedBox(height: 10),
+            _secondaryPill('Regenerate', _generate),
+          ] else ...[
+            Text('A focused plan for the next 7 days, made by your AI coach.',
+                style: HrText.bodyS.copyWith(color: HrColors.text2)),
+            const SizedBox(height: 12),
+            HrButton(
+                label: "Generate this week's plan",
                 icon: Icons.auto_awesome_rounded,
                 kind: HrButtonKind.secondary,
                 onPressed: _generate),

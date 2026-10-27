@@ -531,6 +531,10 @@ String _monthKey(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}';
 
 // ── Shared app state ─────────────────────────────────────────────────────────
+/// The single app-wide state instance, shared across main.dart and
+/// purchases.dart. Lazily initialized on first access.
+final appState = AppState();
+
 class AppState extends ChangeNotifier {
   static const _habitsKey = 'habitrail.habits.v1';
   static const _metaKey = 'habitrail.meta.v2';

@@ -20,6 +20,7 @@ import 'ai.dart';
 import 'auth.dart';
 import 'backend.dart';
 import 'friends.dart';
+import 'purchases.dart';
 import 'ui/hr_tokens.dart';
 import 'ui/hr_theme.dart';
 import 'ui/hr_widgets.dart';
@@ -29,7 +30,7 @@ import 'ui/hr_widgets.dart';
 // auto-load here: appState is a lazily-initialized top-level, so a new user's
 // first access during sign-up would start load() AFTER the fresh-start reset
 // and clobber it with the old saved state.)
-final appState = AppState();
+// appState is defined in core.dart (shared with purchases.dart).
 
 // The animated particle background was removed in the redesign — the ground is
 // a static black (HrColors.bg). See docs/design/.
@@ -3230,6 +3231,12 @@ class PremiumScreen extends StatefulWidget {
 class _PremiumScreenState extends State<PremiumScreen> {
   String _plan = 'annual'; // default to the better-value plan
 
+  @override
+  void initState() {
+    super.initState();
+    purchases.init(); // no-op off iOS/Android; loads store products on device
+  }
+
   String _fmtDate(String key) {
     final d = DateTime.tryParse(key);
     if (d == null) return '';
@@ -3237,20 +3244,26 @@ class _PremiumScreenState extends State<PremiumScreen> {
   }
 
   List<Widget> _props() => [
-        _PremiumProp(Icons.auto_awesome_rounded, 'AI coach, unlocked',
-            '$kPremiumCoachLimit coaching prompts a week + a Weekly Coach Report'),
+        _PremiumProp(Icons.auto_awesome_rounded, 'AI coach & plans',
+            '$kPremiumCoachLimit prompts a week, a Weekly Report and a Weekly Plan'),
         const _PremiumProp(Icons.insights_rounded, 'Deeper insights',
             'Consistency trends, best days, and cross-habit patterns'),
-        const _PremiumProp(Icons.palette_rounded, 'Exclusive look',
-            'The Nebula theme and a PREMIUM badge on your profile'),
-        const _PremiumProp(Icons.rocket_launch_rounded, 'More on the way',
-            'Guided challenges, companion styles, and recovery tools'),
+        const _PremiumProp(Icons.flag_rounded, 'Challenges & recovery',
+            'Guided 7 & 30-day programs, streak-saves and rest days'),
+        const _PremiumProp(Icons.palette_rounded, 'Make it yours',
+            'Companion skins, the Nebula theme and a PREMIUM badge'),
       ];
 
   void _start() {
-    appState.activatePremium(_plan);
-    hrToast(context, "You're Premium — enjoy! ✨",
-        icon: Icons.workspace_premium_rounded);
+    if (purchases.available) {
+      purchases.buy(_plan); // real store flow; success arrives via the stream
+    } else {
+      // No store on this platform (e.g. the Windows dev build) — activate the
+      // in-app scaffold so Premium stays testable.
+      appState.activatePremium(_plan);
+      hrToast(context, "You're Premium — enjoy! ✨",
+          icon: Icons.workspace_premium_rounded);
+    }
   }
 
   void _manage() {
@@ -3268,8 +3281,9 @@ class _PremiumScreenState extends State<PremiumScreen> {
               Text('Manage Premium', style: HrText.title2),
               const SizedBox(height: 10),
               Text(
-                  'Cancelling turns off Premium features right away in this build. '
-                  'You keep all your habits, history and coins.',
+                  'To stop auto-renewal, cancel in your App Store or Google Play '
+                  'account. This clears Premium on this device now; your habits, '
+                  'history and coins stay.',
                   style: HrText.bodyS),
               const SizedBox(height: 20),
               HrButton(
@@ -3346,7 +3360,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: appState,
+      listenable: Listenable.merge([appState, purchases]),
       builder: (context, _) {
         final premium = appState.isPremium;
         return Scaffold(
@@ -3427,26 +3441,55 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 const SizedBox(height: 10),
                 ..._props(),
                 const SizedBox(height: 18),
-                _planCard('annual', 'Annual', '$kPremiumAnnualPrice/yr',
+                _planCard(
+                    'annual',
+                    'Annual',
+                    '${purchases.priceFor('annual', kPremiumAnnualPrice)}/yr',
                     '≈ $kPremiumAnnualPerMonth/mo · Save $kPremiumAnnualSavingsPct%',
                     popular: true),
                 const SizedBox(height: 10),
-                _planCard('monthly', 'Monthly', '$kPremiumMonthlyPrice/mo',
+                _planCard(
+                    'monthly',
+                    'Monthly',
+                    '${purchases.priceFor('monthly', kPremiumMonthlyPrice)}/mo',
                     'Billed monthly'),
                 const SizedBox(height: 18),
                 HrButton(
-                  label: _plan == 'annual'
-                      ? 'Start Premium — $kPremiumAnnualPrice/yr'
-                      : 'Start Premium — $kPremiumMonthlyPrice/mo',
+                  label: purchases.busy
+                      ? 'Processing…'
+                      : _plan == 'annual'
+                          ? 'Start Premium — ${purchases.priceFor('annual', kPremiumAnnualPrice)}/yr'
+                          : 'Start Premium — ${purchases.priceFor('monthly', kPremiumMonthlyPrice)}/mo',
                   icon: Icons.workspace_premium_rounded,
                   kind: HrButtonKind.accent,
-                  onPressed: _start,
+                  loading: purchases.busy,
+                  onPressed: purchases.busy ? null : _start,
                 ),
+                if (purchases.error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(purchases.error!,
+                      style:
+                          HrText.caption.copyWith(color: HrColors.dangerText),
+                      textAlign: TextAlign.center),
+                ],
+                if (purchases.available) ...[
+                  const SizedBox(height: 4),
+                  Center(
+                    child: TextButton(
+                        onPressed: purchases.restore,
+                        child:
+                            Text('Restore purchases', style: HrText.caption)),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Text(
-                  'This build activates Premium instantly for testing. Real billing '
-                  '(App Store / Google Play) replaces this before launch; your habit '
-                  'tracking and core features always stay free.',
+                  purchases.available
+                      ? 'Subscriptions auto-renew until cancelled; manage them in '
+                          'your App Store / Google Play account. Your habit '
+                          'tracking and core features always stay free.'
+                      : 'No store on this platform, so this build activates Premium '
+                          'instantly for testing; iOS and Android use real billing. '
+                          'Your habit tracking and core features always stay free.',
                   style: HrText.micro,
                   textAlign: TextAlign.center,
                 ),

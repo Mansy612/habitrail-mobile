@@ -2245,6 +2245,7 @@ class HomeScreen extends StatelessWidget {
               _FiveCard(onToggle: onToggle),
             const SizedBox(height: 14),
             const _CoachCard(),
+            const _ChallengeTodayCard(),
             const _VictoryCard(),
             const _CompanionCard(),
             const _NutritionCard(),
@@ -3450,6 +3451,369 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   textAlign: TextAlign.center,
                 ),
               ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Premium: Guided challenges ──────────────────────────────────────────────
+Widget _challengeDayTag(int days) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+          color: HrColors.surface2, borderRadius: BorderRadius.circular(HrRadius.xs)),
+      child: Text('$days-day',
+          style: HrText.micro
+              .copyWith(color: HrColors.text2, fontWeight: FontWeight.w700)),
+    );
+
+// Four milestone markers (quarter, half, three-quarter, finish), lit as the
+// user's check-ins reach each day threshold.
+Widget _challengeMilestones(int days, int done) {
+  final marks = <int>[
+    (days / 4).ceil(),
+    (days / 2).ceil(),
+    (days * 3 / 4).ceil(),
+    days,
+  ];
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: marks.map((m) {
+      final reached = done >= m;
+      return Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(reached ? Icons.check_circle_rounded : Icons.circle_outlined,
+            size: 18, color: reached ? HrColors.accent : HrColors.surface3),
+        const SizedBox(height: 3),
+        Text('Day $m',
+            style: HrText.micro
+                .copyWith(color: reached ? HrColors.text2 : HrColors.text3)),
+      ]);
+    }).toList(),
+  );
+}
+
+// Compact active-challenge card on Today: progress + the daily check-in.
+class _ChallengeTodayCard extends StatelessWidget {
+  const _ChallengeTodayCard();
+
+  void _checkIn(BuildContext context, ChallengeDef c) {
+    final completed = appState.checkInChallenge();
+    if (completed) {
+      celebrate(context);
+      hrToast(context, 'Challenge complete! +150 coins',
+          icon: Icons.emoji_events_rounded);
+    } else {
+      hrToast(context, 'Checked in — ${appState.challengeCheckInCount}/${c.days}',
+          icon: Icons.check_rounded);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final c = appState.activeChallenge;
+        if (c == null) return const SizedBox.shrink();
+        final done = appState.challengeCheckInCount;
+        final checkedToday = appState.challengeCheckedInToday;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
+          child: HrCard(
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const ChallengesScreen())),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Icon(c.icon, color: HrColors.accent, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(c.title,
+                        style: HrText.headline,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis)),
+                Text('$done/${c.days}', style: HrText.caption),
+              ]),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(HrRadius.full),
+                child: LinearProgressIndicator(
+                    value: appState.challengeProgress,
+                    minHeight: 6,
+                    backgroundColor: HrColors.surface3,
+                    valueColor: AlwaysStoppedAnimation(HrColors.accent)),
+              ),
+              const SizedBox(height: 10),
+              Text(c.focus, style: HrText.bodyS.copyWith(color: HrColors.text2)),
+              const SizedBox(height: 12),
+              if (checkedToday)
+                Row(children: [
+                  Icon(Icons.check_circle_rounded,
+                      color: HrColors.accent, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: Text('Checked in today — see you tomorrow.',
+                          style: HrText.bodyS.copyWith(color: HrColors.text2))),
+                ])
+              else
+                HrButton(
+                    label: 'Check in for today',
+                    icon: Icons.check_rounded,
+                    kind: HrButtonKind.accent,
+                    onPressed: () => _checkIn(context, c)),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class ChallengesScreen extends StatelessWidget {
+  const ChallengesScreen({super.key});
+
+  Future<void> _start(BuildContext context, ChallengeDef c) async {
+    if (!appState.isPremium) {
+      Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const PremiumScreen()));
+      return;
+    }
+    if (appState.activeChallenge != null && appState.activeChallengeId != c.id) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: HrColors.surface,
+          title: Text('Switch challenge?', style: HrText.title2),
+          content: Text(
+              'Starting "${c.title}" ends your current challenge and its progress.',
+              style: HrText.bodyS),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('Keep current', style: HrText.caption)),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('Switch',
+                    style: HrText.body.copyWith(color: HrColors.accent))),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+    appState.startChallenge(c.id);
+    if (context.mounted) {
+      hrToast(context, 'Challenge started — check in each day!',
+          icon: Icons.flag_rounded);
+    }
+  }
+
+  Future<void> _abandon(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HrColors.surface,
+        title: Text('End challenge?', style: HrText.title2),
+        content: Text('Your progress on this challenge will be cleared.',
+            style: HrText.bodyS),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Keep going', style: HrText.caption)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('End',
+                  style: HrText.body.copyWith(color: HrColors.dangerText))),
+        ],
+      ),
+    );
+    if (ok == true) {
+      appState.abandonChallenge();
+      if (context.mounted) hrToast(context, 'Challenge ended.');
+    }
+  }
+
+  void _checkIn(BuildContext context) {
+    final completed = appState.checkInChallenge();
+    if (completed) {
+      celebrate(context);
+      hrToast(context, 'Challenge complete! +150 coins',
+          icon: Icons.emoji_events_rounded);
+    } else {
+      hrToast(context,
+          'Checked in — ${appState.challengeCheckInCount} day'
+          '${appState.challengeCheckInCount == 1 ? '' : 's'} done',
+          icon: Icons.check_rounded);
+    }
+  }
+
+  Widget _premiumBanner(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: HrCard(
+          onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PremiumScreen())),
+          child: Row(children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: HrColors.accentSurface,
+                  borderRadius: BorderRadius.circular(HrRadius.md)),
+              child: const Icon(Icons.workspace_premium_rounded,
+                  color: HrColors.gold, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text('Challenges are Premium', style: HrText.headline),
+                  const SizedBox(height: 2),
+                  Text('Unlock to start a guided program',
+                      style: HrText.caption),
+                ])),
+            _lockPill(),
+          ]),
+        ),
+      );
+
+  Widget _activeCard(BuildContext context, ChallengeDef c) {
+    final done = appState.challengeCheckInCount;
+    final checkedToday = appState.challengeCheckedInToday;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: HrCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(c.icon, color: HrColors.accent, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text(c.title,
+                    style: HrText.title2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis)),
+            _challengeDayTag(c.days),
+          ]),
+          const SizedBox(height: 4),
+          Text(c.focus, style: HrText.bodyS.copyWith(color: HrColors.text2)),
+          const SizedBox(height: 14),
+          Row(children: [
+            Text('$done of ${c.days} days', style: HrText.headline),
+            const Spacer(),
+            Text('${(appState.challengeProgress * 100).round()}%',
+                style: HrText.caption),
+          ]),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(HrRadius.full),
+            child: LinearProgressIndicator(
+                value: appState.challengeProgress,
+                minHeight: 8,
+                backgroundColor: HrColors.surface3,
+                valueColor: AlwaysStoppedAnimation(HrColors.accent)),
+          ),
+          const SizedBox(height: 16),
+          _challengeMilestones(c.days, done),
+          const SizedBox(height: 18),
+          if (checkedToday)
+            Row(children: [
+              Icon(Icons.check_circle_rounded,
+                  color: HrColors.accent, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: Text(
+                      'Checked in today. Come back tomorrow to keep it going.',
+                      style: HrText.bodyS.copyWith(color: HrColors.text2))),
+            ])
+          else
+            HrButton(
+                label: 'Check in for today',
+                icon: Icons.check_rounded,
+                kind: HrButtonKind.accent,
+                onPressed: () => _checkIn(context)),
+          const SizedBox(height: 6),
+          Center(
+              child: TextButton(
+                  onPressed: () => _abandon(context),
+                  child: Text('End challenge', style: HrText.caption))),
+        ]),
+      ),
+    );
+  }
+
+  Widget _catalogTile(BuildContext context, ChallengeDef c) {
+    final isActive = appState.activeChallengeId == c.id;
+    final done = appState.completedChallenges.contains(c.id);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: HrCard(
+        child: Row(children: [
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: HrColors.surface2,
+                borderRadius: BorderRadius.circular(HrRadius.md)),
+            child: Icon(c.icon, color: HrColors.accent, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Row(children: [
+                  Flexible(
+                      child: Text(c.title,
+                          style: HrText.headline,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis)),
+                  const SizedBox(width: 6),
+                  _challengeDayTag(c.days),
+                ]),
+                const SizedBox(height: 2),
+                Text(c.blurb,
+                    style: HrText.caption,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+              ])),
+          const SizedBox(width: 10),
+          if (isActive)
+            _stateChip('ACTIVE', HrColors.accent)
+          else if (done)
+            _stateChip('DONE', HrColors.gold)
+          else
+            _secondaryPill('Start', () => _start(context, c)),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final active = appState.activeChallenge;
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Guided challenges', style: HrText.title2),
+          ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter, 8, HrSpace.gutter, 28),
+            children: [
+              if (!appState.isPremium) _premiumBanner(context),
+              if (active != null) _activeCard(context, active),
+              const HrLabel('Programs'),
+              const SizedBox(height: 10),
+              ...kChallenges.map((c) => _catalogTile(context, c)),
             ],
           ),
         );
@@ -8909,6 +9273,16 @@ class SettingsScreen extends StatelessWidget {
                     () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const AppearanceScreen(),
+                      ),
+                    ),
+                  ),
+                  _YouRow(
+                    Icons.flag_rounded,
+                    'Guided challenges',
+                    appState.activeChallenge?.title ?? '7 & 30-day programs',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ChallengesScreen(),
                       ),
                     ),
                   ),

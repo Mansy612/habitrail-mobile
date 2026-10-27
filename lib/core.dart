@@ -484,6 +484,41 @@ const String kPremiumAnnualPerMonth = r'$5';
 const int kPremiumAnnualSavingsPct = 37;
 const String kPremiumThemeId = 'nebula'; // exclusive premium accent theme
 
+// ── Guided challenges (premium) ─────────────────────────────────────────────
+// Themed 7- or 30-day programs with a daily check-in. One active at a time.
+class ChallengeDef {
+  const ChallengeDef(
+      this.id, this.title, this.blurb, this.days, this.icon, this.focus);
+  final String id;
+  final String title;
+  final String blurb; // one-line pitch
+  final int days; // 7 or 30
+  final IconData icon;
+  final String focus; // the daily check-in action
+}
+
+const List<ChallengeDef> kChallenges = [
+  ChallengeDef('hydrate7', '7-Day Hydration Reset',
+      'Build a water habit that sticks.', 7, Icons.water_drop_rounded,
+      'Drink 8 glasses of water'),
+  ChallengeDef('focus7', '7-Day Focus Sprint', 'One deep-work block a day.', 7,
+      Icons.bolt_rounded, 'Do one 25-minute focus block'),
+  ChallengeDef('move7', '7-Day Move Every Day', 'Get your body moving daily.', 7,
+      Icons.directions_run_rounded, 'Move for 20+ minutes'),
+  ChallengeDef('morning30', '30-Day Morning Routine',
+      'Own your mornings for a month.', 30, Icons.wb_sunny_rounded,
+      'Finish your morning routine'),
+  ChallengeDef('mindful30', '30-Day Mindfulness',
+      'A calmer mind, one day at a time.', 30, Icons.self_improvement_rounded,
+      'Meditate for 10 minutes'),
+  ChallengeDef('sleep30', '30-Day Sleep Better',
+      'Earlier, screen-free nights for a month.', 30, Icons.bedtime_rounded,
+      'No screens 30 min before bed'),
+];
+
+ChallengeDef challengeById(String id) =>
+    kChallenges.firstWhere((c) => c.id == id, orElse: () => kChallenges.first);
+
 /// Monday (as a dateKey) of the week containing [d] — the coach-allowance week.
 String _mondayKey(DateTime d) {
   final monday =
@@ -556,6 +591,11 @@ class AppState extends ChangeNotifier {
   // is generated at most once per week.
   String weeklyReportText = '';
   String weeklyReportWeekKey = '';
+  // Guided challenges (premium): one active program at a time.
+  String activeChallengeId = '';
+  String challengeStartDate = ''; // dateKey of the start day
+  final Set<String> challengeCheckIns = {}; // dateKeys the user checked in
+  final Set<String> completedChallenges = {}; // finished challenge ids
   // Profile / cosmetics
   String pfpBase64 = ''; // downscaled JPEG as base64; '' = show the initial
   Uint8List? pfpBytes; // decoded cache for display
@@ -846,6 +886,59 @@ class AppState extends ChangeNotifier {
       weeklyReportText.isNotEmpty &&
       weeklyReportWeekKey == _mondayKey(DateTime.now());
 
+  // ── Guided challenges ──────────────────────────────────────────────────────
+  ChallengeDef? get activeChallenge =>
+      activeChallengeId.isEmpty ? null : challengeById(activeChallengeId);
+  int get challengeCheckInCount => challengeCheckIns.length;
+  bool get challengeCheckedInToday =>
+      challengeCheckIns.contains(dateKey(DateTime.now()));
+
+  /// Check-ins completed / total days, 0..1.
+  double get challengeProgress {
+    final c = activeChallenge;
+    if (c == null || c.days == 0) return 0;
+    return (challengeCheckIns.length / c.days).clamp(0.0, 1.0);
+  }
+
+  void startChallenge(String id) {
+    activeChallengeId = id;
+    challengeStartDate = dateKey(DateTime.now());
+    challengeCheckIns.clear();
+    notifyListeners();
+    _save();
+  }
+
+  void abandonChallenge() {
+    activeChallengeId = '';
+    challengeStartDate = '';
+    challengeCheckIns.clear();
+    notifyListeners();
+    _save();
+  }
+
+  /// Record today's check-in (once per day). Returns true when this check-in
+  /// completes the challenge — all days done — which awards a one-time coin
+  /// bonus and clears the active slot.
+  bool checkInChallenge() {
+    final c = activeChallenge;
+    if (c == null) return false;
+    final today = dateKey(DateTime.now());
+    if (challengeCheckIns.contains(today)) return false;
+    challengeCheckIns.add(today);
+    var completed = false;
+    if (challengeCheckIns.length >= c.days) {
+      completedChallenges.add(c.id);
+      coins += 150;
+      activeChallengeId = '';
+      challengeStartDate = '';
+      challengeCheckIns.clear();
+      completed = true;
+    }
+    notifyListeners();
+    _save();
+    return completed;
+  }
+
   void resetAll() {
     habits
       ..clear()
@@ -880,6 +973,10 @@ class AppState extends ChangeNotifier {
     coachWeekKey = '';
     weeklyReportText = '';
     weeklyReportWeekKey = '';
+    activeChallengeId = '';
+    challengeStartDate = '';
+    challengeCheckIns.clear();
+    completedChallenges.clear();
     selectedBorder = 'none';
     ownedBorders
       ..clear()
@@ -1067,6 +1164,13 @@ class AppState extends ChangeNotifier {
       premiumSince = (m['premiumSince'] as String?) ?? '';
       weeklyReportText = (m['weeklyReportText'] as String?) ?? '';
       weeklyReportWeekKey = (m['weeklyReportWeekKey'] as String?) ?? '';
+      activeChallengeId = (m['activeChallengeId'] as String?) ?? '';
+      challengeStartDate = (m['challengeStartDate'] as String?) ?? '';
+      challengeCheckIns.addAll(((m['challengeCheckIns'] as List?) ?? const [])
+          .map((e) => e as String));
+      completedChallenges.addAll(
+          ((m['completedChallenges'] as List?) ?? const [])
+              .map((e) => e as String));
       earnedAchievements.addAll(
           ((m['earnedAchievements'] as List?) ?? const []).map((e) => e as String));
       pfpBase64 = (m['pfpBase64'] as String?) ?? '';
@@ -1166,6 +1270,10 @@ class AppState extends ChangeNotifier {
           'premiumSince': premiumSince,
           'weeklyReportText': weeklyReportText,
           'weeklyReportWeekKey': weeklyReportWeekKey,
+          'activeChallengeId': activeChallengeId,
+          'challengeStartDate': challengeStartDate,
+          'challengeCheckIns': challengeCheckIns.toList(),
+          'completedChallenges': completedChallenges.toList(),
           'earnedAchievements': earnedAchievements.toList(),
           'pfpBase64': pfpBase64,
           'selectedBorder': selectedBorder,

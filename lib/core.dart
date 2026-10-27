@@ -483,6 +483,7 @@ const String kPremiumAnnualPrice = r'$59.99';
 const String kPremiumAnnualPerMonth = r'$5';
 const int kPremiumAnnualSavingsPct = 37;
 const String kPremiumThemeId = 'nebula'; // exclusive premium accent theme
+const int kPremiumStreakSavesPerMonth = 4; // premium streak-saves / rest days
 
 // ── Guided challenges (premium) ─────────────────────────────────────────────
 // Themed 7- or 30-day programs with a daily check-in. One active at a time.
@@ -525,6 +526,9 @@ String _mondayKey(DateTime d) {
       DateTime(d.year, d.month, d.day).subtract(Duration(days: d.weekday - 1));
   return dateKey(monday);
 }
+
+String _monthKey(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}';
 
 // ── Shared app state ─────────────────────────────────────────────────────────
 class AppState extends ChangeNotifier {
@@ -599,6 +603,11 @@ class AppState extends ChangeNotifier {
   // Premium companion cosmetics (purely visual, no gameplay effect).
   String companionSkin = 'classic';
   String companionAccessory = 'none';
+  // Premium streak recovery: a monthly allowance covering both auto streak-saves
+  // (when a missed day would break a streak) and planned rest days.
+  int premiumSavesUsed = 0;
+  String premiumSaveMonth = ''; // 'YYYY-MM' the count belongs to
+  final Set<String> restDays = {}; // dateKeys marked as planned rest days
   // Profile / cosmetics
   String pfpBase64 = ''; // downscaled JPEG as base64; '' = show the initial
   Uint8List? pfpBytes; // decoded cache for display
@@ -957,6 +966,71 @@ class AppState extends ChangeNotifier {
     _save();
   }
 
+  // ── Streak recovery (premium) ──────────────────────────────────────────────
+  int get _premiumSavesUsedThisMonth =>
+      premiumSaveMonth == _monthKey(DateTime.now()) ? premiumSavesUsed : 0;
+  int get premiumStreakSavesLeft => isPremium
+      ? (kPremiumStreakSavesPerMonth - _premiumSavesUsedThisMonth)
+          .clamp(0, kPremiumStreakSavesPerMonth)
+      : 0;
+  bool get restDayActiveToday => restDays.contains(dateKey(DateTime.now()));
+
+  /// Spend one premium streak-save from this month's allowance. Returns false
+  /// (nothing spent) when not premium or the allowance is used up.
+  bool _consumePremiumSave() {
+    if (!isPremium) return false;
+    final m = _monthKey(DateTime.now());
+    if (premiumSaveMonth != m) {
+      premiumSaveMonth = m;
+      premiumSavesUsed = 0;
+    }
+    if (premiumSavesUsed >= kPremiumStreakSavesPerMonth) return false;
+    premiumSavesUsed += 1;
+    return true;
+  }
+
+  /// True when every missed day strictly between [last] and [today] was a
+  /// planned rest day (so the streak bridges for free — the rest day already
+  /// spent its save when it was taken).
+  bool _gapAllRestDays(String last, String today) {
+    final a = DateTime.tryParse(last);
+    final b = DateTime.tryParse(today);
+    if (a == null || b == null) return false;
+    var d = DateTime(a.year, a.month, a.day).add(const Duration(days: 1));
+    final end = DateTime(b.year, b.month, b.day);
+    var gap = 0;
+    while (d.isBefore(end)) {
+      if (!restDays.contains(dateKey(d))) return false;
+      if (++gap > 60) return false; // safety bound
+      d = d.add(const Duration(days: 1));
+    }
+    return gap > 0;
+  }
+
+  /// Decide whether a streak survives a gap, consuming a coin shield or a
+  /// premium save if needed. Rest-day gaps bridge for free.
+  bool _tryBridgeStreak(String last, String today) {
+    if (_gapAllRestDays(last, today)) return true;
+    if (streakShields > 0) {
+      streakShields -= 1;
+      return true;
+    }
+    return _consumePremiumSave();
+  }
+
+  /// Mark today as a planned rest day (premium). Draws one from the monthly
+  /// allowance so a streak stays protected without a completion today.
+  bool takeRestDay() {
+    if (!isPremium) return false;
+    final today = dateKey(DateTime.now());
+    if (restDays.contains(today)) return true;
+    if (!_consumePremiumSave()) return false;
+    restDays.add(today);
+    notifyListeners();
+    _save();
+    return true;
+  }
+
   void resetAll() {
     habits
       ..clear()
@@ -997,6 +1071,9 @@ class AppState extends ChangeNotifier {
     completedChallenges.clear();
     companionSkin = 'classic';
     companionAccessory = 'none';
+    premiumSavesUsed = 0;
+    premiumSaveMonth = '';
+    restDays.clear();
     selectedBorder = 'none';
     ownedBorders
       ..clear()
@@ -1193,6 +1270,10 @@ class AppState extends ChangeNotifier {
               .map((e) => e as String));
       companionSkin = (m['companionSkin'] as String?) ?? 'classic';
       companionAccessory = (m['companionAccessory'] as String?) ?? 'none';
+      premiumSavesUsed = (m['premiumSavesUsed'] as int?) ?? 0;
+      premiumSaveMonth = (m['premiumSaveMonth'] as String?) ?? '';
+      restDays.addAll(
+          ((m['restDays'] as List?) ?? const []).map((e) => e as String));
       earnedAchievements.addAll(
           ((m['earnedAchievements'] as List?) ?? const []).map((e) => e as String));
       pfpBase64 = (m['pfpBase64'] as String?) ?? '';
@@ -1298,6 +1379,9 @@ class AppState extends ChangeNotifier {
           'completedChallenges': completedChallenges.toList(),
           'companionSkin': companionSkin,
           'companionAccessory': companionAccessory,
+          'premiumSavesUsed': premiumSavesUsed,
+          'premiumSaveMonth': premiumSaveMonth,
+          'restDays': restDays.toList(),
           'earnedAchievements': earnedAchievements.toList(),
           'pfpBase64': pfpBase64,
           'selectedBorder': selectedBorder,
@@ -1471,9 +1555,9 @@ class AppState extends ChangeNotifier {
     } else {
       if (h.lastCompletedDate == yesterday) {
         h.streak += 1;
-      } else if (h.lastCompletedDate != null && streakShields > 0) {
-        h.streak += 1; // streak shield bridges a missed day
-        streakShields -= 1;
+      } else if (h.lastCompletedDate != null &&
+          _tryBridgeStreak(h.lastCompletedDate!, today)) {
+        h.streak += 1; // bridged by a rest day, coin shield, or premium save
       } else {
         h.streak = 1;
       }

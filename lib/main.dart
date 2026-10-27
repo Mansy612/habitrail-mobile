@@ -3822,6 +3822,161 @@ class ChallengesScreen extends StatelessWidget {
   }
 }
 
+// ── Premium: Streak recovery ────────────────────────────────────────────────
+class RecoveryScreen extends StatelessWidget {
+  const RecoveryScreen({super.key});
+
+  void _restDay(BuildContext context) {
+    if (appState.restDayActiveToday) return;
+    final ok = appState.takeRestDay();
+    hrToast(
+      context,
+      ok
+          ? 'Rest day set — your streaks are safe today.'
+          : 'No streak saves left this month.',
+      icon: ok ? Icons.self_improvement_rounded : Icons.info_outline_rounded,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final premium = appState.isPremium;
+        final left = appState.premiumStreakSavesLeft;
+        final resting = appState.restDayActiveToday;
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Streak protection', style: HrText.title2),
+          ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter, 8, HrSpace.gutter, 28),
+            children: [
+              if (!premium)
+                HrCard(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const PremiumScreen())),
+                  child: Row(children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                          color: HrColors.accentSurface,
+                          borderRadius: BorderRadius.circular(HrRadius.md)),
+                      child: const Icon(Icons.workspace_premium_rounded,
+                          color: HrColors.gold, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Text('Streak protection is Premium',
+                              style: HrText.headline),
+                          const SizedBox(height: 2),
+                          Text('Streak-saves & rest days keep hard-won streaks safe',
+                              style: HrText.caption),
+                        ])),
+                    _lockPill(),
+                  ]),
+                )
+              else ...[
+                HrCard(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Icon(Icons.health_and_safety_rounded,
+                              color: HrColors.accent, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child:
+                                  Text('Streak saves', style: HrText.headline)),
+                          Text('$left of $kPremiumStreakSavesPerMonth',
+                              style: HrText.headline),
+                        ]),
+                        const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(HrRadius.full),
+                          child: LinearProgressIndicator(
+                              value: left / kPremiumStreakSavesPerMonth,
+                              minHeight: 8,
+                              backgroundColor: HrColors.surface3,
+                              valueColor:
+                                  AlwaysStoppedAnimation(HrColors.accent)),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                            'A save is spent automatically when a missed day would '
+                            'break a streak. Your allowance refreshes at the start '
+                            'of each month.',
+                            style: HrText.bodyS.copyWith(color: HrColors.text2)),
+                      ]),
+                ),
+                const SizedBox(height: 12),
+                HrCard(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Icon(Icons.self_improvement_rounded,
+                              color: HrColors.accent, size: 18),
+                          const SizedBox(width: 8),
+                          Text('Plan a rest day', style: HrText.headline),
+                        ]),
+                        const SizedBox(height: 8),
+                        Text(
+                            'Mark today as a rest day so a planned break keeps your '
+                            'streaks intact. Uses one save.',
+                            style: HrText.bodyS.copyWith(color: HrColors.text2)),
+                        const SizedBox(height: 12),
+                        if (resting)
+                          Row(children: [
+                            Icon(Icons.check_circle_rounded,
+                                color: HrColors.accent, size: 18),
+                            const SizedBox(width: 8),
+                            Text('Resting today — streaks protected',
+                                style: HrText.bodyS
+                                    .copyWith(color: HrColors.text2)),
+                          ])
+                        else
+                          HrButton(
+                            label: 'Take a rest day today',
+                            icon: Icons.self_improvement_rounded,
+                            kind: HrButtonKind.secondary,
+                            onPressed: left > 0 ? () => _restDay(context) : null,
+                          ),
+                        if (!resting && left <= 0) ...[
+                          const SizedBox(height: 8),
+                          Text('No saves left this month.',
+                              style: HrText.caption),
+                        ],
+                      ]),
+                ),
+                if (appState.streakShields > 0) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                      'You also have ${appState.streakShields} coin streak '
+                      'shield${appState.streakShields == 1 ? '' : 's'}, used before '
+                      'your monthly saves.',
+                      style: HrText.caption),
+                ],
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 // ── MOMENTS: shared celebration dialog ──────────────────────────────────────
 void _showMoment(
   BuildContext context, {
@@ -7206,22 +7361,305 @@ class _EmptyState extends StatelessWidget {
 }
 
 void _showLevelUp(BuildContext context, int level) {
-  _showMoment(
-    context,
-    label: 'Level up',
-    labelColor: HrColors.accent,
-    emblem: SegmentedRing(
-      size: 136,
-      segments: 1,
-      value: 1,
-      stroke: 9,
-      color: HrColors.accent,
-      center: Text('$level', style: HrText.numeralXl),
-    ),
-    title: 'Level $level.\n${levelTitle(level)}.',
-    bubble: companionLine(appState.activeCompanion, 'level_up'),
-    buttonLabel: 'Continue',
+  showDialog<void>(
+    context: context,
+    builder: (_) => _LevelUpDialog(level: level),
   );
+}
+
+class _LevelUpDialog extends StatelessWidget {
+  const _LevelUpDialog({required this.level});
+
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    final companionQuote =
+        companionLine(appState.activeCompanion, 'level_up');
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.92, end: 1),
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutBack,
+        builder: (context, scale, child) => Transform.scale(
+          scale: scale,
+          child: child,
+        ),
+        child: Container(
+          width: 360,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF25252B), Color(0xFF171719), Color(0xFF111113)],
+              stops: [0, 0.42, 1],
+            ),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            boxShadow: [
+              BoxShadow(
+                color: HrColors.accent.withValues(alpha: 0.14),
+                blurRadius: 48,
+                spreadRadius: 1,
+              ),
+              const BoxShadow(
+                color: Colors.black54,
+                blurRadius: 28,
+                offset: Offset(0, 18),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Positioned(
+                top: -100,
+                child: Container(
+                  width: 270,
+                  height: 230,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        HrColors.accent.withValues(alpha: 0.2),
+                        HrColors.accent.withValues(alpha: 0.04),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.north_east_rounded,
+                            size: 15, color: HrColors.gold),
+                        const SizedBox(width: 7),
+                        Text(
+                          'LEVEL UP',
+                          style: HrText.labelCaps.copyWith(
+                            color: HrColors.gold,
+                            letterSpacing: 2.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 23),
+                    _LevelUpEmblem(level: level),
+                    const SizedBox(height: 21),
+                    Text(
+                      levelTitle(level),
+                      textAlign: TextAlign.center,
+                      style: HrText.display.copyWith(fontSize: 30),
+                    ),
+                    const SizedBox(height: 7),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.055),
+                        borderRadius: BorderRadius.circular(HrRadius.full),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.07)),
+                      ),
+                      child: Text(
+                        'LEVEL $level REACHED',
+                        style: HrText.micro.copyWith(
+                          color: HrColors.text2,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 17),
+                    SpeechBubble(companionQuote, maxWidth: 240),
+                    const SizedBox(height: 23),
+                    HrButton(
+                      label: 'Continue',
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LevelUpEmblem extends StatelessWidget {
+  const _LevelUpEmblem({required this.level});
+
+  final int level;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 164,
+        height: 164,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 154,
+              height: 154,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    HrColors.accent.withValues(alpha: 0.19),
+                    HrColors.accent.withValues(alpha: 0.07),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.15, 0.58, 1],
+                ),
+              ),
+            ),
+            CustomPaint(
+              size: const Size.square(150),
+              painter: _LevelUpOrbitPainter(HrColors.accent),
+            ),
+            Container(
+              width: 112,
+              height: 112,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF414149), Color(0xFF202024), Color(0xFF151517)],
+                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    blurRadius: 18,
+                    offset: const Offset(0, 9),
+                  ),
+                  BoxShadow(
+                    color: HrColors.accent.withValues(alpha: 0.24),
+                    blurRadius: 23,
+                    spreadRadius: -4,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'LEVEL',
+                    style: HrText.micro.copyWith(
+                      color: HrColors.text2,
+                      letterSpacing: 2.1,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  ShaderMask(
+                    shaderCallback: (bounds) => LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.white, HrColors.accent],
+                    ).createShader(bounds),
+                    child: Text(
+                      '$level',
+                      style: HrText.numeralXl.copyWith(
+                        fontSize: 57,
+                        color: Colors.white,
+                        shadows: const [
+                          Shadow(color: Colors.black38, offset: Offset(0, 3), blurRadius: 5),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _LevelUpOrbitPainter extends CustomPainter {
+  const _LevelUpOrbitPainter(this.accent);
+
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final ring = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..color = Colors.white.withValues(alpha: 0.16);
+    canvas.drawCircle(center, 68, ring);
+
+    for (var i = 0; i < 32; i++) {
+      final angle = (i * 2 * pi / 32) - pi / 2;
+      final major = i % 4 == 0;
+      final inner = major ? 62.0 : 64.5;
+      final outer = major ? 72.0 : 69.5;
+      final start = Offset(
+        center.dx + cos(angle) * inner,
+        center.dy + sin(angle) * inner,
+      );
+      final end = Offset(
+        center.dx + cos(angle) * outer,
+        center.dy + sin(angle) * outer,
+      );
+      final tick = Paint()
+        ..color = (major ? HrColors.gold : accent)
+            .withValues(alpha: major ? 0.95 : 0.48)
+        ..strokeWidth = major ? 2.4 : 1.5
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(start, end, tick);
+    }
+
+    final highlight = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.3
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        colors: [
+          accent.withValues(alpha: 0.05),
+          accent.withValues(alpha: 0.9),
+          HrColors.gold.withValues(alpha: 0.9),
+          accent.withValues(alpha: 0.05),
+        ],
+        stops: const [0, 0.34, 0.7, 1],
+      ).createShader(Rect.fromCircle(center: center, radius: 57));
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: 57),
+      -pi * 0.88,
+      pi * 1.64,
+      false,
+      highlight,
+    );
+
+    for (var i = 0; i < 4; i++) {
+      final angle = (i * pi / 2) - pi / 4;
+      final sparkle = Offset(
+        center.dx + cos(angle) * 76,
+        center.dy + sin(angle) * 76,
+      );
+      canvas.drawCircle(
+        sparkle,
+        i.isEven ? 2.4 : 1.6,
+        Paint()..color = (i.isEven ? HrColors.gold : accent).withValues(alpha: 0.95),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LevelUpOrbitPainter oldDelegate) =>
+      oldDelegate.accent != accent;
 }
 
 void _showAchievementUnlocked(BuildContext context, List<Achievement> items) {
@@ -9446,6 +9884,18 @@ class SettingsScreen extends StatelessWidget {
                     () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const ChallengesScreen(),
+                      ),
+                    ),
+                  ),
+                  _YouRow(
+                    Icons.health_and_safety_rounded,
+                    'Streak protection',
+                    appState.isPremium
+                        ? '${appState.premiumStreakSavesLeft} saves left this month'
+                        : 'Streak-saves & rest days',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const RecoveryScreen(),
                       ),
                     ),
                   ),

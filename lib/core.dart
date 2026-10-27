@@ -596,6 +596,9 @@ class AppState extends ChangeNotifier {
   String challengeStartDate = ''; // dateKey of the start day
   final Set<String> challengeCheckIns = {}; // dateKeys the user checked in
   final Set<String> completedChallenges = {}; // finished challenge ids
+  // Premium companion cosmetics (purely visual, no gameplay effect).
+  String companionSkin = 'classic';
+  String companionAccessory = 'none';
   // Profile / cosmetics
   String pfpBase64 = ''; // downscaled JPEG as base64; '' = show the initial
   Uint8List? pfpBytes; // decoded cache for display
@@ -939,6 +942,21 @@ class AppState extends ChangeNotifier {
     return completed;
   }
 
+  // ── Companion cosmetics (premium) ──────────────────────────────────────────
+  void setCompanionSkin(String id) {
+    if (!isPremium && id != 'classic') return;
+    companionSkin = id;
+    notifyListeners();
+    _save();
+  }
+
+  void setCompanionAccessory(String id) {
+    if (!isPremium && id != 'none') return;
+    companionAccessory = id;
+    notifyListeners();
+    _save();
+  }
+
   void resetAll() {
     habits
       ..clear()
@@ -977,6 +995,8 @@ class AppState extends ChangeNotifier {
     challengeStartDate = '';
     challengeCheckIns.clear();
     completedChallenges.clear();
+    companionSkin = 'classic';
+    companionAccessory = 'none';
     selectedBorder = 'none';
     ownedBorders
       ..clear()
@@ -1171,6 +1191,8 @@ class AppState extends ChangeNotifier {
       completedChallenges.addAll(
           ((m['completedChallenges'] as List?) ?? const [])
               .map((e) => e as String));
+      companionSkin = (m['companionSkin'] as String?) ?? 'classic';
+      companionAccessory = (m['companionAccessory'] as String?) ?? 'none';
       earnedAchievements.addAll(
           ((m['earnedAchievements'] as List?) ?? const []).map((e) => e as String));
       pfpBase64 = (m['pfpBase64'] as String?) ?? '';
@@ -1274,6 +1296,8 @@ class AppState extends ChangeNotifier {
           'challengeStartDate': challengeStartDate,
           'challengeCheckIns': challengeCheckIns.toList(),
           'completedChallenges': completedChallenges.toList(),
+          'companionSkin': companionSkin,
+          'companionAccessory': companionAccessory,
           'earnedAchievements': earnedAchievements.toList(),
           'pfpBase64': pfpBase64,
           'selectedBorder': selectedBorder,
@@ -1736,6 +1760,51 @@ const List<CompanionDef> kCompanions = [
 
 CompanionDef companionByType(String t) =>
     kCompanions.firstWhere((c) => c.type == t, orElse: () => kCompanions.first);
+
+// ── Premium companion cosmetics (skins + accessories; purely visual) ────────
+class CompanionSkin {
+  const CompanionSkin(this.id, this.name, this.color);
+  final String id;
+  final String name;
+  final Color color; // glow tint; 'classic' falls back to the companion's own
+}
+
+const List<CompanionSkin> kCompanionSkins = [
+  CompanionSkin('classic', 'Classic', Color(0x00000000)),
+  CompanionSkin('aqua', 'Aqua', Color(0xFF22D3EE)),
+  CompanionSkin('violet', 'Violet', Color(0xFFA855F7)),
+  CompanionSkin('ember', 'Ember', Color(0xFFFF6B35)),
+  CompanionSkin('gold', 'Gold', Color(0xFFFBBF24)),
+  CompanionSkin('mint', 'Mint', Color(0xFF34D399)),
+  CompanionSkin('rose', 'Rose', Color(0xFFF472B6)),
+];
+
+CompanionSkin companionSkinById(String id) => kCompanionSkins
+    .firstWhere((s) => s.id == id, orElse: () => kCompanionSkins.first);
+
+/// The glow colour for a companion given the chosen skin ('classic' = native).
+Color companionGlowColor(String skinId, Color native) =>
+    skinId == 'classic' ? native : companionSkinById(skinId).color;
+
+class CompanionAccessory {
+  const CompanionAccessory(this.id, this.name, this.emoji);
+  final String id;
+  final String name;
+  final String emoji; // '' = none
+}
+
+const List<CompanionAccessory> kCompanionAccessories = [
+  CompanionAccessory('none', 'None', ''),
+  CompanionAccessory('crown', 'Crown', '👑'),
+  CompanionAccessory('tophat', 'Top hat', '🎩'),
+  CompanionAccessory('star', 'Star', '⭐'),
+  CompanionAccessory('shades', 'Shades', '🕶️'),
+  CompanionAccessory('bow', 'Bow', '🎀'),
+  CompanionAccessory('sparkle', 'Sparkle', '✨'),
+];
+
+CompanionAccessory companionAccessoryById(String id) => kCompanionAccessories
+    .firstWhere((a) => a.id == id, orElse: () => kCompanionAccessories.first);
 
 int companionStage(int level) {
   if (level >= 75) return 4;

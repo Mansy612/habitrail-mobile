@@ -8130,15 +8130,19 @@ class _CompanionOrb extends StatelessWidget {
     required this.icon,
     required this.size,
     this.imageAsset,
+    this.glowColor, // premium skin tint; null = default behaviour
+    this.accessoryEmoji = '', // premium accessory overlay; '' = none
   });
   final Color color;
   final IconData icon;
   final double size;
   final String? imageAsset;
+  final Color? glowColor;
+  final String accessoryEmoji;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final orb = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
@@ -8148,20 +8152,41 @@ class _CompanionOrb extends StatelessWidget {
         gradient: imageAsset == null
             ? RadialGradient(colors: [color, color.withValues(alpha: 0.25)])
             : null,
-        boxShadow: imageAsset == null
+        boxShadow: glowColor != null
             ? [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.5),
-                  blurRadius: 16,
+                  color: glowColor!.withValues(alpha: 0.6),
+                  blurRadius: size * 0.3,
                   spreadRadius: 1,
                 ),
               ]
-            : null,
+            : imageAsset == null
+                ? [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.5),
+                      blurRadius: 16,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
       ),
       clipBehavior: Clip.antiAlias,
       child: imageAsset == null
           ? Icon(icon, color: Colors.white, size: size * 0.5)
           : Image.asset(imageAsset!, fit: BoxFit.cover),
+    );
+    if (accessoryEmoji.isEmpty) return orb;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(clipBehavior: Clip.none, children: [
+        orb,
+        Positioned(
+          top: -size * 0.14,
+          right: -size * 0.06,
+          child: Text(accessoryEmoji, style: TextStyle(fontSize: size * 0.4)),
+        ),
+      ]),
     );
   }
 }
@@ -8187,6 +8212,11 @@ class _CompanionCard extends StatelessWidget {
               icon: c.icon,
               size: 46,
               imageAsset: c.imageAsset,
+              glowColor: appState.companionSkin == 'classic'
+                  ? null
+                  : companionGlowColor(appState.companionSkin, c.color),
+              accessoryEmoji:
+                  companionAccessoryById(appState.companionAccessory).emoji,
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -8245,6 +8275,127 @@ class _CompanionCard extends StatelessWidget {
 
 class CompanionsScreen extends StatelessWidget {
   const CompanionsScreen({super.key});
+
+  // Big preview of the active companion, wearing the chosen skin + accessory.
+  Widget _companionPreview() {
+    final c = companionByType(appState.activeCompanion);
+    return Column(children: [
+      _CompanionOrb(
+        color: c.color,
+        icon: c.icon,
+        size: 108,
+        imageAsset: c.imageAsset,
+        glowColor: appState.companionSkin == 'classic'
+            ? null
+            : companionGlowColor(appState.companionSkin, c.color),
+        accessoryEmoji: companionAccessoryById(appState.companionAccessory).emoji,
+      ),
+      const SizedBox(height: 12),
+      Text(c.name, style: HrText.title2),
+      const SizedBox(height: 2),
+      Text(c.tagline, style: HrText.caption),
+    ]);
+  }
+
+  Widget _skinSwatch(CompanionSkin s) {
+    final sel = appState.companionSkin == s.id;
+    final col = s.id == 'classic'
+        ? companionByType(appState.activeCompanion).color
+        : s.color;
+    return GestureDetector(
+      onTap: () => appState.setCompanionSkin(s.id),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 44,
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(colors: [col, col.withValues(alpha: 0.3)]),
+            border: Border.all(
+                color: sel ? HrColors.accent : HrColors.hairline,
+                width: sel ? 2 : 1),
+          ),
+          child: s.id == 'classic'
+              ? const Icon(Icons.auto_awesome_rounded,
+                  size: 18, color: Colors.white)
+              : null,
+        ),
+        const SizedBox(height: 4),
+        Text(s.name,
+            style: HrText.micro
+                .copyWith(color: sel ? HrColors.text : HrColors.text3)),
+      ]),
+    );
+  }
+
+  Widget _accessorySwatch(CompanionAccessory a) {
+    final sel = appState.companionAccessory == a.id;
+    return GestureDetector(
+      onTap: () => appState.setCompanionAccessory(a.id),
+      child: Container(
+        width: 44,
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: HrColors.surface2,
+          border: Border.all(
+              color: sel ? HrColors.accent : HrColors.hairline,
+              width: sel ? 2 : 1),
+        ),
+        child: a.emoji.isEmpty
+            ? const Icon(Icons.block_rounded, size: 18, color: HrColors.text3)
+            : Text(a.emoji, style: const TextStyle(fontSize: 22)),
+      ),
+    );
+  }
+
+  Widget _customizeSection(BuildContext context) {
+    if (!appState.isPremium) {
+      return HrCard(
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => const PremiumScreen())),
+        child: Row(children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: HrColors.accentSurface,
+                borderRadius: BorderRadius.circular(HrRadius.md)),
+            child: const Icon(Icons.workspace_premium_rounded,
+                color: HrColors.gold, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+              child:
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Customize your companion', style: HrText.headline),
+            const SizedBox(height: 2),
+            Text('Skins & accessories with Premium', style: HrText.caption),
+          ])),
+          _lockPill(),
+        ]),
+      );
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const HrLabel('Skin'),
+      const SizedBox(height: 10),
+      Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: kCompanionSkins.map(_skinSwatch).toList()),
+      const SizedBox(height: 18),
+      const HrLabel('Accessory'),
+      const SizedBox(height: 10),
+      Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: kCompanionAccessories.map(_accessorySwatch).toList()),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -8258,18 +8409,28 @@ class CompanionsScreen extends StatelessWidget {
             elevation: 0,
             title: Text('Companions', style: HrText.title2),
           ),
-          body: GridView.count(
+          body: ListView(
             padding: const EdgeInsets.fromLTRB(
               HrSpace.gutter,
               8,
               HrSpace.gutter,
               24,
             ),
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.92,
-            children: kCompanions.map((c) {
+            children: [
+              _companionPreview(),
+              const SizedBox(height: 18),
+              _customizeSection(context),
+              const SizedBox(height: 18),
+              const HrLabel('Choose companion'),
+              const SizedBox(height: 10),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.92,
+                children: kCompanions.map((c) {
               final unlocked = appState.companionUnlocked(c.type);
               final active = appState.activeCompanion == c.type;
               return GestureDetector(
@@ -8355,7 +8516,9 @@ class CompanionsScreen extends StatelessWidget {
                   ),
                 ),
               );
-            }).toList(),
+                }).toList(),
+              ),
+            ],
           ),
         );
       },

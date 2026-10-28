@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthUser;
 
+import 'ai.dart';
 import 'auth.dart';
 
 // ── Supabase backend (social layer) ──────────────────────────────────────────
@@ -23,6 +24,40 @@ bool get backendEnabled => _url.isNotEmpty && _anonKey.isNotEmpty;
 Future<void> initBackend() async {
   if (!backendEnabled) return;
   await Supabase.initialize(url: _url, publishableKey: _anonKey);
+  wireRemoteAi();
+}
+
+/// Route the AI functions through the `ai-proxy` Edge Function (which proxies to
+/// a hosted Ollama) whenever the backend is on. The call carries the signed-in
+/// user's JWT so the server can require auth; a failure or a missing function
+/// returns null, and ai.dart falls back to local Ollama / the offline heuristic.
+void wireRemoteAi() {
+  if (!backendEnabled) return;
+  aiRemoteChat = ({
+    required String system,
+    required String user,
+    required String model,
+    required bool jsonFormat,
+    required double temperature,
+  }) async {
+    try {
+      final res = await _sb.functions.invoke('ai-proxy', body: {
+        'system': system,
+        'prompt': user,
+        'model': model,
+        'json': jsonFormat,
+        'temperature': temperature,
+      });
+      final data = res.data;
+      if (data is Map && data['content'] is String) {
+        final s = (data['content'] as String).trim();
+        return s.isEmpty ? null : s;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  };
 }
 
 SupabaseClient get _sb => Supabase.instance.client;

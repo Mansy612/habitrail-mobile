@@ -15,6 +15,21 @@ import 'core.dart';
 // the app works fully offline (it falls back to the keyword heuristic whenever
 // Ollama isn't reachable — not installed, offline, or a real iPhone later).
 
+/// Optional server-side AI. When set (production, signed in), the AI functions
+/// call this FIRST — a Supabase Edge Function that proxies to a hosted Ollama —
+/// so AI works for every user with no local Ollama. It is left null in dev and
+/// tests, which use the local Ollama path and the offline heuristics as the
+/// final fallback. Wired in backend.dart's initBackend(). A remote call that
+/// returns null simply falls through to the local path below.
+typedef AiRemoteChat = Future<String?> Function({
+  required String system,
+  required String user,
+  required String model,
+  required bool jsonFormat,
+  required double temperature,
+});
+AiRemoteChat? aiRemoteChat;
+
 /// Difficulty tiers the AI may choose, easiest → hardest. Each maps 1:1 to a
 /// key in [rarityConfig], whose `mult` is the XP multiplier.
 const List<String> kDifficultyTiers = [
@@ -126,6 +141,19 @@ Future<DifficultyVerdict> classifyDifficulty(
   final trimmed = name.trim();
   if (trimmed.isEmpty) return const DifficultyVerdict('common', 'Quick & easy');
   if (!enabled) return heuristicVerdict(trimmed);
+
+  if (aiRemoteChat != null && client == null) {
+    try {
+      final r = await aiRemoteChat!(
+          system: _systemPrompt,
+          user: 'Habit: "$trimmed"',
+          model: model,
+          jsonFormat: true,
+          temperature: 0);
+      final v = r == null ? null : parseOllamaVerdict(r);
+      if (v != null) return v;
+    } catch (_) {}
+  }
 
   final http.Client c = client ?? http.Client();
   try {
@@ -288,6 +316,18 @@ Future<NutritionEstimate?> estimateNutrition(
 }) async {
   final trimmed = description.trim();
   if (!enabled || trimmed.isEmpty) return null;
+  if (aiRemoteChat != null && client == null) {
+    try {
+      final r = await aiRemoteChat!(
+          system: _nutritionSystemPrompt,
+          user: 'I ate: $trimmed',
+          model: model,
+          jsonFormat: true,
+          temperature: 0);
+      final n = r == null ? null : parseNutritionJson(r, fallbackName: trimmed);
+      if (n != null) return n;
+    } catch (_) {}
+  }
   final http.Client c = client ?? http.Client();
   try {
     final res = await c
@@ -346,6 +386,17 @@ Future<String?> aiCoachMessage(
   http.Client? client,
 }) async {
   if (!enabled || statsSummary.trim().isEmpty) return null;
+  if (aiRemoteChat != null && client == null) {
+    try {
+      final r = await aiRemoteChat!(
+          system: _coachSystemPrompt,
+          user: statsSummary,
+          model: model,
+          jsonFormat: false,
+          temperature: 0.6);
+      if (r != null && r.trim().isNotEmpty) return r.trim();
+    } catch (_) {}
+  }
   final http.Client c = client ?? http.Client();
   try {
     final res = await c
@@ -387,6 +438,17 @@ Future<String?> aiWeeklyPlan(
   http.Client? client,
 }) async {
   if (!enabled || statsSummary.trim().isEmpty) return null;
+  if (aiRemoteChat != null && client == null) {
+    try {
+      final r = await aiRemoteChat!(
+          system: _planSystemPrompt,
+          user: statsSummary,
+          model: model,
+          jsonFormat: false,
+          temperature: 0.6);
+      if (r != null && r.trim().isNotEmpty) return r.trim();
+    } catch (_) {}
+  }
   final http.Client c = client ?? http.Client();
   try {
     final res = await c

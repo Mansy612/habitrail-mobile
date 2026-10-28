@@ -2245,6 +2245,7 @@ class HomeScreen extends StatelessWidget {
             else
               _FiveCard(onToggle: onToggle),
             const SizedBox(height: 14),
+            const _TasksCard(),
             const _CoachCard(),
             const _ChallengeTodayCard(),
             const _VictoryCard(),
@@ -4018,6 +4019,369 @@ class RecoveryScreen extends StatelessWidget {
       },
     );
   }
+}
+
+// ── Tasks: Dailies & To-Dos ─────────────────────────────────────────────────
+String _taskMeta(TaskItem t) {
+  if (t.kind == TaskKind.daily) {
+    if (t.weekdays.isEmpty) return 'Every day';
+    final ds = t.weekdays.toList()..sort();
+    return ds.map((d) => _kWeekdays[d - 1].substring(0, 3)).join(', ');
+  }
+  if (t.dueDate == null) return '';
+  final d = DateTime.tryParse(t.dueDate!);
+  return d == null ? '' : 'Due ${_kMonths[d.month - 1]} ${d.day}';
+}
+
+// One check-off row, shared by the Today card and the management screen.
+Widget _taskTile(BuildContext context, TaskItem t, {VoidCallback? onEdit}) {
+  final done = appState.taskDoneToday(t);
+  final meta = _taskMeta(t);
+  return Row(children: [
+    Expanded(
+      child: InkWell(
+        onTap: () => appState.toggleTask(t),
+        borderRadius: BorderRadius.circular(HrRadius.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Row(children: [
+            Icon(
+                done
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: done ? HrColors.accent : HrColors.text3,
+                size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t.icon.isEmpty ? t.title : '${t.icon}  ${t.title}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: HrText.body.copyWith(
+                          color: done ? HrColors.text3 : HrColors.text,
+                          decoration:
+                              done ? TextDecoration.lineThrough : null,
+                        )),
+                    if (meta.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(meta, style: HrText.micro),
+                    ],
+                  ]),
+            ),
+          ]),
+        ),
+      ),
+    ),
+    if (onEdit != null)
+      IconButton(
+        visualDensity: VisualDensity.compact,
+        icon: const Icon(Icons.more_horiz_rounded,
+            color: HrColors.text3, size: 20),
+        onPressed: onEdit,
+      ),
+  ]);
+}
+
+// Today card: today's due dailies + the next open to-dos.
+class _TasksCard extends StatelessWidget {
+  const _TasksCard();
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final dailies = appState.dailiesToday;
+        final todos = appState.openTodos;
+        if (dailies.isEmpty && todos.isEmpty) return const SizedBox.shrink();
+        final shownTodos = todos.take(3).toList();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
+          child: HrCard(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Text('TASKS', style: HrText.labelCaps),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const TasksScreen())),
+                      child: Row(children: [
+                        Text('${appState.openTasksToday} open',
+                            style: HrText.micro),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: HrColors.text3, size: 16),
+                      ]),
+                    ),
+                  ]),
+                  const SizedBox(height: 2),
+                  ...dailies.map((t) => _taskTile(context, t)),
+                  ...shownTodos.map((t) => _taskTile(context, t)),
+                  if (todos.length > shownTodos.length) ...[
+                    const SizedBox(height: 4),
+                    Text('+${todos.length - shownTodos.length} more to-dos',
+                        style: HrText.micro),
+                  ],
+                ]),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class TasksScreen extends StatelessWidget {
+  const TasksScreen({super.key});
+
+  Widget _group(BuildContext context, List<TaskItem> items, String empty) {
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: Text(empty, style: HrText.caption),
+      );
+    }
+    return HrCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Column(
+          children: items
+              .map((t) => _taskTile(context, t,
+                  onEdit: () => _showTaskEditor(context, existing: t)))
+              .toList()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            foregroundColor: HrColors.text,
+            elevation: 0,
+            title: Text('Tasks', style: HrText.title2),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add_rounded),
+                tooltip: 'New task',
+                onPressed: () => _showTaskEditor(context),
+              ),
+            ],
+          ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter, 8, HrSpace.gutter, 28),
+            children: [
+              const HrLabel('Dailies'),
+              const SizedBox(height: 8),
+              _group(context, appState.allDailies,
+                  'No dailies yet — add a recurring task.'),
+              const SizedBox(height: 18),
+              const HrLabel('To-Dos'),
+              const SizedBox(height: 8),
+              _group(context, appState.allTodos,
+                  'No to-dos yet — add a one-off task.'),
+              const SizedBox(height: 20),
+              HrButton(
+                  label: 'Add a task',
+                  icon: Icons.add_rounded,
+                  kind: HrButtonKind.secondary,
+                  onPressed: () => _showTaskEditor(context)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+InputDecoration _taskField(String label, String hint) => InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: HrText.caption,
+      hintStyle: HrText.caption.copyWith(color: HrColors.text3),
+      filled: true,
+      fillColor: HrColors.surface2,
+      counterText: '',
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(HrRadius.sm),
+          borderSide: BorderSide.none),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    );
+
+// Create / edit a task (bottom sheet). Kind is chosen on create, fixed on edit.
+void _showTaskEditor(BuildContext context, {TaskItem? existing}) {
+  final titleCtrl = TextEditingController(text: existing?.title ?? '');
+  final iconCtrl = TextEditingController(text: existing?.icon ?? '');
+  var kind = existing?.kind ?? TaskKind.todo;
+  final weekdays = <int>{...?existing?.weekdays};
+  String? dueDate = existing?.dueDate;
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: HrColors.surface,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
+    builder: (ctx) => Padding(
+      padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 18,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+      child: StatefulBuilder(builder: (ctx, setSheet) {
+        return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(existing == null ? 'New task' : 'Edit task',
+                  style: HrText.title2),
+              const SizedBox(height: 16),
+              if (existing == null) ...[
+                HrSegmented(
+                    items: const ['To-Do', 'Daily'],
+                    index: kind == TaskKind.daily ? 1 : 0,
+                    onChanged: (i) => setSheet(
+                        () => kind = i == 1 ? TaskKind.daily : TaskKind.todo)),
+                const SizedBox(height: 14),
+              ],
+              TextField(
+                  controller: titleCtrl,
+                  style: HrText.body,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: _taskField('Title', 'e.g. Take vitamins')),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: iconCtrl,
+                  maxLength: 2,
+                  style: HrText.body,
+                  decoration: _taskField('Emoji (optional)', '💊')),
+              const SizedBox(height: 4),
+              if (kind == TaskKind.daily) ...[
+                Text('Repeat on', style: HrText.caption),
+                const SizedBox(height: 8),
+                Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: List.generate(7, (i) {
+                      final d = i + 1;
+                      final on = weekdays.contains(d);
+                      return GestureDetector(
+                        onTap: () => setSheet(() =>
+                            on ? weekdays.remove(d) : weekdays.add(d)),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: on
+                                ? HrColors.accentSurface
+                                : HrColors.surface2,
+                            border: Border.all(
+                                color: on
+                                    ? HrColors.accent
+                                    : HrColors.hairline,
+                                width: on ? 2 : 1),
+                          ),
+                          child: Text(_kWeekdays[i].substring(0, 1),
+                              style: HrText.bodyS.copyWith(
+                                  color:
+                                      on ? HrColors.accent : HrColors.text2,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      );
+                    })),
+                const SizedBox(height: 6),
+                Text(weekdays.isEmpty ? 'Empty = every day' : '',
+                    style: HrText.micro),
+              ] else ...[
+                Row(children: [
+                  Text(
+                      dueDate == null
+                          ? 'No due date'
+                          : 'Due ${_fmtDue(dueDate!)}',
+                      style: HrText.bodyS.copyWith(color: HrColors.text2)),
+                  const Spacer(),
+                  TextButton(
+                      onPressed: () async {
+                        final now = DateTime.now();
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: dueDate != null
+                              ? (DateTime.tryParse(dueDate!) ?? now)
+                              : now,
+                          firstDate:
+                              now.subtract(const Duration(days: 1)),
+                          lastDate: DateTime(now.year + 5),
+                        );
+                        if (picked != null) {
+                          setSheet(() => dueDate = dateKey(picked));
+                        }
+                      },
+                      child: Text(dueDate == null ? 'Set date' : 'Change',
+                          style: HrText.caption)),
+                  if (dueDate != null)
+                    TextButton(
+                        onPressed: () => setSheet(() => dueDate = null),
+                        child: Text('Clear', style: HrText.caption)),
+                ]),
+              ],
+              const SizedBox(height: 16),
+              HrButton(
+                label: existing == null ? 'Add task' : 'Save',
+                icon: Icons.check_rounded,
+                onPressed: () {
+                  if (titleCtrl.text.trim().isEmpty) return;
+                  if (existing == null) {
+                    appState.addTask(titleCtrl.text, kind,
+                        icon: iconCtrl.text,
+                        weekdays: weekdays.toList(),
+                        dueDate: kind == TaskKind.todo ? dueDate : null);
+                  } else {
+                    appState.updateTask(existing,
+                        title: titleCtrl.text,
+                        icon: iconCtrl.text,
+                        weekdays: existing.kind == TaskKind.daily
+                            ? weekdays.toList()
+                            : null,
+                        dueDate: existing.kind == TaskKind.todo
+                            ? (dueDate ?? '')
+                            : null);
+                  }
+                  Navigator.pop(ctx);
+                },
+              ),
+              if (existing != null) ...[
+                const SizedBox(height: 6),
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      appState.deleteTask(existing);
+                      Navigator.pop(ctx);
+                    },
+                    child: Text('Delete task',
+                        style: HrText.caption
+                            .copyWith(color: HrColors.dangerText)),
+                  ),
+                ),
+              ],
+            ]);
+      }),
+    ),
+  ).whenComplete(() {
+    titleCtrl.dispose();
+    iconCtrl.dispose();
+  });
+}
+
+String _fmtDue(String key) {
+  final d = DateTime.tryParse(key);
+  return d == null ? key : '${_kMonths[d.month - 1]} ${d.day}';
 }
 
 // ── MOMENTS: shared celebration dialog ──────────────────────────────────────
@@ -10014,6 +10378,16 @@ class SettingsScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => const AppearanceScreen(),
                       ),
+                    ),
+                  ),
+                  _YouRow(
+                    Icons.checklist_rounded,
+                    'Tasks',
+                    appState.openTasksToday > 0
+                        ? '${appState.openTasksToday} open today'
+                        : 'Dailies & to-dos',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const TasksScreen()),
                     ),
                   ),
                   _YouRow(

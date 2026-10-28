@@ -245,6 +245,64 @@ const double kTargetCarbs = 220;
 const double kTargetFat = 70;
 
 // ── Models ──────────────────────────────────────────────────────────────────
+// ── Tasks: Dailies & To-Dos ─────────────────────────────────────────────────
+// A lighter companion to Habits (which stay the tuned streak/XP engine).
+// Dailies are scheduled recurring tasks; To-Dos are one-off. Small flat rewards
+// keep the progression economy stable and deterministic.
+enum TaskKind { daily, todo }
+
+const int kDailyXp = 8;
+const int kDailyCoins = 2;
+const int kTodoXp = 12;
+const int kTodoCoins = 3;
+
+class TaskItem {
+  TaskItem({
+    required this.id,
+    required this.title,
+    this.kind = TaskKind.todo,
+    this.icon = '',
+    List<int>? weekdays,
+    this.dueDate,
+    this.lastDoneDate,
+    this.done = false,
+  }) : weekdays = weekdays ?? const [];
+
+  final String id;
+  String title;
+  TaskKind kind;
+  String icon;
+  List<int> weekdays; // dailies: 1=Mon..7=Sun; empty = every day
+  String? dueDate; // todos: optional 'YYYY-MM-DD'
+  String? lastDoneDate; // dailies: dateKey last completed
+  bool done; // todos: completed
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'kind': kind.name,
+        'icon': icon,
+        'weekdays': weekdays,
+        'dueDate': dueDate,
+        'lastDoneDate': lastDoneDate,
+        'done': done,
+      };
+
+  factory TaskItem.fromMap(Map<String, dynamic> m) => TaskItem(
+        id: m['id'] as String,
+        title: (m['title'] as String?) ?? '',
+        kind:
+            (m['kind'] as String?) == 'daily' ? TaskKind.daily : TaskKind.todo,
+        icon: (m['icon'] as String?) ?? '',
+        weekdays: ((m['weekdays'] as List?) ?? const [])
+            .map((e) => (e as num).toInt())
+            .toList(),
+        dueDate: m['dueDate'] as String?,
+        lastDoneDate: m['lastDoneDate'] as String?,
+        done: (m['done'] as bool?) ?? false,
+      );
+}
+
 class Habit {
   Habit({
     required this.id,
@@ -541,10 +599,12 @@ class AppState extends ChangeNotifier {
   static const _journalKey = 'habitrail.journal.v1';
   static const _foodKey = 'habitrail.food.v1';
   static const _milestoneKey = 'habitrail.milestones.v1';
+  static const _tasksKey = 'habitrail.tasks.v1';
 
   final List<Habit> habits = [];
   final List<Reflection> reflections = [];
   final List<FoodEntry> foodLog = [];
+  final List<TaskItem> tasks = []; // Dailies & To-Dos (separate from habits)
   int totalXp = 0;
   int coins = 100;
   bool loading = true;
@@ -1050,11 +1110,101 @@ class AppState extends ChangeNotifier {
     return true;
   }
 
+  // ── Tasks: Dailies & To-Dos ────────────────────────────────────────────────
+  bool _dailyDueOn(TaskItem t, DateTime day) =>
+      t.weekdays.isEmpty || t.weekdays.contains(day.weekday);
+  bool dailyDueToday(TaskItem t) => _dailyDueOn(t, DateTime.now());
+  bool taskDoneToday(TaskItem t) => t.kind == TaskKind.daily
+      ? t.lastDoneDate == dateKey(DateTime.now())
+      : t.done;
+
+  /// Dailies scheduled for today, incomplete first.
+  List<TaskItem> get dailiesToday {
+    final list = tasks
+        .where((t) => t.kind == TaskKind.daily && dailyDueToday(t))
+        .toList();
+    list.sort((a, b) =>
+        (taskDoneToday(a) ? 1 : 0) - (taskDoneToday(b) ? 1 : 0));
+    return list;
+  }
+
+  /// Open (not-done) to-dos, soonest due first.
+  List<TaskItem> get openTodos {
+    final list = tasks.where((t) => t.kind == TaskKind.todo && !t.done).toList();
+    list.sort((a, b) => (a.dueDate ?? '9999').compareTo(b.dueDate ?? '9999'));
+    return list;
+  }
+
+  List<TaskItem> get allTodos =>
+      tasks.where((t) => t.kind == TaskKind.todo).toList();
+  List<TaskItem> get allDailies =>
+      tasks.where((t) => t.kind == TaskKind.daily).toList();
+
+  /// Today's still-open tasks (due dailies + open to-dos) — for the Today badge.
+  int get openTasksToday =>
+      dailiesToday.where((t) => !taskDoneToday(t)).length + openTodos.length;
+
+  void addTask(String title, TaskKind kind,
+      {String icon = '', List<int> weekdays = const [], String? dueDate}) {
+    if (title.trim().isEmpty) return;
+    tasks.add(TaskItem(
+      id: newId(),
+      title: title.trim(),
+      kind: kind,
+      icon: icon.trim(),
+      weekdays: List<int>.from(weekdays),
+      dueDate: dueDate,
+    ));
+    notifyListeners();
+    _save();
+  }
+
+  void updateTask(TaskItem t,
+      {String? title, String? icon, List<int>? weekdays, String? dueDate}) {
+    if (title != null && title.trim().isNotEmpty) t.title = title.trim();
+    if (icon != null) t.icon = icon.trim();
+    if (weekdays != null) t.weekdays = List<int>.from(weekdays);
+    if (dueDate != null) t.dueDate = dueDate.isEmpty ? null : dueDate;
+    notifyListeners();
+    _save();
+  }
+
+  void deleteTask(TaskItem t) {
+    tasks.remove(t);
+    notifyListeners();
+    _save();
+  }
+
+  /// Toggle a task's completion, awarding or reverting a small flat XP + coin
+  /// reward. Deliberately separate from the habit engine (no streaks/combo).
+  void toggleTask(TaskItem t) {
+    final today = dateKey(DateTime.now());
+    final xp = t.kind == TaskKind.daily ? kDailyXp : kTodoXp;
+    final c = t.kind == TaskKind.daily ? kDailyCoins : kTodoCoins;
+    final wasDone = taskDoneToday(t);
+    if (t.kind == TaskKind.daily) {
+      t.lastDoneDate = wasDone ? null : today;
+    } else {
+      t.done = !wasDone;
+    }
+    if (wasDone) {
+      totalXp = (totalXp - xp).clamp(0, 1 << 30).toInt();
+      coins = (coins - c).clamp(0, 1 << 30).toInt();
+    } else {
+      totalXp += xp;
+      coins += c;
+    }
+    if (level > highestLevel) highestLevel = level;
+    notifyListeners();
+    _save();
+  }
+
   void resetAll() {
     habits
       ..clear()
       ..addAll(_seedHabits());
     reflections.clear();
+    tasks.clear();
     foodLog.clear();
     milestoneLog.clear();
     perfectDays.clear();
@@ -1345,6 +1495,13 @@ class AppState extends ChangeNotifier {
         ..addAll((jsonDecode(ml) as List)
             .map((e) => MilestoneEvent.fromMap(e as Map<String, dynamic>)));
     }
+    final tk = prefs.getString(_tasksKey);
+    if (tk != null && tk.isNotEmpty) {
+      tasks
+        ..clear()
+        ..addAll((jsonDecode(tk) as List)
+            .map((e) => TaskItem.fromMap(e as Map<String, dynamic>)));
+    }
     _prevLevel = level;
     if (level > highestLevel) highestLevel = level;
     _checkAchievements(silent: true); // backfill anything already satisfied
@@ -1362,6 +1519,8 @@ class AppState extends ChangeNotifier {
         _foodKey, jsonEncode(foodLog.map((e) => e.toMap()).toList()));
     await prefs.setString(
         _milestoneKey, jsonEncode(milestoneLog.map((e) => e.toMap()).toList()));
+    await prefs.setString(
+        _tasksKey, jsonEncode(tasks.map((t) => t.toMap()).toList()));
     await prefs.setString(
         _metaKey,
         jsonEncode({

@@ -2244,16 +2244,76 @@ class HomeScreen extends StatelessWidget {
               _todayEmpty(context)
             else
               _FiveCard(onToggle: onToggle),
-            const SizedBox(height: 14),
-            const _TasksCard(),
-            const _CoachCard(),
-            const _ChallengeTodayCard(),
-            const _VictoryCard(),
-            const _CompanionCard(),
-            const _NutritionCard(),
-            const _BossCard(),
-            const _QuestsPanel(),
-            const _PrestigeCard(),
+            const SizedBox(height: 18),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+              child: HrCard(
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const DashboardScreen())),
+                child: Row(children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                        color: HrColors.accentSurface,
+                        borderRadius: BorderRadius.circular(HrRadius.md)),
+                    child: Icon(Icons.dashboard_rounded,
+                        color: HrColors.accent, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Dashboard', style: HrText.headline),
+                          const SizedBox(height: 2),
+                          Text('Companion, coach, quests & more',
+                              style: HrText.caption),
+                        ]),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: HrColors.text3),
+                ]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── DASHBOARD: everything that used to stack under Today's habits ────────────
+// Keeps Today clean (just habits); the companion, coach, tasks, quests, boss,
+// nutrition, victory and prestige cards live here behind a button.
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: HrColors.text,
+        elevation: 0,
+        title: Text('Dashboard', style: HrText.title2),
+      ),
+      body: ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => ListView(
+          padding: const EdgeInsets.fromLTRB(0, 6, 0, 100),
+          children: const [
+            SizedBox(height: 4),
+            _TasksCard(),
+            _CoachCard(),
+            _ChallengeTodayCard(),
+            _VictoryCard(),
+            _CompanionCard(),
+            _NutritionCard(),
+            _BossCard(),
+            _QuestsPanel(),
+            _PrestigeCard(),
           ],
         ),
       ),

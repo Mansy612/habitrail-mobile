@@ -11192,6 +11192,62 @@ class CompanionsScreen extends StatelessWidget {
     );
   }
 
+  // A compact badge of the player's current cosmetic class.
+  Widget _classBadge() {
+    final cl = classById(appState.playerClass);
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: cl.color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(HrRadius.full),
+          border: Border.all(color: cl.color.withValues(alpha: 0.5)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(cl.emoji, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 6),
+          Text(cl.name.toUpperCase(),
+              style: HrText.micro.copyWith(
+                  color: cl.color,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w800)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _classSwatch(ClassDef cl) {
+    final sel = appState.playerClass == cl.id;
+    return GestureDetector(
+      onTap: () => appState.setPlayerClass(cl.id),
+      child: SizedBox(
+        width: 72,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 54,
+            height: 54,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: sel ? cl.color.withValues(alpha: 0.18) : HrColors.surface2,
+              border: Border.all(
+                  color: sel ? cl.color : HrColors.hairline,
+                  width: sel ? 2 : 1),
+            ),
+            child: Text(cl.emoji, style: const TextStyle(fontSize: 24)),
+          ),
+          const SizedBox(height: 5),
+          Text(cl.name,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.micro
+                  .copyWith(color: sel ? HrColors.text : HrColors.text3)),
+        ]),
+      ),
+    );
+  }
+
   Widget _customizeSection(BuildContext context) {
     if (!appState.isPremium) {
       return HrCard(
@@ -11258,6 +11314,8 @@ class CompanionsScreen extends StatelessWidget {
               24,
             ),
             children: [
+              _classBadge(),
+              const SizedBox(height: 14),
               _companionPreview(),
               const SizedBox(height: 18),
               _customizeSection(context),
@@ -11359,6 +11417,19 @@ class CompanionsScreen extends StatelessWidget {
               );
                 }).toList(),
               ),
+              const SizedBox(height: 20),
+              const HrLabel('Your class'),
+              const SizedBox(height: 6),
+              Text(classById(appState.playerClass).tagline,
+                  style: HrText.caption),
+              const SizedBox(height: 4),
+              Text('Cosmetic only — never changes XP or difficulty.',
+                  style: HrText.micro.copyWith(color: HrColors.text3)),
+              const SizedBox(height: 12),
+              Wrap(
+                  spacing: 12,
+                  runSpacing: 14,
+                  children: kClasses.map(_classSwatch).toList()),
             ],
           ),
         );

@@ -671,6 +671,8 @@ class AppState extends ChangeNotifier {
   // Premium companion cosmetics (purely visual, no gameplay effect).
   String companionSkin = 'classic';
   String companionAccessory = 'none';
+  // Cosmetic class/identity — flavor only, free for all, no XP/coin/difficulty effect.
+  String playerClass = 'wanderer';
   // Premium streak recovery: a monthly allowance covering both auto streak-saves
   // (when a missed day would break a streak) and planned rest days.
   int premiumSavesUsed = 0;
@@ -1039,6 +1041,13 @@ class AppState extends ChangeNotifier {
     _save();
   }
 
+  // Cosmetic class — free for everyone, no gameplay effect.
+  void setPlayerClass(String id) {
+    playerClass = id;
+    notifyListeners();
+    _save();
+  }
+
   void setCompanionAccessory(String id) {
     if (!isPremium && id != 'none') return;
     companionAccessory = id;
@@ -1297,6 +1306,7 @@ class AppState extends ChangeNotifier {
     completedChallenges.clear();
     companionSkin = 'classic';
     companionAccessory = 'none';
+    playerClass = 'wanderer';
     premiumSavesUsed = 0;
     premiumSaveMonth = '';
     restDays.clear();
@@ -1499,6 +1509,7 @@ class AppState extends ChangeNotifier {
               .map((e) => e as String));
       companionSkin = (m['companionSkin'] as String?) ?? 'classic';
       companionAccessory = (m['companionAccessory'] as String?) ?? 'none';
+      playerClass = (m['playerClass'] as String?) ?? 'wanderer';
       premiumSavesUsed = (m['premiumSavesUsed'] as int?) ?? 0;
       premiumSaveMonth = (m['premiumSaveMonth'] as String?) ?? '';
       restDays.addAll(
@@ -1620,6 +1631,7 @@ class AppState extends ChangeNotifier {
           'completedChallenges': completedChallenges.toList(),
           'companionSkin': companionSkin,
           'companionAccessory': companionAccessory,
+          'playerClass': playerClass,
           'premiumSavesUsed': premiumSavesUsed,
           'premiumSaveMonth': premiumSaveMonth,
           'restDays': restDays.toList(),
@@ -2085,6 +2097,35 @@ const List<CompanionDef> kCompanions = [
 
 CompanionDef companionByType(String t) =>
     kCompanions.firstWhere((c) => c.type == t, orElse: () => kCompanions.first);
+
+// ── Cosmetic classes (player identity; flavor only, never affects rewards) ──
+class ClassDef {
+  const ClassDef(this.id, this.name, this.tagline, this.emoji, this.color);
+  final String id;
+  final String name;
+  final String tagline;
+  final String emoji;
+  final Color color;
+}
+
+const List<ClassDef> kClasses = [
+  ClassDef('wanderer', 'Wanderer', 'Your own path — no label needed', '🧭',
+      Color(0xFF94A3B8)),
+  ClassDef('warrior', 'Warrior', 'Discipline through sheer will', '⚔️',
+      Color(0xFFF59E0B)),
+  ClassDef('mage', 'Mage', 'Progress through deep focus', '🔮',
+      Color(0xFFA855F7)),
+  ClassDef('ranger', 'Ranger', 'Steady and consistent in the wild', '🏹',
+      Color(0xFF10B981)),
+  ClassDef('healer', 'Healer', 'Growth through self-care', '✨',
+      Color(0xFF22D3EE)),
+  ClassDef('rogue', 'Rogue', 'Momentum from the shadows', '🗡️',
+      Color(0xFF64748B)),
+  ClassDef('monk', 'Monk', 'Calm, deliberate reps', '🧘', Color(0xFFFBBF24)),
+];
+
+ClassDef classById(String id) =>
+    kClasses.firstWhere((c) => c.id == id, orElse: () => kClasses.first);
 
 // ── Premium companion cosmetics (skins + accessories; purely visual) ────────
 class CompanionSkin {

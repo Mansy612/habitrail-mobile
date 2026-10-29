@@ -2307,7 +2307,7 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(0, 6, 0, 100),
+          padding: const EdgeInsets.fromLTRB(0, 6, 0, 24),
           children: [
             _todayHeader(context),
             const SizedBox(height: 16),

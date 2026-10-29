@@ -2380,11 +2380,9 @@ class DashboardScreen extends StatelessWidget {
             _CoachCard(),
             _ChallengeTodayCard(),
             _VictoryCard(),
-            _CompanionCard(),
             _NutritionCard(),
             _BossCard(),
             _QuestsPanel(),
-            _PrestigeCard(),
           ],
         ),
       ),
@@ -6612,6 +6610,31 @@ class ProgressScreen extends StatefulWidget {
 
 class _ProgressScreenState extends State<ProgressScreen> {
   int _seg = 0;
+
+  // Compact entry to a game system (Prestige / Leaderboard).
+  Widget _progLink(BuildContext context, IconData icon, String label,
+      Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: HrColors.surface,
+          borderRadius: BorderRadius.circular(HrRadius.md),
+          border: Border.all(color: HrColors.hairline),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 6),
+          Text(label,
+              style: HrText.caption.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -6645,6 +6668,27 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   ),
                 ],
               ),
+            ),
+            const _CompanionCard(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  HrSpace.gutter, 0, HrSpace.gutter, 10),
+              child: Row(children: [
+                Expanded(
+                  child: _progLink(
+                      context,
+                      Icons.auto_awesome_rounded,
+                      'Prestige',
+                      HrColors.gold,
+                      () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const PrestigeScreen()))),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _progLink(context, Icons.leaderboard_rounded,
+                      'Leaderboard', HrColors.accent, () => shellTab.value = 3),
+                ),
+              ]),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -11375,6 +11419,30 @@ class CompanionsScreen extends StatelessWidget {
 }
 
 // ── PRESTIGE & SEASONS ───────────────────────────────────────────────────────
+// Prestige's home in the Progress tab's progression hub.
+class PrestigeScreen extends StatelessWidget {
+  const PrestigeScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: HrColors.text,
+        elevation: 0,
+        title: Text('Prestige', style: HrText.title2),
+      ),
+      body: ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => ListView(
+          padding: const EdgeInsets.fromLTRB(0, 8, 0, 28),
+          children: const [_PrestigeCard()],
+        ),
+      ),
+    );
+  }
+}
+
 class _PrestigeCard extends StatelessWidget {
   const _PrestigeCard();
   @override

@@ -49,3 +49,6 @@ app.*.map.json
 
 # Local Supabase credentials (passed via --dart-define-from-file). Never commit.
 supabase.config.json
+
+# Supabase CLI local state
+supabase/.temp/

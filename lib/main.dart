@@ -8,7 +8,8 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, kDebugMode, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:flutter/services.dart'
+    show HapticFeedback, Clipboard, ClipboardData;
 import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
@@ -4444,6 +4445,396 @@ String _fmtDue(String key) {
   return d == null ? key : '${_kMonths[d.month - 1]} ${d.day}';
 }
 
+// ── Parties (co-op) ──────────────────────────────────────────────────────────
+String _partyWeekKey() {
+  final now = DateTime.now();
+  final mon = DateTime(now.year, now.month, now.day)
+      .subtract(Duration(days: now.weekday - 1));
+  return dateKey(mon);
+}
+
+class PartyScreen extends StatefulWidget {
+  const PartyScreen({super.key});
+  @override
+  State<PartyScreen> createState() => _PartyScreenState();
+}
+
+class _PartyScreenState extends State<PartyScreen> {
+  final _nameCtrl = TextEditingController();
+  final _codeCtrl = TextEditingController();
+  Map<String, dynamic>? _party;
+  List<Map<String, dynamic>> _members = const [];
+  bool _loading = true;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _codeCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    if (mounted) setState(() => _loading = true);
+    final p = await myParty();
+    final m = p == null
+        ? const <Map<String, dynamic>>[]
+        : await partyMembers(p['id'].toString());
+    if (!mounted) return;
+    setState(() {
+      _party = p;
+      _members = m;
+      _loading = false;
+    });
+  }
+
+  Future<void> _create() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final p = await createParty(_nameCtrl.text);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (p == null) {
+      hrToast(context, "Couldn't create the party — try again.",
+          icon: Icons.error_outline_rounded);
+    } else {
+      _nameCtrl.clear();
+      await _load();
+    }
+  }
+
+  Future<void> _join() async {
+    if (_busy) return;
+    if (_codeCtrl.text.trim().isEmpty) return;
+    setState(() => _busy = true);
+    final p = await joinParty(_codeCtrl.text);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (p == null) {
+      hrToast(context, 'No party found for that code.',
+          icon: Icons.info_outline_rounded);
+    } else {
+      _codeCtrl.clear();
+      await _load();
+    }
+  }
+
+  Future<void> _leave() async {
+    final p = _party;
+    if (p == null) return;
+    final owner = p['owner_id'] == currentUserId;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HrColors.surface,
+        title: Text(owner ? 'Disband party?' : 'Leave party?',
+            style: HrText.title2),
+        content: Text(
+            owner
+                ? 'You own this party — leaving disbands it for everyone.'
+                : 'You can rejoin later with the invite code.',
+            style: HrText.bodyS),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: HrText.caption)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(owner ? 'Disband' : 'Leave',
+                  style: HrText.body.copyWith(color: HrColors.dangerText))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await leaveParty(p['id'].toString());
+    await _load();
+  }
+
+  Future<void> _setGoal() async {
+    final p = _party;
+    if (p == null) return;
+    final ctrl =
+        TextEditingController(text: ((p['goal_target'] ?? 0)).toString());
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HrColors.surface,
+        title: Text('Weekly party goal', style: HrText.title2),
+        content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Combined XP the party aims to earn this week.',
+                  style: HrText.bodyS),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: ctrl,
+                  keyboardType: TextInputType.number,
+                  style: HrText.body,
+                  decoration: _taskField('Target XP', 'e.g. 1000')),
+            ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: HrText.caption)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Save',
+                  style: HrText.body.copyWith(color: HrColors.accent))),
+        ],
+      ),
+    );
+    final target = int.tryParse(ctrl.text.trim()) ?? 0;
+    ctrl.dispose();
+    if (ok != true) return;
+    final updated =
+        await setPartyGoal(p['id'].toString(), target, _partyWeekKey());
+    if (updated != null) await _load();
+  }
+
+  int _memberGain(Map<String, dynamic> m) {
+    final cur = (m['total_xp'] as num?)?.toInt() ?? 0;
+    final base = (m['xp_baseline'] as num?)?.toInt() ?? 0;
+    return (cur - base).clamp(0, 1 << 30);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: HrColors.text,
+        elevation: 0,
+        title: Text('Party', style: HrText.title2),
+      ),
+      body: _body(context),
+    );
+  }
+
+  Widget _body(BuildContext context) {
+    if (!backendEnabled || currentUserId == null) {
+      return _centered(Icons.groups_rounded, 'Parties need an account',
+          'Sign in or create an account (You → Account) to start a party and invite friends to a shared weekly goal.');
+    }
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    if (_party == null) return _noParty(context);
+    return _partyView(context);
+  }
+
+  Widget _centered(IconData icon, String title, String body) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 40, color: HrColors.text3),
+            const SizedBox(height: 14),
+            Text(title, style: HrText.title2, textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text(body,
+                style: HrText.bodyS.copyWith(color: HrColors.text2),
+                textAlign: TextAlign.center),
+          ]),
+        ),
+      );
+
+  Widget _noParty(BuildContext context) => ListView(
+        padding:
+            const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 28),
+        children: [
+          HrCard(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                const HrLabel('Start a party'),
+                const SizedBox(height: 10),
+                TextField(
+                    controller: _nameCtrl,
+                    style: HrText.body,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: _taskField('Party name', 'e.g. Morning Crew')),
+                const SizedBox(height: 12),
+                HrButton(
+                    label: 'Create party',
+                    icon: Icons.add_rounded,
+                    loading: _busy,
+                    onPressed: _busy ? null : _create),
+              ])),
+          const SizedBox(height: 14),
+          HrCard(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                const HrLabel('Join with a code'),
+                const SizedBox(height: 10),
+                TextField(
+                    controller: _codeCtrl,
+                    style: HrText.body,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: _taskField('Invite code', 'e.g. 4F9A2C')),
+                const SizedBox(height: 12),
+                HrButton(
+                    label: 'Join party',
+                    icon: Icons.login_rounded,
+                    kind: HrButtonKind.secondary,
+                    loading: _busy,
+                    onPressed: _busy ? null : _join),
+              ])),
+        ],
+      );
+
+  Widget _partyView(BuildContext context) {
+    final p = _party!;
+    final owner = p['owner_id'] == currentUserId;
+    final code = (p['invite_code'] ?? '').toString();
+    final target = (p['goal_target'] as num?)?.toInt() ?? 0;
+    final gained = _members.fold<int>(0, (a, m) => a + _memberGain(m));
+    final pct = target > 0 ? (gained / target).clamp(0.0, 1.0) : 0.0;
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding:
+            const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 28),
+        children: [
+          HrCard(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Row(children: [
+                  Icon(Icons.groups_rounded, color: HrColors.accent, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: Text((p['name'] ?? 'Party').toString(),
+                          style: HrText.title2,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis)),
+                  Text(
+                      '${_members.length} member${_members.length == 1 ? '' : 's'}',
+                      style: HrText.caption),
+                ]),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: code));
+                    hrToast(context, 'Invite code copied',
+                        icon: Icons.copy_rounded);
+                  },
+                  borderRadius: BorderRadius.circular(HrRadius.sm),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                        color: HrColors.surface2,
+                        borderRadius: BorderRadius.circular(HrRadius.sm)),
+                    child: Row(children: [
+                      Text('Invite code', style: HrText.caption),
+                      const Spacer(),
+                      Text(code,
+                          style: HrText.headline.copyWith(letterSpacing: 2)),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.copy_rounded,
+                          size: 16, color: HrColors.text3),
+                    ]),
+                  ),
+                ),
+              ])),
+          const SizedBox(height: 14),
+          HrCard(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Row(children: [
+                  Icon(Icons.flag_rounded, color: HrColors.accent, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: Text('Weekly party goal', style: HrText.headline)),
+                  if (owner) _secondaryPill(target > 0 ? 'Edit' : 'Set', _setGoal),
+                ]),
+                const SizedBox(height: 10),
+                if (target > 0) ...[
+                  Row(children: [
+                    Text('$gained of $target XP',
+                        style: HrText.bodyS.copyWith(color: HrColors.text2)),
+                    const Spacer(),
+                    Text('${(pct * 100).round()}%', style: HrText.caption),
+                  ]),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(HrRadius.full),
+                    child: LinearProgressIndicator(
+                        value: pct,
+                        minHeight: 8,
+                        backgroundColor: HrColors.surface3,
+                        valueColor: AlwaysStoppedAnimation(HrColors.accent)),
+                  ),
+                ] else
+                  Text(
+                      owner
+                          ? 'Set a combined weekly XP target for the party.'
+                          : "The owner hasn't set a goal yet.",
+                      style: HrText.bodyS.copyWith(color: HrColors.text2)),
+              ])),
+          const SizedBox(height: 14),
+          const HrLabel('Members'),
+          const SizedBox(height: 8),
+          HrCard(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Column(children: _members.map(_memberRow).toList())),
+          const SizedBox(height: 18),
+          Center(
+              child: TextButton(
+                  onPressed: _leave,
+                  child: Text(owner ? 'Disband party' : 'Leave party',
+                      style:
+                          HrText.caption.copyWith(color: HrColors.dangerText)))),
+        ],
+      ),
+    );
+  }
+
+  Widget _memberRow(Map<String, dynamic> m) {
+    final name = (m['name'] ?? m['username'] ?? 'Player').toString();
+    final xp = (m['total_xp'] as num?)?.toInt() ?? 0;
+    final streak = (m['streak'] as num?)?.toInt() ?? 0;
+    final ld = levelFromXp(xp);
+    final gain = _memberGain(m);
+    final isMe = m['id'] == currentUserId;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      child: Row(children: [
+        Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              Row(children: [
+                Flexible(
+                    child: Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: HrText.body.copyWith(fontWeight: FontWeight.w700))),
+                if (isMe) ...[
+                  const SizedBox(width: 6),
+                  Text('you',
+                      style: HrText.micro.copyWith(color: HrColors.accent)),
+                ],
+              ]),
+              const SizedBox(height: 2),
+              Text('Lv ${ld.level} · +$gain XP this week',
+                  style: HrText.caption),
+            ])),
+        if (streak > 0) StreakPill(count: streak, quiet: true),
+      ]),
+    );
+  }
+}
+
 // ── MOMENTS: shared celebration dialog ──────────────────────────────────────
 void _showMoment(
   BuildContext context, {
@@ -6427,6 +6818,26 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     children: [
                       Text('Friends', style: HrText.display),
                       const Spacer(),
+                      Tooltip(
+                        message: 'Party',
+                        child: Material(
+                          color: HrColors.surface2,
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const PartyScreen())),
+                            child: const SizedBox(
+                              width: 38,
+                              height: 38,
+                              child: Icon(Icons.groups_rounded,
+                                  color: HrColors.text, size: 20),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Tooltip(
                         message: 'Add a friend',
                         child: Material(

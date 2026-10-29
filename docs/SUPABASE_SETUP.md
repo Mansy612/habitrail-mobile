@@ -58,6 +58,16 @@ create policy "remove own friendships"
   on public.friendships for delete to authenticated using (auth.uid() = user_id);
 ```
 
+## 2b. Parties (co-op) — optional
+
+Adds parties: a small group with an invite code and a shared weekly XP goal.
+Run the SQL in `supabase/migrations/20261029000000_parties.sql` in the SQL
+editor (or `supabase db push`). It creates `parties` + `party_members` with RLS
+on, and SECURITY DEFINER functions (`create_party`, `join_party`, `leave_party`,
+`my_party`, `party_members_info`, `set_party_goal`) that enforce
+membership/ownership. Until you run it, the app's Party screen shows a friendly
+"needs an account / coming soon" state and nothing else breaks.
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

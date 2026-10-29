@@ -312,3 +312,74 @@ Future<List<Map<String, dynamic>>> fetchSuggestionProfiles(
     return const [];
   }
 }
+
+// ── Parties (co-op) ──────────────────────────────────────────────────────────
+// All calls go through SECURITY DEFINER RPCs (see
+// supabase/migrations/..._parties.sql); they no-op when the backend is off.
+
+/// Create a party; returns the new party row, or null on failure / backend off.
+Future<Map<String, dynamic>?> createParty(String name) async {
+  if (!backendEnabled) return null;
+  try {
+    final r = await _sb.rpc('create_party', params: {'p_name': name});
+    return r is Map ? r.cast<String, dynamic>() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Join a party by invite code; returns the party row, or null if not found.
+Future<Map<String, dynamic>?> joinParty(String code) async {
+  if (!backendEnabled) return null;
+  try {
+    final r = await _sb.rpc('join_party', params: {'p_code': code});
+    return r is Map ? r.cast<String, dynamic>() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+Future<void> leaveParty(String partyId) async {
+  if (!backendEnabled) return;
+  try {
+    await _sb.rpc('leave_party', params: {'p_id': partyId});
+  } catch (_) {}
+}
+
+/// The caller's current party row, or null when they're not in one.
+Future<Map<String, dynamic>?> myParty() async {
+  if (!backendEnabled) return null;
+  try {
+    final r = await _sb.rpc('my_party');
+    if (r is List) {
+      return r.isEmpty ? null : (r.first as Map).cast<String, dynamic>();
+    }
+    return r is Map ? r.cast<String, dynamic>() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Member profiles (+ xp_baseline) for a party the caller belongs to.
+Future<List<Map<String, dynamic>>> partyMembers(String partyId) async {
+  if (!backendEnabled) return const [];
+  try {
+    final r = await _sb.rpc('party_members_info', params: {'p_id': partyId});
+    return (r as List).cast<Map<String, dynamic>>();
+  } catch (_) {
+    return const [];
+  }
+}
+
+/// Owner-only: set the shared weekly XP goal (rebaselines everyone to now).
+Future<Map<String, dynamic>?> setPartyGoal(
+    String partyId, int target, String week) async {
+  if (!backendEnabled) return null;
+  try {
+    final r = await _sb.rpc('set_party_goal',
+        params: {'p_id': partyId, 'p_target': target, 'p_week': week});
+    return r is Map ? r.cast<String, dynamic>() : null;
+  } catch (_) {
+    return null;
+  }
+}

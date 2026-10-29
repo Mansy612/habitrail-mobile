@@ -850,23 +850,25 @@ class HrTabBar extends StatelessWidget {
                             i == index ? hrTabs[i].activeIcon : hrTabs[i].icon,
                             key: ValueKey(i == index),
                             size: 26,
-                            color: i == index ? HrColors.text : HrColors.text3,
+                            color: i == index ? HrColors.accent : HrColors.text3,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
                           hrTabs[i].label,
                           style: HrText.micro.copyWith(
-                            color: i == index ? HrColors.text : HrColors.text3,
+                            color: i == index ? HrColors.accent : HrColors.text3,
+                            fontWeight:
+                                i == index ? FontWeight.w700 : FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         AnimatedContainer(
                           duration: HrMotion.of(context, HrMotion.base),
-                          width: 4,
-                          height: 4,
+                          width: i == index ? 18 : 4,
+                          height: 3,
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(2),
                             color: i == index
                                 ? HrColors.accent
                                 : Colors.transparent,

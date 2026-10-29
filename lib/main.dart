@@ -4466,15 +4466,20 @@ class _PartyScreenState extends State<PartyScreen> {
   List<Map<String, dynamic>> _members = const [];
   bool _loading = true;
   bool _busy = false;
+  Timer? _tick;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Near-real-time member progress: quietly refresh the roster while open.
+    _tick = Timer.periodic(
+        const Duration(seconds: 12), (_) => _refreshMembers());
   }
 
   @override
   void dispose() {
+    _tick?.cancel();
     _nameCtrl.dispose();
     _codeCtrl.dispose();
     super.dispose();
@@ -4492,6 +4497,15 @@ class _PartyScreenState extends State<PartyScreen> {
       _members = m;
       _loading = false;
     });
+  }
+
+  // Quiet roster + stats refresh (no spinner), driven by the periodic tick.
+  Future<void> _refreshMembers() async {
+    final p = _party;
+    if (p == null) return;
+    final m = await partyMembers(p['id'].toString());
+    if (!mounted) return;
+    setState(() => _members = m);
   }
 
   Future<void> _create() async {

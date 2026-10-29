@@ -9990,6 +9990,8 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
   Timer? debounce;
   int reqSeq = 0; // drops stale async results from earlier keystrokes
   String icon = existing?.icon ?? '';
+  // The AI auto-picks an emoji from the name; a manual tap on the grid locks it.
+  bool iconManual = existing != null && existing.icon.isNotEmpty;
   int? reminderMinutes = existing?.reminderMinutes; // daily reminder time
   const emojis = [
     '💧',
@@ -10023,9 +10025,19 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
         void analyze(String name) {
           debounce?.cancel();
           final instant = heuristicVerdict(name);
-          if (name.trim().isEmpty || !appState.aiEnabled) {
+          final trimmed = name.trim();
+          if (trimmed.isEmpty) {
             setLocal(() {
               verdict = instant;
+              analyzing = false;
+            });
+            return;
+          }
+          // AI off: still auto-assign a fitting emoji via the keyword heuristic.
+          if (!appState.aiEnabled) {
+            setLocal(() {
+              verdict = instant;
+              if (!iconManual) icon = heuristicEmoji(trimmed);
               analyzing = false;
             });
             return;
@@ -10033,18 +10045,32 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
           final seq = ++reqSeq;
           setLocal(() {
             verdict = instant;
+            if (!iconManual && icon.isEmpty) icon = heuristicEmoji(trimmed);
             analyzing = true;
           });
           debounce = Timer(const Duration(milliseconds: 650), () async {
-            final v = await classifyDifficulty(
+            // Classify difficulty and pick an emoji concurrently; the emoji
+            // call is skipped once the user has locked one manually.
+            final fv = classifyDifficulty(
               name,
               enabled: appState.aiEnabled,
               baseUrl: appState.aiBaseUrl,
               model: appState.aiModel,
             );
+            final fe = iconManual
+                ? Future<String>.value('')
+                : aiHabitEmoji(
+                    name,
+                    enabled: appState.aiEnabled,
+                    baseUrl: appState.aiBaseUrl,
+                    model: appState.aiModel,
+                  );
+            final v = await fv;
+            final e = await fe;
             if (!ctx.mounted || seq != reqSeq) return;
             setLocal(() {
               verdict = v;
+              if (!iconManual && e.isNotEmpty) icon = e;
               analyzing = false;
             });
           });
@@ -10117,7 +10143,10 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
                 children: emojis.map((e) {
                   final sel = e == icon;
                   return GestureDetector(
-                    onTap: () => setLocal(() => icon = sel ? '' : e),
+                    onTap: () => setLocal(() {
+                    icon = sel ? '' : e;
+                    iconManual = true;
+                  }),
                     child: Container(
                       width: 42,
                       height: 42,

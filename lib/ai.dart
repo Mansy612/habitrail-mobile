@@ -186,6 +186,134 @@ Future<DifficultyVerdict> classifyDifficulty(
   }
 }
 
+// ── Habit emoji ───────────────────────────────────────────────────────────────
+
+const _emojiSystemPrompt =
+    'You pick ONE emoji that best represents a habit. Reply with JSON only: '
+    '{"emoji":"<one emoji>"}. Exactly one emoji, no words, no explanation. '
+    'Examples: "Morning run" -> {"emoji":"🏃"}; "Drink water" -> {"emoji":"💧"}; '
+    '"Read 10 pages" -> {"emoji":"📖"}.';
+
+/// A single emoji that suits [name]. Tries the remote proxy, then a local
+/// Ollama server, then a keyword heuristic — so it always returns something.
+/// Called once at habit creation (cosmetic; never in the reward path).
+Future<String> aiHabitEmoji(
+  String name, {
+  required bool enabled,
+  required String baseUrl,
+  required String model,
+  Duration timeout = const Duration(seconds: 15),
+  http.Client? client,
+}) async {
+  final trimmed = name.trim();
+  if (trimmed.isEmpty) return '';
+  if (!enabled) return heuristicEmoji(trimmed);
+
+  if (aiRemoteChat != null && client == null) {
+    try {
+      final r = await aiRemoteChat!(
+          system: _emojiSystemPrompt,
+          user: 'Habit: "$trimmed"',
+          model: model,
+          jsonFormat: true,
+          temperature: 0);
+      final e = r == null ? null : _parseEmoji(r);
+      if (e != null && e.isNotEmpty) return e;
+    } catch (_) {}
+  }
+
+  final http.Client c = client ?? http.Client();
+  try {
+    final res = await c
+        .post(
+          Uri.parse('${_root(baseUrl)}/api/chat'),
+          headers: const {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'model': model.trim().isEmpty ? kDefaultAiModel : model.trim(),
+            'stream': false,
+            'format': 'json',
+            'options': {'temperature': 0},
+            'messages': [
+              {'role': 'system', 'content': _emojiSystemPrompt},
+              {'role': 'user', 'content': 'Habit: "$trimmed"'},
+            ],
+          }),
+        )
+        .timeout(timeout);
+    if (res.statusCode != 200) return heuristicEmoji(trimmed);
+    final body = jsonDecode(utf8.decode(res.bodyBytes));
+    final content = (body is Map && body['message'] is Map)
+        ? (body['message']['content'] ?? '').toString()
+        : '';
+    final e = _parseEmoji(content);
+    return (e != null && e.isNotEmpty) ? e : heuristicEmoji(trimmed);
+  } catch (_) {
+    return heuristicEmoji(trimmed);
+  } finally {
+    if (client == null) c.close();
+  }
+}
+
+/// Pulls a single leading emoji out of a model reply (JSON `{"emoji":"…"}` or a
+/// bare emoji). Returns null when the reply is text rather than an emoji.
+String? _parseEmoji(String raw) {
+  var cand = raw.trim();
+  try {
+    final j = jsonDecode(raw);
+    if (j is Map && j['emoji'] != null) cand = j['emoji'].toString().trim();
+  } catch (_) {}
+  cand = cand.replaceAll('"', '').trim();
+  if (cand.isEmpty || cand.length > 12) return null;
+  // Must start with a symbol/emoji rune — rejects "run", sentences, etc.
+  final first = cand.runes.isEmpty ? 0 : cand.runes.first;
+  if (first < 0x2190) return null;
+  return cand;
+}
+
+/// Offline fallback: map common habit words to a fitting emoji.
+String heuristicEmoji(String name) {
+  final n = name.toLowerCase();
+  bool has(List<String> keys) => keys.any(n.contains);
+  if (has(['water', 'hydrate', 'drink'])) return '💧';
+  if (has(['read', 'book'])) return '📖';
+  if (has(['gym', 'lift', 'weight', 'strength', 'workout', 'exercise'])) {
+    return '🏋️';
+  }
+  if (has(['sleep', 'bed', 'rest'])) return '😴';
+  if (has(['meditat', 'mindful', 'breath', 'calm'])) return '🧘';
+  if (has(['run', 'jog', 'cardio'])) return '🏃';
+  if (has(['walk', 'steps', 'stroll'])) return '🚶';
+  if (has(['bike', 'cycl'])) return '🚴';
+  if (has(['swim'])) return '🏊';
+  if (has(['eat', 'meal', 'veg', 'salad', 'diet', 'nutrition', 'fruit'])) {
+    return '🥗';
+  }
+  if (has(['code', 'program', 'dev'])) return '💻';
+  if (has(['study', 'learn', 'class', 'lesson', 'homework', 'revise'])) {
+    return '🧠';
+  }
+  if (has(['write', 'journal', 'diary', 'blog'])) return '✍️';
+  if (has(['music', 'guitar', 'piano', 'instrument', 'sing', 'practice'])) {
+    return '🎸';
+  }
+  if (has(['sun', 'outside', 'nature', 'outdoor'])) return '☀️';
+  if (has(['money', 'save', 'budget', 'finance', 'invest'])) return '💰';
+  if (has(['plant', 'garden', 'grow', 'seed'])) return '🌱';
+  if (has(['smok', 'quit', 'vape'])) return '🚭';
+  if (has(['pray', 'faith', 'bible', 'quran', 'worship'])) return '🙏';
+  if (has(['clean', 'tidy', 'declutter', 'chore'])) return '🧹';
+  if (has(['teeth', 'floss', 'brush', 'dental'])) return '🦷';
+  if (has(['vitamin', 'pill', 'med', 'supplement'])) return '💊';
+  if (has(['draw', 'paint', 'art', 'sketch'])) return '🎨';
+  if (has(['language', 'spanish', 'french', 'vocab', 'duolingo'])) return '🗣️';
+  if (has(['stretch', 'yoga', 'mobility'])) return '🧘';
+  if (has(['cook', 'bake'])) return '🍳';
+  if (has(['photo', 'camera'])) return '📷';
+  if (has(['call', 'phone', 'family', 'friend'])) return '📞';
+  if (has(['work', 'task', 'focus', 'goal'])) return '🎯';
+  return '✨';
+}
+
 /// Pings the Ollama server and reports whether [model] is installed.
 Future<({bool ok, String message})> testOllama(
     String baseUrl, String model) async {

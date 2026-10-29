@@ -92,6 +92,16 @@ One shared room every signed-in user can read and post to (no joining). Run
 adds the table to the `supabase_realtime` publication for live delivery. A
 per-user rate limit / moderation is a good future addition.
 
+## 2f. Cloud backup / restore — recommended
+
+Backs up each user's full on-device save so a reinstall or new device can
+restore their progress (streaks, habits, tasks, everything) instead of losing
+it. Run `supabase/migrations/20261029040000_backups.sql`: it creates
+`user_backups` (one JSON row per user) with RLS so each user reads/writes only
+their own row. The app auto-backs-up (debounced) while signed in, restores
+automatically on sign-in when the device has no progress yet, and offers manual
+Back up / Restore in Account. Without the table it silently no-ops.
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

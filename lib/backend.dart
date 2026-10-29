@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthUser;
 
 import 'ai.dart';
 import 'auth.dart';
+import 'core.dart' show appState;
 
 // ── Supabase backend (social layer) ──────────────────────────────────────────
 //
@@ -547,5 +548,69 @@ Future<void> Function()? subscribeGlobalMessages(
     };
   } catch (_) {
     return null;
+  }
+}
+
+// ── Cloud backup / restore ────────────────────────────────────────────────────
+
+Future<void> uploadBackup(Map<String, dynamic> data) async {
+  if (!backendEnabled) return;
+  final id = _uid;
+  if (id == null) return;
+  try {
+    await _sb.from('user_backups').upsert({
+      'user_id': id,
+      'data': data,
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+  } catch (_) {}
+}
+
+Future<Map<String, dynamic>?> downloadBackup() async {
+  if (!backendEnabled) return null;
+  final id = _uid;
+  if (id == null) return null;
+  try {
+    final r = await _sb
+        .from('user_backups')
+        .select('data, updated_at')
+        .eq('user_id', id)
+        .maybeSingle();
+    return r?.cast<String, dynamic>();
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Back up the full local save to the user's account.
+Future<void> backupNow() async {
+  if (!backendEnabled || _uid == null) return;
+  final save = await appState.exportSave();
+  await uploadBackup({'v': 1, 'save': save});
+  await appState.markBackedUp();
+}
+
+/// Replace the local save with the cloud backup. Returns false if none exists.
+Future<bool> restoreFromCloud() async {
+  final cloud = await downloadBackup();
+  final data = cloud?['data'];
+  if (data is Map && data['save'] is Map) {
+    await appState.importSave((data['save'] as Map).cast<String, dynamic>());
+    return true;
+  }
+  return false;
+}
+
+/// After sign-in: restore the cloud backup onto a fresh device, otherwise push
+/// this device's save up. Never overwrites existing local progress.
+Future<void> syncAfterSignIn() async {
+  if (!backendEnabled || _uid == null) return;
+  final cloud = await downloadBackup();
+  final data = cloud?['data'];
+  final hasCloud = data is Map && data['save'] is Map;
+  if (hasCloud && appState.localIsEmpty) {
+    await appState.importSave((data['save'] as Map).cast<String, dynamic>());
+  } else {
+    await backupNow();
   }
 }

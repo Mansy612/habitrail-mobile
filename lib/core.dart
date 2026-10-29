@@ -637,6 +637,7 @@ class AppState extends ChangeNotifier {
   int highestLevel = 1;
   int _prevLevel = 1;
   String displayName = 'Player';
+  String lastBackupAt = ''; // ISO8601 of the last successful cloud backup
   String lastBriefingDate = '';
   String themeId = 'violet';
   final Map<String, int> dailyScore = {}; // dateKey -> victory score
@@ -1199,6 +1200,60 @@ class AppState extends ChangeNotifier {
     _save();
   }
 
+  // ── Cloud backup (export / import the whole on-device save) ────────────────
+  /// True when this device has no meaningful progress yet — safe to restore a
+  /// cloud backup over it without losing anything.
+  bool get localIsEmpty =>
+      totalXp == 0 &&
+      perfectDays.isEmpty &&
+      reflections.isEmpty &&
+      foodLog.isEmpty &&
+      tasks.isEmpty &&
+      habits.every((h) => h.streak == 0 && h.lastCompletedDate == null);
+
+  /// The whole on-device save as {prefs-key: raw JSON string}.
+  Future<Map<String, String>> exportSave() async {
+    final prefs = await SharedPreferences.getInstance();
+    final out = <String, String>{};
+    for (final k in [
+      _habitsKey,
+      _metaKey,
+      _journalKey,
+      _foodKey,
+      _milestoneKey,
+      _tasksKey,
+    ]) {
+      final v = prefs.getString(k);
+      if (v != null) out[k] = v;
+    }
+    return out;
+  }
+
+  /// Overwrite the local save with [data] ({prefs-key: JSON string}), then
+  /// reload everything from it.
+  Future<void> importSave(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final k in [
+      _habitsKey,
+      _metaKey,
+      _journalKey,
+      _foodKey,
+      _milestoneKey,
+      _tasksKey,
+    ]) {
+      final v = data[k];
+      if (v is String) await prefs.setString(k, v);
+    }
+    await load();
+  }
+
+  /// Record a successful backup. No notify, so it can't re-trigger the
+  /// auto-backup debounce.
+  Future<void> markBackedUp() async {
+    lastBackupAt = DateTime.now().toIso8601String();
+    await _save();
+  }
+
   void resetAll() {
     habits
       ..clear()
@@ -1413,6 +1468,7 @@ class AppState extends ChangeNotifier {
       totalBossDefeats = (m['totalBossDefeats'] as int?) ?? 0;
       highestLevel = (m['highestLevel'] as int?) ?? 1;
       displayName = (m['displayName'] as String?) ?? 'Player';
+      lastBackupAt = (m['lastBackupAt'] as String?) ?? '';
       lastBriefingDate = (m['lastBriefingDate'] as String?) ?? '';
       themeId = (m['themeId'] as String?) ?? 'violet';
       final ds = m['dailyScore'];
@@ -1540,6 +1596,7 @@ class AppState extends ChangeNotifier {
           'totalBossDefeats': totalBossDefeats,
           'highestLevel': highestLevel,
           'displayName': displayName,
+          'lastBackupAt': lastBackupAt,
           'lastBriefingDate': lastBriefingDate,
           'themeId': themeId,
           'dailyScore': dailyScore,

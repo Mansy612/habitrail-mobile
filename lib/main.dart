@@ -78,9 +78,14 @@ void _startBackendSync() {
   );
   push();
   Timer? debounce;
+  Timer? backupDebounce;
   appState.addListener(() {
     debounce?.cancel();
     debounce = Timer(const Duration(seconds: 2), push);
+    // Auto-back-up the full save once activity settles (signed-in only; no-op
+    // otherwise). markBackedUp doesn't notify, so this can't loop.
+    backupDebounce?.cancel();
+    backupDebounce = Timer(const Duration(seconds: 30), () => backupNow());
   });
   auth.addListener(() {
     if (auth.isAuthed) {
@@ -472,12 +477,15 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     final err = await auth.signIn(_email.text, _pw.text);
     if (!mounted) return;
-    setState(() => _busy = false);
     if (err == null) {
+      await syncAfterSignIn(); // restore a cloud backup onto a fresh device
+      if (!mounted) return;
       final u = auth.user;
       if (u != null) appState.setDisplayName(u.name);
+      setState(() => _busy = false);
       Navigator.of(context).popUntil((r) => r.isFirst);
     } else {
+      setState(() => _busy = false);
       setState(() => _error = err);
     }
   }
@@ -523,6 +531,52 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
     );
   }
+}
+
+// Cloud backup actions + helpers used by the Account screen.
+Future<void> _backupNow(BuildContext context) async {
+  await backupNow();
+  if (context.mounted) {
+    hrToast(context, 'Backed up to your account',
+        icon: Icons.cloud_done_rounded);
+  }
+}
+
+Future<void> _confirmRestore(BuildContext context) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: HrColors.surface,
+      title: Text('Restore from cloud?', style: HrText.title2),
+      content: Text(
+          'This replaces everything on this device with your cloud backup.',
+          style: HrText.bodyS),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: HrText.caption)),
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Restore',
+                style: HrText.body.copyWith(color: HrColors.accent))),
+      ],
+    ),
+  );
+  if (ok != true) return;
+  final done = await restoreFromCloud();
+  if (context.mounted) {
+    hrToast(context, done ? 'Progress restored' : 'No backup found yet',
+        icon: done ? Icons.cloud_done_rounded : Icons.info_outline_rounded);
+  }
+}
+
+String _fmtBackup(String iso) {
+  final d = DateTime.tryParse(iso);
+  if (d == null) return 'recently';
+  final l = d.toLocal();
+  final hh = l.hour.toString().padLeft(2, '0');
+  final mm = l.minute.toString().padLeft(2, '0');
+  return '${_kMonths[l.month - 1]} ${l.day}, $hh:$mm';
 }
 
 // ── Account (signed in) ──────────────────────────────────────────────────────
@@ -643,6 +697,24 @@ class AccountScreen extends StatelessWidget {
                   'On this device for now — Supabase wires in later',
                   null,
                 ),
+              if (auth.isRemote) ...[
+                const SizedBox(height: 4),
+                _sectionLabel('BACKUP'),
+                _settingsTile(
+                  Icons.cloud_upload_rounded,
+                  'Back up now',
+                  appState.lastBackupAt.isEmpty
+                      ? 'Save your progress to your account'
+                      : 'Last backed up ${_fmtBackup(appState.lastBackupAt)}',
+                  () => _backupNow(context),
+                ),
+                _settingsTile(
+                  Icons.cloud_download_rounded,
+                  'Restore from cloud',
+                  'Replace this device with your backup',
+                  () => _confirmRestore(context),
+                ),
+              ],
               const SizedBox(height: 10),
               TextButton.icon(
                 onPressed: () => _confirmDeleteAccount(context),

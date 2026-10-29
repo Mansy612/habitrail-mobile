@@ -2840,7 +2840,7 @@ class _FiveCardState extends State<_FiveCard> {
                         ? _fmtReminder(h.reminderMinutes!)
                         : null,
                     onToggle: () => widget.onToggle(h),
-                    onEdit: () => showHabitEditor(context, h),
+                    onEdit: () => _showHabitMenu(context, h),
                   ),
                 ),
           ],
@@ -9975,6 +9975,102 @@ String _fmtReminder(int minutes) {
   return '$hh:${m.toString().padLeft(2, '0')} $period';
 }
 
+// Long-press on a habit → a compact "Edit / Delete" action sheet.
+Future<void> _showHabitMenu(BuildContext context, Habit h) async {
+  HapticFeedback.selectionClick();
+  final action = await showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: HrColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: HrColors.surface3,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
+                    style: HrText.title2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.edit_rounded, color: HrColors.accent),
+            title: Text('Edit habit', style: HrText.body),
+            onTap: () => Navigator.pop(ctx, 'edit'),
+          ),
+          ListTile(
+            leading: const Icon(
+              Icons.delete_outline_rounded,
+              color: HrColors.dangerText,
+            ),
+            title: Text(
+              'Delete habit',
+              style: HrText.body.copyWith(color: HrColors.dangerText),
+            ),
+            onTap: () => Navigator.pop(ctx, 'delete'),
+          ),
+          const SizedBox(height: 10),
+        ],
+      ),
+    ),
+  );
+  if (action == 'edit') {
+    if (context.mounted) await showHabitEditor(context, h);
+  } else if (action == 'delete') {
+    if (!context.mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HrColors.surface,
+        title: Text('Delete habit?', style: HrText.title2),
+        content: Text(
+          '"${h.name}" and its streak will be removed.',
+          style: HrText.bodyS,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: HrText.caption),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Delete',
+              style: HrText.body.copyWith(color: HrColors.dangerText),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      appState.deleteHabit(h);
+      if (context.mounted) {
+        hrToast(context, 'Habit removed', icon: Icons.delete_outline_rounded);
+      }
+    }
+  }
+}
+
 Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
   final controller = TextEditingController(text: existing?.name ?? '');
   // The current difficulty decision — the AI (or heuristic) owns this; the user
@@ -11377,22 +11473,420 @@ Future<void> _confirmPrestige(BuildContext context) async {
 }
 
 void _showPrestige(BuildContext context, int prestige) {
-  final comp = companionByType(appState.activeCompanion);
-  _showMoment(
-    context,
-    label: 'Prestige',
-    labelColor: HrColors.gold,
-    emblem: CompanionSticker(
-      icon: comp.icon,
-      color: comp.color,
-      size: 104,
-      semanticLabel: comp.name,
-    ),
-    title: 'Reborn.  ${'★' * prestige}',
-    subtitle: 'Reborn as Initiate — stronger than before. +5% XP per star.',
-    bubble: companionLine(appState.activeCompanion, 'prestige'),
-    buttonLabel: 'Rise',
+  showDialog<void>(
+    context: context,
+    builder: (_) => _PrestigeMomentDialog(prestige: prestige),
   );
+}
+
+class _PrestigeMomentDialog extends StatelessWidget {
+  const _PrestigeMomentDialog({required this.prestige});
+
+  final int prestige;
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.94, end: 1),
+          duration: const Duration(milliseconds: 480),
+          curve: Curves.easeOutBack,
+          builder: (context, scale, child) => Transform.scale(
+            scale: scale,
+            child: child,
+          ),
+          child: Container(
+            width: 368,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF23202A), Color(0xFF17171B), Color(0xFF111113)],
+                stops: [0, 0.45, 1],
+              ),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x559454FF),
+                  blurRadius: 48,
+                  spreadRadius: -6,
+                ),
+                BoxShadow(
+                  color: Colors.black54,
+                  blurRadius: 30,
+                  offset: Offset(0, 18),
+                ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                Positioned(
+                  top: -100,
+                  child: Container(
+                    width: 270,
+                    height: 230,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          Color(0x449E69FF),
+                          Color(0x0C9E69FF),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 23, 22, 22),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 18,
+                            height: 1.5,
+                            color: HrColors.gold.withValues(alpha: 0.7),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'PRESTIGE',
+                            style: HrText.labelCaps.copyWith(
+                              color: HrColors.gold,
+                              letterSpacing: 2.3,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 18,
+                            height: 1.5,
+                            color: HrColors.gold.withValues(alpha: 0.7),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _PrestigeCrest(prestige: prestige),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Reborn',
+                            style: HrText.display.copyWith(fontSize: 32),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.star_rounded,
+                            size: 29,
+                            color: HrColors.gold,
+                            shadows: const [
+                              Shadow(
+                                color: Color(0x88FFB52E),
+                                blurRadius: 14,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 11),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 15,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0x1AFFCF70),
+                          borderRadius: BorderRadius.circular(HrRadius.full),
+                          border: Border.all(
+                            color: HrColors.gold.withValues(alpha: 0.68),
+                          ),
+                        ),
+                        child: Text(
+                          'PRESTIGE ${prestige.toString().padLeft(2, '0')}',
+                          style: HrText.labelCaps.copyWith(
+                            color: const Color(0xFFFFD779),
+                            letterSpacing: 1.6,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 13),
+                      Text(
+                        'Back to Initiate—stronger than before.',
+                        textAlign: TextAlign.center,
+                        style: HrText.bodyS.copyWith(
+                          color: const Color(0xFFC1BEC9),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 15,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0x1AFFC247),
+                          borderRadius: BorderRadius.circular(HrRadius.full),
+                          border: Border.all(
+                            color: const Color(0x66FFC247),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              size: 17,
+                              color: HrColors.gold,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '+5% XP per star',
+                              style: HrText.bodyS.copyWith(
+                                color: const Color(0xFFFFD779),
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const _CompanionUpgradeCard(
+                        message: "Fresh start! Let's make this run count.",
+                      ),
+                      const SizedBox(height: 20),
+                      _PrestigeRiseButton(
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class _PrestigeCrest extends StatelessWidget {
+  const _PrestigeCrest({required this.prestige});
+
+  final int prestige;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 206,
+        height: 206,
+        child: CustomPaint(
+          painter: _PrestigeCrestPainter(prestige),
+        ),
+      );
+}
+
+class _PrestigeCrestPainter extends CustomPainter {
+  const _PrestigeCrestPainter(this.prestige);
+
+  final int prestige;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final halo = Paint()
+      ..shader = const RadialGradient(
+        colors: [Color(0x669C66FF), Color(0x229C66FF), Colors.transparent],
+        stops: [0.12, 0.58, 1],
+      ).createShader(Rect.fromCircle(center: center, radius: 100));
+    canvas.drawCircle(center, 100, halo);
+
+    final coinShadow = Paint()..color = Colors.black.withValues(alpha: 0.48);
+    canvas.drawCircle(center.translate(0, 5), 77, coinShadow);
+
+    final coin = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF48434E), Color(0xFF25232A), Color(0xFF17161B)],
+      ).createShader(Rect.fromCircle(center: center, radius: 78));
+    canvas.drawCircle(center, 77, coin);
+
+    final outerRing = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..shader = const SweepGradient(
+        colors: [
+          Color(0xFFFFE7A2),
+          Color(0xFFB86CFF),
+          Color(0xFFFFC44E),
+          Color(0xFF7245BC),
+          Color(0xFFFFE7A2),
+        ],
+        stops: [0, 0.25, 0.52, 0.78, 1],
+      ).createShader(Rect.fromCircle(center: center, radius: 77));
+    canvas.drawCircle(center, 77, outerRing);
+
+    final innerRing = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..color = Colors.white.withValues(alpha: 0.2);
+    canvas.drawCircle(center, 67, innerRing);
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(-0.35);
+    final orbit = Path()
+      ..addOval(Rect.fromCenter(center: Offset.zero, width: 188, height: 64));
+    canvas.drawPath(
+      orbit,
+      Paint()
+        ..color = const Color(0xCCB795FF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.15,
+    );
+    canvas.drawCircle(const Offset(-93, 0), 4, Paint()..color = HrColors.gold);
+    canvas.drawCircle(
+      const Offset(93, 0),
+      3.2,
+      Paint()..color = const Color(0xFFB795FF),
+    );
+    canvas.restore();
+
+    final starPoints = <Offset>[];
+    for (var i = 0; i < 16; i++) {
+      final angle = -pi / 2 + (i * pi / 8);
+      final radius = i.isEven ? 53.0 : 25.0;
+      starPoints.add(
+        Offset(
+          center.dx + cos(angle) * radius,
+          center.dy + sin(angle) * radius,
+        ),
+      );
+    }
+    final star = Path()..moveTo(starPoints.first.dx, starPoints.first.dy);
+    for (final point in starPoints.skip(1)) {
+      star.lineTo(point.dx, point.dy);
+    }
+    star.close();
+
+    canvas.drawPath(
+      star.shift(const Offset(0, 4)),
+      Paint()
+        ..color = const Color(0xAA08070B)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+    canvas.drawPath(
+      star,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFE7AA), Color(0xFFFFBE52), Color(0xFF9062E8)],
+        ).createShader(Rect.fromCircle(center: center, radius: 54)),
+    );
+
+    for (var i = 0; i < starPoints.length; i += 2) {
+      final facet = Path()
+        ..moveTo(center.dx, center.dy)
+        ..lineTo(starPoints[i].dx, starPoints[i].dy)
+        ..lineTo(starPoints[(i + 1) % starPoints.length].dx,
+            starPoints[(i + 1) % starPoints.length].dy)
+        ..close();
+      canvas.drawPath(
+        facet,
+        Paint()
+          ..color = i % 4 == 0
+              ? const Color(0x99FFF4D7)
+              : const Color(0x55845BCB),
+      );
+      canvas.drawLine(
+        center,
+        starPoints[i],
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.24)
+          ..strokeWidth = 0.8,
+      );
+    }
+    canvas.drawPath(
+      star,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = const Color(0xFFFFE2A0),
+    );
+
+    final dotAngle = -pi / 2 + ((prestige % 8) * pi / 4);
+    final dot = Offset(
+      center.dx + cos(dotAngle) * 91,
+      center.dy + sin(dotAngle) * 91,
+    );
+    canvas.drawCircle(
+      dot,
+      5.5,
+      Paint()..color = HrColors.gold.withValues(alpha: 0.25),
+    );
+    canvas.drawCircle(dot, 2.5, Paint()..color = HrColors.gold);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PrestigeCrestPainter oldDelegate) =>
+      oldDelegate.prestige != prestige;
+}
+
+class _PrestigeRiseButton extends StatelessWidget {
+  const _PrestigeRiseButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: 'Rise',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(HrRadius.full),
+            child: Ink(
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Color(0xFF7746F2), Color(0xFF9A50D0), Color(0xFFE2A83D)],
+                ),
+                borderRadius: BorderRadius.circular(HrRadius.full),
+                border: Border.all(color: const Color(0xFFFFE2A0), width: 1.2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x447E52F7),
+                    blurRadius: 20,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  'Rise',
+                  style: HrText.headline.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.2,
+                    shadows: const [
+                      Shadow(color: Colors.black38, blurRadius: 5, offset: Offset(0, 1)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 void _showSeasonIntro(BuildContext context) {

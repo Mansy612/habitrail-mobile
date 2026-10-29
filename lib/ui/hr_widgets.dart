@@ -141,12 +141,14 @@ class HrCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.color,
     this.onTap,
+    this.onLongPress,
     super.key,
   });
   final Widget child;
   final EdgeInsets padding;
   final Color? color;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   static BoxDecoration decoration({
     Color? color,
@@ -164,20 +166,23 @@ class HrCard extends StatelessWidget {
       decoration: decoration(color: color),
       child: child,
     );
-    return onTap == null
+    return (onTap == null && onLongPress == null)
         ? box
-        : _Pressable(onTap: onTap!, scale: 0.98, child: box);
+        : _Pressable(
+            onTap: onTap, onLongPress: onLongPress, scale: 0.98, child: box);
   }
 }
 
 class _Pressable extends StatefulWidget {
   const _Pressable({
     required this.child,
-    required this.onTap,
+    this.onTap,
+    this.onLongPress,
     this.scale = 0.97,
   });
   final Widget child;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final double scale;
   @override
   State<_Pressable> createState() => _PressableState();
@@ -191,6 +196,7 @@ class _PressableState extends State<_Pressable> {
         onTapUp: (_) => setState(() => _down = false),
         onTapCancel: () => setState(() => _down = false),
         onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
     child: AnimatedScale(
       scale: _down ? widget.scale : 1,
       duration: HrMotion.of(context, HrMotion.fast),

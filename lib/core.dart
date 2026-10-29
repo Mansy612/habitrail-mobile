@@ -1929,6 +1929,28 @@ class AppState extends ChangeNotifier {
     _afterAction();
   }
 
+  void updateReflection(Reflection old, String text,
+      {int day = 0, int energy = 0, int mood = 0, int focus = 0}) {
+    final i = reflections.indexOf(old);
+    if (i < 0) return;
+    reflections[i] = Reflection(
+      date: old.date,
+      text: text,
+      day: day,
+      energy: energy,
+      mood: mood,
+      focus: focus,
+    );
+    notifyListeners();
+    _save();
+  }
+
+  void deleteReflection(Reflection r) {
+    reflections.remove(r);
+    notifyListeners();
+    _save();
+  }
+
   void addFood(String name, double cal, double p, double c, double f) {
     foodLog.insert(
         0,

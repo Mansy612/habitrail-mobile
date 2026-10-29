@@ -9321,6 +9321,91 @@ Widget _journalRatingChip(String label, int value) {
   );
 }
 
+// Long-press a journal entry → Edit / Delete.
+Future<void> _showJournalMenu(BuildContext context, Reflection r) async {
+  HapticFeedback.selectionClick();
+  final action = await showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: HrColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: HrColors.surface3,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
+            child: Row(children: [
+              Expanded(
+                child: Text(_journalDate(r.date),
+                    style: HrText.title2,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ]),
+          ),
+          ListTile(
+            leading: Icon(Icons.edit_rounded, color: HrColors.accent),
+            title: Text('Edit reflection', style: HrText.body),
+            onTap: () => Navigator.pop(ctx, 'edit'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline_rounded,
+                color: HrColors.dangerText),
+            title: Text('Delete reflection',
+                style: HrText.body.copyWith(color: HrColors.dangerText)),
+            onTap: () => Navigator.pop(ctx, 'delete'),
+          ),
+          const SizedBox(height: 10),
+        ],
+      ),
+    ),
+  );
+  if (action == 'edit') {
+    if (context.mounted) await showAddReflection(context, existing: r);
+  } else if (action == 'delete') {
+    if (!context.mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HrColors.surface,
+        title: Text('Delete reflection?', style: HrText.title2),
+        content: Text('This removes the entry for ${_journalDate(r.date)}.',
+            style: HrText.bodyS),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: HrText.caption),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Delete',
+                style: HrText.body.copyWith(color: HrColors.dangerText)),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      appState.deleteReflection(r);
+      if (context.mounted) {
+        hrToast(context, 'Reflection deleted',
+            icon: Icons.delete_outline_rounded);
+      }
+    }
+  }
+}
+
 class JournalScreen extends StatelessWidget {
   const JournalScreen({this.embedded = false, super.key});
   final bool embedded;
@@ -9369,6 +9454,7 @@ class JournalScreen extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: HrCard(
+                onLongPress: () => _showJournalMenu(context, r),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -10204,9 +10290,13 @@ Widget _ratingChip(DifficultyVerdict v, bool analyzing) {
   );
 }
 
-Future<void> showAddReflection(BuildContext context) async {
-  final controller = TextEditingController();
-  int day = 0, energy = 0, mood = 0, focus = 0;
+Future<void> showAddReflection(BuildContext context,
+    {Reflection? existing}) async {
+  final controller = TextEditingController(text: existing?.text ?? '');
+  int day = existing?.day ?? 0,
+      energy = existing?.energy ?? 0,
+      mood = existing?.mood ?? 0,
+      focus = existing?.focus ?? 0;
 
   // A labelled 1–10 picker; the chosen number fills with a score-graded colour.
   Widget ratingRow(
@@ -10276,7 +10366,8 @@ Future<void> showAddReflection(BuildContext context) async {
                   ),
                 ),
               ),
-              Text('Reflect on today', style: HrText.title2),
+              Text(existing == null ? 'Reflect on today' : 'Edit reflection',
+                  style: HrText.title2),
               const SizedBox(height: 4),
               Text('Rate your day 1–10, then jot a note.',
                   style: HrText.caption),
@@ -10296,7 +10387,9 @@ Future<void> showAddReflection(BuildContext context) async {
               ),
               const SizedBox(height: 16),
               HrButton(
-                label: 'Save reflection · +20 XP',
+                label: existing == null
+                    ? 'Save reflection · +20 XP'
+                    : 'Save changes',
                 icon: Icons.check_rounded,
                 kind: HrButtonKind.accent,
                 onPressed: () => Navigator.pop(ctx, true),
@@ -10310,7 +10403,12 @@ Future<void> showAddReflection(BuildContext context) async {
   );
   if (saved == true) {
     final t = controller.text.trim();
-    if (t.isNotEmpty || day > 0 || energy > 0 || mood > 0 || focus > 0) {
+    final hasContent =
+        t.isNotEmpty || day > 0 || energy > 0 || mood > 0 || focus > 0;
+    if (existing != null) {
+      appState.updateReflection(existing, t,
+          day: day, energy: energy, mood: mood, focus: focus);
+    } else if (hasContent) {
       appState.addReflection(t,
           day: day, energy: energy, mood: mood, focus: focus);
     }

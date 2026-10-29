@@ -9539,7 +9539,6 @@ class _JournalScreenState extends State<JournalScreen> {
               padding: const EdgeInsets.only(bottom: 11),
               child: _JournalEntryCard(
                 reflection: r,
-                score: appState.dailyScore[r.date],
                 onMenu: () => _showJournalMenu(context, r),
               ),
             ),
@@ -9676,12 +9675,10 @@ class _TodayReflectionCard extends StatelessWidget {
 class _JournalEntryCard extends StatelessWidget {
   const _JournalEntryCard({
     required this.reflection,
-    required this.score,
     required this.onMenu,
   });
 
   final Reflection reflection;
-  final int? score;
   final VoidCallback onMenu;
 
   @override
@@ -9700,6 +9697,11 @@ class _JournalEntryCard extends StatelessWidget {
       (label: 'Mood', value: reflection.mood, icon: moodIcon, color: moodColor),
       (label: 'Focus', value: reflection.focus, icon: Icons.center_focus_strong_rounded, color: const Color(0xFFAD91FF)),
     ].where((metric) => metric.value > 0).toList();
+    // Journal score = the four self-ratings, each /10, summed out of 40.
+    final ratingScore =
+        reflection.day + reflection.energy + reflection.mood + reflection.focus;
+    final rated = metrics.isNotEmpty;
+    final scoreColor = HrColors.victory((ratingScore / 40 * 100).round());
 
     return Container(
       padding: const EdgeInsets.fromLTRB(15, 12, 12, 14),
@@ -9736,25 +9738,24 @@ class _JournalEntryCard extends StatelessWidget {
                 Icon(moodIcon, color: moodColor, size: 19),
               ],
               const Spacer(),
-              if (score != null)
+              if (rated)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                   decoration: BoxDecoration(
-                    color: HrColors.victory(score!).withValues(alpha: 0.12),
+                    color: scoreColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(HrRadius.full),
-                    border: Border.all(
-                        color: HrColors.victory(score!).withValues(alpha: 0.25)),
+                    border:
+                        Border.all(color: scoreColor.withValues(alpha: 0.25)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.star_rounded,
-                          color: HrColors.victory(score!), size: 14),
+                      Icon(Icons.star_rounded, color: scoreColor, size: 14),
                       const SizedBox(width: 3),
                       Text(
-                        'Score $score',
+                        'Score $ratingScore/40',
                         style: HrText.micro.copyWith(
-                          color: HrColors.victory(score!),
+                          color: scoreColor,
                           fontWeight: FontWeight.w800,
                         ),
                       ),

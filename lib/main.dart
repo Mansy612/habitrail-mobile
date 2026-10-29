@@ -5019,6 +5019,400 @@ class _PartyChatScreenState extends State<PartyChatScreen> {
   }
 }
 
+// ── Guilds (public groups) ───────────────────────────────────────────────────
+class GuildsScreen extends StatefulWidget {
+  const GuildsScreen({super.key});
+  @override
+  State<GuildsScreen> createState() => _GuildsScreenState();
+}
+
+class _GuildsScreenState extends State<GuildsScreen> {
+  int _seg = 0;
+  final _searchCtrl = TextEditingController();
+  List<Map<String, dynamic>> _discover = const [];
+  List<Map<String, dynamic>> _mine = const [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    if (mounted) setState(() => _loading = true);
+    final d = await discoverGuilds(_searchCtrl.text);
+    final m = await myGuilds();
+    if (!mounted) return;
+    setState(() {
+      _discover = d;
+      _mine = m;
+      _loading = false;
+    });
+  }
+
+  Future<void> _join(Map<String, dynamic> g) async {
+    await joinGuild(g['id'].toString());
+    await _load();
+  }
+
+  void _create() {
+    final nameCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: HrColors.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 18,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('New guild', style: HrText.title2),
+              const SizedBox(height: 16),
+              TextField(
+                  controller: nameCtrl,
+                  style: HrText.body,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: _taskField('Guild name', 'e.g. Early Risers')),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: descCtrl,
+                  style: HrText.body,
+                  maxLines: 2,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: _taskField(
+                      'Description (optional)', "What's this guild about?")),
+              const SizedBox(height: 16),
+              HrButton(
+                label: 'Create guild',
+                icon: Icons.add_rounded,
+                onPressed: () async {
+                  if (nameCtrl.text.trim().isEmpty) return;
+                  final g = await createGuild(nameCtrl.text, descCtrl.text);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  await _load();
+                  if (g != null && mounted) {
+                    setState(() => _seg = 1); // jump to My guilds
+                  }
+                },
+              ),
+            ]),
+      ),
+    ).whenComplete(() {
+      nameCtrl.dispose();
+      descCtrl.dispose();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final signedIn = backendEnabled && currentUserId != null;
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: HrColors.text,
+        elevation: 0,
+        title: Text('Guilds', style: HrText.title2),
+        actions: signedIn
+            ? [
+                IconButton(
+                    icon: const Icon(Icons.add_rounded),
+                    tooltip: 'New guild',
+                    onPressed: _create),
+              ]
+            : null,
+      ),
+      body: !signedIn
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.shield_rounded,
+                      size: 40, color: HrColors.text3),
+                  const SizedBox(height: 14),
+                  Text('Guilds need an account',
+                      style: HrText.title2, textAlign: TextAlign.center),
+                  const SizedBox(height: 8),
+                  Text(
+                      'Sign in (You → Account) to discover and join public guilds.',
+                      style: HrText.bodyS.copyWith(color: HrColors.text2),
+                      textAlign: TextAlign.center),
+                ]),
+              ),
+            )
+          : Column(children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    HrSpace.gutter, 8, HrSpace.gutter, 10),
+                child: HrSegmented(
+                    items: const ['Discover', 'My guilds'],
+                    index: _seg,
+                    onChanged: (i) => setState(() => _seg = i)),
+              ),
+              Expanded(
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : _seg == 0
+                          ? _discoverTab()
+                          : _mineTab()),
+            ]),
+    );
+  }
+
+  Widget _discoverTab() => ListView(
+        padding:
+            const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 28),
+        children: [
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _searchCtrl,
+                style: HrText.body,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _load(),
+                decoration: _taskField('Search guilds', 'by name'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+                onPressed: _load,
+                icon: const Icon(Icons.search_rounded, color: HrColors.text)),
+          ]),
+          const SizedBox(height: 12),
+          if (_discover.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: Text('No guilds yet — create the first one.',
+                  style: HrText.caption),
+            )
+          else
+            ..._discover.map((g) => _guildCard(g, showJoin: true)),
+        ],
+      );
+
+  Widget _mineTab() => _mine.isEmpty
+      ? Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Text(
+                'You haven\'t joined any guilds yet.\nFind one in Discover.',
+                style: HrText.bodyS.copyWith(color: HrColors.text3),
+                textAlign: TextAlign.center),
+          ),
+        )
+      : ListView(
+          padding:
+              const EdgeInsets.fromLTRB(HrSpace.gutter, 4, HrSpace.gutter, 28),
+          children: _mine.map((g) => _guildCard(g, showJoin: false)).toList(),
+        );
+
+  Widget _guildCard(Map<String, dynamic> g, {required bool showJoin}) {
+    final isMember = g['is_member'] == true;
+    final count = (g['member_count'] as num?)?.toInt() ?? 0;
+    final desc = (g['description'] ?? '').toString();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: HrCard(
+        onTap: () async {
+          await Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => GuildDetailScreen(
+                  guildId: g['id'].toString(),
+                  name: (g['name'] ?? 'Guild').toString(),
+                  description: desc)));
+          await _load();
+        },
+        child: Row(children: [
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: HrColors.accentSurface,
+                borderRadius: BorderRadius.circular(HrRadius.md)),
+            child: Icon(Icons.shield_rounded, color: HrColors.accent, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text((g['name'] ?? 'Guild').toString(),
+                    style: HrText.headline,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                if (desc.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(desc,
+                      style: HrText.caption,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                ],
+                const SizedBox(height: 2),
+                Text('$count member${count == 1 ? '' : 's'}',
+                    style: HrText.micro),
+              ])),
+          const SizedBox(width: 10),
+          if (showJoin && !isMember)
+            _secondaryPill('Join', () => _join(g))
+          else if (isMember)
+            _stateChip('JOINED', HrColors.accent)
+          else
+            const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+        ]),
+      ),
+    );
+  }
+}
+
+class GuildDetailScreen extends StatefulWidget {
+  const GuildDetailScreen(
+      {required this.guildId,
+      required this.name,
+      required this.description,
+      super.key});
+  final String guildId;
+  final String name;
+  final String description;
+  @override
+  State<GuildDetailScreen> createState() => _GuildDetailScreenState();
+}
+
+class _GuildDetailScreenState extends State<GuildDetailScreen> {
+  List<Map<String, dynamic>> _members = const [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final m = await guildMembers(widget.guildId);
+    if (!mounted) return;
+    setState(() {
+      _members = m;
+      _loading = false;
+    });
+  }
+
+  Future<void> _leave() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HrColors.surface,
+        title: Text('Leave guild?', style: HrText.title2),
+        content: Text('You can rejoin from Discover anytime.',
+            style: HrText.bodyS),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: HrText.caption)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Leave',
+                  style: HrText.body.copyWith(color: HrColors.dangerText))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await leaveGuild(widget.guildId);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: HrColors.text,
+        elevation: 0,
+        title: Text(widget.name, style: HrText.title2),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(
+                  HrSpace.gutter, 8, HrSpace.gutter, 28),
+              children: [
+                if (widget.description.isNotEmpty) ...[
+                  HrCard(
+                      child: Text(widget.description,
+                          style: HrText.bodyS.copyWith(color: HrColors.text2))),
+                  const SizedBox(height: 14),
+                ],
+                HrLabel('Members (${_members.length})'),
+                const SizedBox(height: 8),
+                HrCard(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: Column(children: _members.map(_row).toList()),
+                ),
+                const SizedBox(height: 18),
+                Center(
+                    child: TextButton(
+                        onPressed: _leave,
+                        child: Text('Leave guild',
+                            style: HrText.caption
+                                .copyWith(color: HrColors.dangerText)))),
+              ],
+            ),
+    );
+  }
+
+  Widget _row(Map<String, dynamic> m) {
+    final name = (m['name'] ?? m['username'] ?? 'Player').toString();
+    final xp = (m['total_xp'] as num?)?.toInt() ?? 0;
+    final streak = (m['streak'] as num?)?.toInt() ?? 0;
+    final ld = levelFromXp(xp);
+    final isMe = m['id'] == currentUserId;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      child: Row(children: [
+        Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              Row(children: [
+                Flexible(
+                    child: Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            HrText.body.copyWith(fontWeight: FontWeight.w700))),
+                if (isMe) ...[
+                  const SizedBox(width: 6),
+                  Text('you',
+                      style: HrText.micro.copyWith(color: HrColors.accent)),
+                ],
+              ]),
+              const SizedBox(height: 2),
+              Text('Lv ${ld.level} · ${levelTitle(ld.level)}',
+                  style: HrText.caption),
+            ])),
+        if (streak > 0) StreakPill(count: streak, quiet: true),
+      ]),
+    );
+  }
+}
+
 // ── MOMENTS: shared celebration dialog ──────────────────────────────────────
 void _showMoment(
   BuildContext context, {
@@ -7002,6 +7396,26 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     children: [
                       Text('Friends', style: HrText.display),
                       const Spacer(),
+                      Tooltip(
+                        message: 'Guilds',
+                        child: Material(
+                          color: HrColors.surface2,
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const GuildsScreen())),
+                            child: const SizedBox(
+                              width: 38,
+                              height: 38,
+                              child: Icon(Icons.shield_rounded,
+                                  color: HrColors.text, size: 20),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Tooltip(
                         message: 'Party',
                         child: Material(

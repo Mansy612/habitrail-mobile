@@ -439,3 +439,63 @@ Future<void> Function()? subscribePartyMessages(
     return null;
   }
 }
+
+// ── Guilds (public groups) ────────────────────────────────────────────────────
+
+Future<Map<String, dynamic>?> createGuild(String name, String desc) async {
+  if (!backendEnabled) return null;
+  try {
+    final r = await _sb
+        .rpc('create_guild', params: {'p_name': name, 'p_desc': desc});
+    return r is Map ? r.cast<String, dynamic>() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+Future<void> joinGuild(String guildId) async {
+  if (!backendEnabled) return;
+  try {
+    await _sb.rpc('join_guild', params: {'g_id': guildId});
+  } catch (_) {}
+}
+
+Future<void> leaveGuild(String guildId) async {
+  if (!backendEnabled) return;
+  try {
+    await _sb.rpc('leave_guild', params: {'g_id': guildId});
+  } catch (_) {}
+}
+
+/// Public guilds matching [query] (empty = all), with member counts.
+Future<List<Map<String, dynamic>>> discoverGuilds(String query) async {
+  if (!backendEnabled) return const [];
+  try {
+    final r = await _sb.rpc('discover_guilds', params: {'p_query': query});
+    return (r as List).cast<Map<String, dynamic>>();
+  } catch (_) {
+    return const [];
+  }
+}
+
+/// Guilds the caller belongs to.
+Future<List<Map<String, dynamic>>> myGuilds() async {
+  if (!backendEnabled) return const [];
+  try {
+    final r = await _sb.rpc('my_guilds');
+    return (r as List).cast<Map<String, dynamic>>();
+  } catch (_) {
+    return const [];
+  }
+}
+
+/// Roster (profile snapshots) for a guild.
+Future<List<Map<String, dynamic>>> guildMembers(String guildId) async {
+  if (!backendEnabled) return const [];
+  try {
+    final r = await _sb.rpc('guild_members_info', params: {'g_id': guildId});
+    return (r as List).cast<Map<String, dynamic>>();
+  } catch (_) {
+    return const [];
+  }
+}

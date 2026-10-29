@@ -76,6 +76,14 @@ RLS (members read), a `send_party_message` RPC, and adds the table to the
 `supabase_realtime` publication so new messages stream to members live. Until
 it's run, the Party chat screen just shows an empty state.
 
+## 2d. Guilds (public groups) — optional
+
+Adds discoverable public groups (you can be in many, unlike the one-party rule).
+Run `supabase/migrations/20261029020000_guilds.sql` in the SQL editor: it
+creates `guilds` + `guild_members` (RLS on) and SECURITY DEFINER RPCs
+(`create_guild`, `join_guild`, `leave_guild`, `discover_guilds`, `my_guilds`,
+`guild_members_info`). Until it's run, the Guilds screen shows an empty state.
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

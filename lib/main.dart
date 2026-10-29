@@ -2311,8 +2311,6 @@ class HomeScreen extends StatelessWidget {
           children: [
             _todayHeader(context),
             const SizedBox(height: 16),
-            const _TodayHero(),
-            const SizedBox(height: 18),
             if (appState.habits.isEmpty)
               _todayEmpty(context)
             else
@@ -2550,6 +2548,10 @@ Widget _todayHeader(BuildContext context) {
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (appState.bestStreak > 0) ...[
+              const SizedBox(width: 10),
+              StreakPill(count: appState.bestStreak, quiet: true),
+            ],
             const Spacer(),
             Text(levelTitle(ld.level), style: HrText.caption),
           ],
@@ -2655,72 +2657,6 @@ Widget _todayHeader(BuildContext context) {
   );
 }
 
-// Companion ring showing today's completion, with a speech line and streak.
-class _TodayHero extends StatelessWidget {
-  const _TodayHero();
-  @override
-  Widget build(BuildContext context) {
-    final total = appState.habits.length;
-    final done = appState.doneTodayCount;
-    final allDone = total > 0 && done == total;
-    final comp = companionByType(appState.activeCompanion);
-    final streak = appState.bestStreak;
-    final segs = total == 0 ? 1 : (total <= 12 ? total : 1);
-    final val = total == 0
-        ? 0.0
-        : (total <= 12 ? done.toDouble() : done / total);
-    final line = appState.lastCompanionLine.isNotEmpty
-        ? appState.lastCompanionLine
-        : total == 0
-        ? comp.tagline
-        : allDone
-        ? 'Perfect day. Every rail cleared.'
-        : done == 0
-        ? "Let's clear the first one."
-        : '${total - done} to go — keep the streak alive.';
-    return Column(
-      children: [
-        SizedBox(
-          height: 156,
-          child: Center(
-            child: SizedBox(
-              width: 150,
-              height: 150,
-              child: Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  SegmentedRing(
-                    size: 140,
-                    segments: segs,
-                    value: val,
-                    stroke: 9,
-                    color: HrColors.accent,
-                    center: CompanionSticker(
-                      icon: comp.icon,
-                      color: comp.color,
-                      size: 92,
-                      semanticLabel: comp.name,
-                      imageAsset: comp.imageAsset,
-                    ),
-                  ),
-                  if (streak > 0)
-                    Positioned(
-                      top: 0,
-                      right: -4,
-                      child: StreakPill(count: streak, big: true),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        SpeechBubble(line, speaker: comp.name, maxWidth: 290),
-      ],
-    );
-  }
-}
 
 // "The five" — today's habits as HabitRows, with swipe-to-delete and a
 // reorder mode. Replaces the old _HabitTile list + TODAY'S HABITS label.

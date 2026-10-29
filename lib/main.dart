@@ -3613,8 +3613,7 @@ class _ChallengeTodayCard extends StatelessWidget {
     final completed = appState.checkInChallenge();
     if (completed) {
       celebrate(context);
-      hrToast(context, 'Challenge complete! +150 coins',
-          icon: Icons.emoji_events_rounded);
+      _showChallengeComplete(context, c);
     } else {
       hrToast(context, 'Checked in — ${appState.challengeCheckInCount}/${c.days}',
           icon: Icons.check_rounded);
@@ -3746,11 +3745,11 @@ class ChallengesScreen extends StatelessWidget {
   }
 
   void _checkIn(BuildContext context) {
+    final c = appState.activeChallenge;
     final completed = appState.checkInChallenge();
     if (completed) {
       celebrate(context);
-      hrToast(context, 'Challenge complete! +150 coins',
-          icon: Icons.emoji_events_rounded);
+      _showChallengeComplete(context, c);
     } else {
       hrToast(context,
           'Checked in — ${appState.challengeCheckInCount} day'
@@ -11409,6 +11408,27 @@ void _showPrestige(BuildContext context, int prestige) {
     subtitle: 'Reborn as Initiate — stronger than before. +5% XP per star.',
     bubble: companionLine(appState.activeCompanion, 'prestige'),
     buttonLabel: 'Rise',
+  );
+}
+
+void _showChallengeComplete(BuildContext context, ChallengeDef? c) {
+  _showMoment(
+    context,
+    label: 'Challenge complete',
+    labelColor: HrColors.gold,
+    emblem: SegmentedRing(
+      size: 136,
+      segments: 1,
+      value: 1,
+      stroke: 9,
+      color: HrColors.gold,
+      center: Icon(c?.icon ?? Icons.emoji_events_rounded,
+          color: HrColors.gold, size: 52),
+    ),
+    title: c?.title ?? 'Challenge complete',
+    subtitle: '+150 coins',
+    bubble: companionLine(appState.activeCompanion, 'challenge_done'),
+    buttonLabel: 'Claim',
   );
 }
 

@@ -490,7 +490,7 @@ Future<List<Map<String, dynamic>>> myGuilds() async {
   }
 }
 
-/// Roster (profile snapshots) for a guild.
+/// Roster (profile snapshots + goal baseline) for a guild.
 Future<List<Map<String, dynamic>>> guildMembers(String guildId) async {
   if (!backendEnabled) return const [];
   try {
@@ -498,6 +498,75 @@ Future<List<Map<String, dynamic>>> guildMembers(String guildId) async {
     return (r as List).cast<Map<String, dynamic>>();
   } catch (_) {
     return const [];
+  }
+}
+
+/// Owner-only: set the guild's shared weekly XP goal (rebaselines everyone).
+Future<Map<String, dynamic>?> setGuildGoal(
+    String guildId, int target, String week) async {
+  if (!backendEnabled) return null;
+  try {
+    final r = await _sb.rpc('set_guild_goal',
+        params: {'g_id': guildId, 'p_target': target, 'p_week': week});
+    return r is Map ? r.cast<String, dynamic>() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Recent messages for a guild (oldest → newest), readable by members via RLS.
+Future<List<Map<String, dynamic>>> guildMessages(String guildId) async {
+  if (!backendEnabled) return const [];
+  try {
+    final r = await _sb
+        .from('guild_messages')
+        .select()
+        .eq('guild_id', guildId)
+        .order('created_at', ascending: false)
+        .limit(100);
+    return (r as List).cast<Map<String, dynamic>>().reversed.toList();
+  } catch (_) {
+    return const [];
+  }
+}
+
+/// Send a guild message (membership enforced server-side).
+Future<void> sendGuildMessage(String guildId, String body) async {
+  if (!backendEnabled) return;
+  try {
+    await _sb.rpc('send_guild_message',
+        params: {'g_id': guildId, 'p_body': body});
+  } catch (_) {}
+}
+
+/// Subscribe to new messages in [guildId]; returns an unsubscribe callback, or
+/// null when the backend is off / on error.
+Future<void> Function()? subscribeGuildMessages(
+    String guildId, void Function(Map<String, dynamic>) onInsert) {
+  if (!backendEnabled) return null;
+  try {
+    final ch = _sb.channel('guild-chat-$guildId');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'guild_messages',
+      filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'guild_id',
+          value: guildId),
+      callback: (payload) {
+        try {
+          onInsert(Map<String, dynamic>.from(payload.newRecord));
+        } catch (_) {}
+      },
+    ).subscribe();
+    return () async {
+      try {
+        await _sb.removeChannel(ch);
+      } catch (_) {}
+    };
+  } catch (_) {
+    return null;
   }
 }
 

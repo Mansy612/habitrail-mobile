@@ -102,6 +102,18 @@ their own row. The app auto-backs-up (debounced) while signed in, restores
 automatically on sign-in when the device has no progress yet, and offers manual
 Back up / Restore in Account. Without the table it silently no-ops.
 
+## 2g. Guild chat + weekly goal — optional
+
+Brings guilds up to parity with parties: a live chat room and a shared weekly
+XP goal. Run `supabase/migrations/20261029050000_guild_chat_goals.sql` (after
+the guilds schema). It adds `goal_target`/`goal_week` to `guilds` and
+`xp_baseline` to `guild_members`, a `set_guild_goal` RPC (owner-only,
+rebaselines members like parties), re-creates `discover_guilds`/`my_guilds`/
+`guild_members_info` to carry the owner + goal + baseline, and adds
+`guild_messages` (RLS: members read) with a `send_guild_message` RPC on the
+realtime publication. Until it's run, guild chat shows an empty state and the
+goal card stays hidden/no-op.
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

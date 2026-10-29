@@ -5306,7 +5306,10 @@ class _GuildsScreenState extends State<GuildsScreen> {
               builder: (_) => GuildDetailScreen(
                   guildId: g['id'].toString(),
                   name: (g['name'] ?? 'Guild').toString(),
-                  description: desc)));
+                  description: desc,
+                  ownerId: (g['owner_id'] ?? '').toString(),
+                  goalTarget: (g['goal_target'] as num?)?.toInt() ?? 0,
+                  goalWeek: (g['goal_week'] ?? '').toString())));
           await _load();
         },
         child: Row(children: [
@@ -5357,10 +5360,16 @@ class GuildDetailScreen extends StatefulWidget {
       {required this.guildId,
       required this.name,
       required this.description,
+      this.ownerId = '',
+      this.goalTarget = 0,
+      this.goalWeek = '',
       super.key});
   final String guildId;
   final String name;
   final String description;
+  final String ownerId;
+  final int goalTarget;
+  final String goalWeek;
   @override
   State<GuildDetailScreen> createState() => _GuildDetailScreenState();
 }
@@ -5368,10 +5377,15 @@ class GuildDetailScreen extends StatefulWidget {
 class _GuildDetailScreenState extends State<GuildDetailScreen> {
   List<Map<String, dynamic>> _members = const [];
   bool _loading = true;
+  late int _goalTarget;
+
+  bool get _isOwner =>
+      widget.ownerId.isNotEmpty && widget.ownerId == currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _goalTarget = widget.goalTarget;
     _load();
   }
 
@@ -5382,6 +5396,54 @@ class _GuildDetailScreenState extends State<GuildDetailScreen> {
       _members = m;
       _loading = false;
     });
+  }
+
+  int _memberGain(Map<String, dynamic> m) {
+    final cur = (m['total_xp'] as num?)?.toInt() ?? 0;
+    final base = (m['xp_baseline'] as num?)?.toInt() ?? 0;
+    return (cur - base).clamp(0, 1 << 30);
+  }
+
+  Future<void> _setGoal() async {
+    final ctrl = TextEditingController(text: _goalTarget.toString());
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HrColors.surface,
+        title: Text('Weekly guild goal', style: HrText.title2),
+        content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Combined XP the guild aims to earn this week.',
+                  style: HrText.bodyS),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: ctrl,
+                  keyboardType: TextInputType.number,
+                  style: HrText.body,
+                  decoration: _taskField('Target XP', 'e.g. 5000')),
+            ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: HrText.caption)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Save',
+                  style: HrText.body.copyWith(color: HrColors.accent))),
+        ],
+      ),
+    );
+    final target = int.tryParse(ctrl.text.trim()) ?? 0;
+    ctrl.dispose();
+    if (ok != true) return;
+    final updated = await setGuildGoal(widget.guildId, target, _partyWeekKey());
+    if (updated != null && mounted) {
+      setState(() =>
+          _goalTarget = (updated['goal_target'] as num?)?.toInt() ?? target);
+      await _load();
+    }
   }
 
   Future<void> _leave() async {
@@ -5410,6 +5472,8 @@ class _GuildDetailScreenState extends State<GuildDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final gained = _members.fold<int>(0, (a, m) => a + _memberGain(m));
+    final pct = _goalTarget > 0 ? (gained / _goalTarget).clamp(0.0, 1.0) : 0.0;
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
@@ -5430,6 +5494,60 @@ class _GuildDetailScreenState extends State<GuildDetailScreen> {
                           style: HrText.bodyS.copyWith(color: HrColors.text2))),
                   const SizedBox(height: 14),
                 ],
+                HrButton(
+                  label: 'Guild chat',
+                  icon: Icons.chat_bubble_outline_rounded,
+                  kind: HrButtonKind.secondary,
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => GuildChatScreen(
+                              guildId: widget.guildId, title: widget.name))),
+                ),
+                const SizedBox(height: 14),
+                HrCard(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Row(children: [
+                        Icon(Icons.flag_rounded,
+                            color: HrColors.accent, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text('Weekly guild goal',
+                                style: HrText.headline)),
+                        if (_isOwner)
+                          _secondaryPill(
+                              _goalTarget > 0 ? 'Edit' : 'Set', _setGoal),
+                      ]),
+                      const SizedBox(height: 10),
+                      if (_goalTarget > 0) ...[
+                        Row(children: [
+                          Text('$gained of $_goalTarget XP',
+                              style: HrText.bodyS
+                                  .copyWith(color: HrColors.text2)),
+                          const Spacer(),
+                          Text('${(pct * 100).round()}%',
+                              style: HrText.caption),
+                        ]),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(HrRadius.full),
+                          child: LinearProgressIndicator(
+                              value: pct,
+                              minHeight: 8,
+                              backgroundColor: HrColors.surface3,
+                              valueColor:
+                                  AlwaysStoppedAnimation(HrColors.accent)),
+                        ),
+                      ] else
+                        Text(
+                            _isOwner
+                                ? 'Set a combined weekly XP target for the guild.'
+                                : "The owner hasn't set a goal yet.",
+                            style: HrText.bodyS
+                                .copyWith(color: HrColors.text2)),
+                    ])),
+                const SizedBox(height: 14),
                 HrLabel('Members (${_members.length})'),
                 const SizedBox(height: 8),
                 HrCard(
@@ -5455,6 +5573,9 @@ class _GuildDetailScreenState extends State<GuildDetailScreen> {
     final streak = (m['streak'] as num?)?.toInt() ?? 0;
     final ld = levelFromXp(xp);
     final isMe = m['id'] == currentUserId;
+    final sub = _goalTarget > 0
+        ? 'Lv ${ld.level} · +${_memberGain(m)} XP this week'
+        : 'Lv ${ld.level} · ${levelTitle(ld.level)}';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       child: Row(children: [
@@ -5476,11 +5597,167 @@ class _GuildDetailScreenState extends State<GuildDetailScreen> {
                 ],
               ]),
               const SizedBox(height: 2),
-              Text('Lv ${ld.level} · ${levelTitle(ld.level)}',
-                  style: HrText.caption),
+              Text(sub, style: HrText.caption),
             ])),
         if (streak > 0) StreakPill(count: streak, quiet: true),
       ]),
+    );
+  }
+}
+
+// Live guild chat — mirrors party chat (RLS-protected history + realtime),
+// degrading to an empty state when the backend/chat schema isn't deployed.
+class GuildChatScreen extends StatefulWidget {
+  const GuildChatScreen({required this.guildId, required this.title, super.key});
+  final String guildId;
+  final String title;
+  @override
+  State<GuildChatScreen> createState() => _GuildChatScreenState();
+}
+
+class _GuildChatScreenState extends State<GuildChatScreen> {
+  final _ctrl = TextEditingController();
+  final _scroll = ScrollController();
+  List<Map<String, dynamic>> _msgs = const [];
+  Future<void> Function()? _unsub;
+  bool _loading = true;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final m = await guildMessages(widget.guildId);
+    if (!mounted) return;
+    setState(() {
+      _msgs = m;
+      _loading = false;
+    });
+    _toBottom();
+    _unsub = subscribeGuildMessages(widget.guildId, (row) {
+      if (!mounted) return;
+      final id = row['id']?.toString();
+      if (id != null && _msgs.any((x) => x['id']?.toString() == id)) return;
+      setState(() => _msgs = [..._msgs, row]);
+      _toBottom();
+    });
+  }
+
+  @override
+  void dispose() {
+    _unsub?.call();
+    _ctrl.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _toBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+    });
+  }
+
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    _ctrl.clear();
+    await sendGuildMessage(widget.guildId, text);
+    final m = await guildMessages(widget.guildId);
+    if (!mounted) return;
+    setState(() {
+      _msgs = m;
+      _sending = false;
+    });
+    _toBottom();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: HrColors.text,
+        elevation: 0,
+        title: Text(widget.title, style: HrText.title2),
+      ),
+      body: Column(children: [
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+              : _msgs.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text('No messages yet — say hi to your guild.',
+                            style: HrText.bodyS.copyWith(color: HrColors.text3),
+                            textAlign: TextAlign.center),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scroll,
+                      padding: const EdgeInsets.fromLTRB(
+                          HrSpace.gutter, 12, HrSpace.gutter, 12),
+                      itemCount: _msgs.length,
+                      itemBuilder: (c, i) => _bubble(_msgs[i]),
+                    ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+            child: Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _ctrl,
+                  style: HrText.body,
+                  minLines: 1,
+                  maxLines: 4,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _send(),
+                  decoration:
+                      _taskField('Message', 'Say something to your guild'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: _sending ? null : _send,
+                icon: Icon(Icons.send_rounded, color: HrColors.accent),
+              ),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _bubble(Map<String, dynamic> m) {
+    final mine = m['user_id'] == currentUserId;
+    final author = (m['author_name'] ?? 'Player').toString();
+    final body = (m['body'] ?? '').toString();
+    return Align(
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.only(
+            bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+            color: mine ? HrColors.accentSurface : HrColors.surface2,
+            borderRadius: BorderRadius.circular(HrRadius.md)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (!mine) ...[
+            Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
+            const SizedBox(height: 2),
+          ],
+          Text(body,
+              style: HrText.bodyS
+                  .copyWith(color: mine ? HrColors.text : HrColors.text2)),
+        ]),
+      ),
     );
   }
 }
@@ -9323,7 +9600,7 @@ class _LevelUpDialog extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 17),
-                    SpeechBubble(companionQuote, maxWidth: 240),
+                    _CompanionUpgradeCard(message: companionQuote),
                     const SizedBox(height: 23),
                     HrButton(
                       label: 'Continue',
@@ -9338,6 +9615,163 @@ class _LevelUpDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CompanionUpgradeCard extends StatelessWidget {
+  const _CompanionUpgradeCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF292433), Color(0xFF1B1A22)],
+          ),
+          borderRadius: BorderRadius.circular(21),
+          border: Border.all(color: const Color(0xFF8067B9).withValues(alpha: 0.8)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF9C73FF).withValues(alpha: 0.12),
+              blurRadius: 25,
+              spreadRadius: -5,
+            ),
+            const BoxShadow(
+              color: Colors.black26,
+              blurRadius: 12,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 64,
+              height: 64,
+              child: CustomPaint(painter: _UpgradeGemPainter()),
+            ),
+            const SizedBox(width: 9),
+            Container(
+              width: 1.5,
+              height: 52,
+              decoration: BoxDecoration(
+                color: HrColors.gold.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Text(
+                message,
+                style: HrText.bodyS.copyWith(
+                  color: const Color(0xFFF4F0FF),
+                  fontSize: 15,
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _UpgradeGemPainter extends CustomPainter {
+  const _UpgradeGemPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final glow = Paint()
+      ..color = const Color(0xFF9A70FF).withValues(alpha: 0.3)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 11);
+    canvas.drawCircle(center, 17, glow);
+
+    final gem = Path()
+      ..moveTo(32, 8)
+      ..lineTo(48, 25)
+      ..lineTo(32, 55)
+      ..lineTo(16, 25)
+      ..close();
+    canvas.drawPath(
+      gem,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE8DAFF), Color(0xFF9B70FF), Color(0xFF45316F)],
+        ).createShader(const Rect.fromLTWH(15, 8, 34, 48)),
+    );
+
+    final leftFacet = Path()
+      ..moveTo(32, 8)
+      ..lineTo(16, 25)
+      ..lineTo(32, 28)
+      ..close();
+    canvas.drawPath(leftFacet, Paint()..color = const Color(0xFFD9C6FF));
+
+    final topFacet = Path()
+      ..moveTo(32, 8)
+      ..lineTo(48, 25)
+      ..lineTo(32, 28)
+      ..close();
+    canvas.drawPath(topFacet, Paint()..color = const Color(0xFFBDA1FF));
+
+    final rightFacet = Path()
+      ..moveTo(48, 25)
+      ..lineTo(32, 55)
+      ..lineTo(32, 28)
+      ..close();
+    canvas.drawPath(
+      rightFacet,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF9A72F0), Color(0xFF50347F)],
+        ).createShader(const Rect.fromLTWH(31, 24, 18, 32)),
+    );
+
+    final outline = Paint()
+      ..color = const Color(0xFFE5D8FF).withValues(alpha: 0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1;
+    canvas.drawPath(gem, outline);
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(-0.48);
+    final orbit = Path()
+      ..addOval(Rect.fromCenter(center: Offset.zero, width: 58, height: 23));
+    canvas.drawPath(
+      orbit,
+      Paint()
+        ..color = HrColors.gold.withValues(alpha: 0.78)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.1,
+    );
+    canvas.drawCircle(const Offset(-28, 0), 2.5, Paint()..color = HrColors.gold);
+    canvas.drawCircle(const Offset(28, 0), 2, Paint()..color = HrColors.gold);
+    canvas.restore();
+
+    canvas.drawCircle(
+      const Offset(12, 12),
+      1.7,
+      Paint()..color = const Color(0xFFBC9DFF),
+    );
+    canvas.drawCircle(
+      const Offset(53, 49),
+      1.5,
+      Paint()..color = const Color(0xFFBC9DFF),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _UpgradeGemPainter oldDelegate) => false;
 }
 
 class _LevelUpEmblem extends StatelessWidget {

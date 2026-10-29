@@ -4575,46 +4575,46 @@ class _PartyScreenState extends State<PartyScreen> {
     await _load();
   }
 
-  Future<void> _setGoal() async {
+  Future<void> _pickQuest() async {
     final p = _party;
     if (p == null) return;
-    final ctrl =
-        TextEditingController(text: ((p['goal_target'] ?? 0)).toString());
-    final ok = await showDialog<bool>(
+    final chosen = await showModalBottomSheet<CoopQuestDef>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: HrColors.surface,
-        title: Text('Weekly party goal', style: HrText.title2),
-        content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Combined XP the party aims to earn this week.',
-                  style: HrText.bodyS),
-              const SizedBox(height: 12),
-              TextField(
-                  controller: ctrl,
-                  keyboardType: TextInputType.number,
-                  style: HrText.body,
-                  decoration: _taskField('Target XP', 'e.g. 1000')),
-            ]),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: HrText.caption)),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Save',
-                  style: HrText.body.copyWith(color: HrColors.accent))),
-        ],
+      backgroundColor: HrColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 14),
+          Text('Choose a co-op quest', style: HrText.title2),
+          const SizedBox(height: 4),
+          Text('The party fights the boss together with combined XP.',
+              style: HrText.caption, textAlign: TextAlign.center),
+          const SizedBox(height: 10),
+          ...kCoopQuests.map((q) => ListTile(
+                leading: Text(q.emoji, style: const TextStyle(fontSize: 26)),
+                title: Text(q.name, style: HrText.body),
+                subtitle: Text('${q.target} XP · +${q.reward} coins each',
+                    style: HrText.caption),
+                onTap: () => Navigator.pop(ctx, q),
+              )),
+          const SizedBox(height: 12),
+        ]),
       ),
     );
-    final target = int.tryParse(ctrl.text.trim()) ?? 0;
-    ctrl.dispose();
-    if (ok != true) return;
-    final updated =
-        await setPartyGoal(p['id'].toString(), target, _partyWeekKey());
+    if (chosen == null) return;
+    final updated = await setPartyQuest(
+        p['id'].toString(), chosen.id, chosen.target, _partyWeekKey());
     if (updated != null) await _load();
+  }
+
+  Future<void> _claimQuest(String key, int reward) async {
+    appState.claimCoopQuest(key, reward);
+    if (mounted) {
+      hrToast(context, 'Reward claimed · +$reward coins',
+          icon: Icons.emoji_events_rounded);
+    }
   }
 
   int _memberGain(Map<String, dynamic> m) {
@@ -4713,9 +4713,13 @@ class _PartyScreenState extends State<PartyScreen> {
     final p = _party!;
     final owner = p['owner_id'] == currentUserId;
     final code = (p['invite_code'] ?? '').toString();
-    final target = (p['goal_target'] as num?)?.toInt() ?? 0;
     final gained = _members.fold<int>(0, (a, m) => a + _memberGain(m));
-    final pct = target > 0 ? (gained / target).clamp(0.0, 1.0) : 0.0;
+    final questId = (p['quest_id'] ?? '').toString();
+    final quest = coopQuestById(questId);
+    final week = (p['goal_week'] ?? '').toString();
+    final claimKey = 'quest:${p['id']}:$week:$questId';
+    final claimed = appState.claimedQuests.contains(claimKey);
+    final defeated = quest != null && gained >= quest.target;
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
@@ -4780,34 +4784,64 @@ class _PartyScreenState extends State<PartyScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                 Row(children: [
-                  Icon(Icons.flag_rounded, color: HrColors.accent, size: 18),
+                  Text(quest?.emoji ?? '⚔️',
+                      style: const TextStyle(fontSize: 20)),
                   const SizedBox(width: 8),
                   Expanded(
-                      child: Text('Weekly party goal', style: HrText.headline)),
-                  if (owner) _secondaryPill(target > 0 ? 'Edit' : 'Set', _setGoal),
+                      child: Text(quest?.name ?? 'Co-op quest',
+                          style: HrText.headline,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis)),
+                  if (owner)
+                    _secondaryPill(
+                        quest == null ? 'Start' : 'Change', _pickQuest),
                 ]),
                 const SizedBox(height: 10),
-                if (target > 0) ...[
+                if (quest != null) ...[
                   Row(children: [
-                    Text('$gained of $target XP',
+                    Text('$gained / ${quest.target} XP dealt',
                         style: HrText.bodyS.copyWith(color: HrColors.text2)),
                     const Spacer(),
-                    Text('${(pct * 100).round()}%', style: HrText.caption),
+                    Text(
+                        '${((gained / quest.target).clamp(0.0, 1.0) * 100).round()}%',
+                        style: HrText.caption),
                   ]),
                   const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(HrRadius.full),
                     child: LinearProgressIndicator(
-                        value: pct,
+                        value: (gained / quest.target).clamp(0.0, 1.0),
                         minHeight: 8,
                         backgroundColor: HrColors.surface3,
-                        valueColor: AlwaysStoppedAnimation(HrColors.accent)),
+                        valueColor: AlwaysStoppedAnimation(
+                            defeated ? HrColors.gold : HrColors.accent)),
                   ),
+                  const SizedBox(height: 10),
+                  if (defeated)
+                    claimed
+                        ? Row(children: [
+                            const Icon(Icons.verified_rounded,
+                                color: HrColors.gold, size: 16),
+                            const SizedBox(width: 6),
+                            Text('Boss defeated — reward claimed',
+                                style: HrText.caption
+                                    .copyWith(color: HrColors.gold)),
+                          ])
+                        : HrButton(
+                            label: 'Boss down! Claim +${quest.reward} coins',
+                            icon: Icons.emoji_events_rounded,
+                            kind: HrButtonKind.accent,
+                            onPressed: () => _claimQuest(claimKey, quest.reward),
+                          )
+                  else
+                    Text(
+                        'Earn XP together to defeat it · +${quest.reward} coins each',
+                        style: HrText.caption),
                 ] else
                   Text(
                       owner
-                          ? 'Set a combined weekly XP target for the party.'
-                          : "The owner hasn't set a goal yet.",
+                          ? 'Start a co-op quest — the party fights a boss together.'
+                          : "The owner hasn't started a quest yet.",
                       style: HrText.bodyS.copyWith(color: HrColors.text2)),
               ])),
           const SizedBox(height: 14),
@@ -6668,32 +6702,33 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 ],
               ),
             ),
-            const _CompanionCard(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  HrSpace.gutter, 0, HrSpace.gutter, 10),
-              child: Row(children: [
-                Expanded(
-                  child: _progLink(
-                      context, Icons.auto_awesome_rounded, 'Prestige',
-                      HrColors.gold, () {
-                    // Ask to prestige right away if eligible; else explain why.
-                    if (appState.canPrestige) {
-                      _confirmPrestige(context);
-                    } else {
-                      hrToast(context,
-                          'Prestige unlocks at Level $kPrestigeMinLevel',
-                          icon: Icons.auto_awesome_rounded);
-                    }
-                  }),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _progLink(context, Icons.leaderboard_rounded,
-                      'Leaderboard', HrColors.accent, () => shellTab.value = 3),
-                ),
-              ]),
-            ),
+            if (_seg != 3) const _CompanionCard(),
+            if (_seg != 3)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    HrSpace.gutter, 0, HrSpace.gutter, 10),
+                child: Row(children: [
+                  Expanded(
+                    child: _progLink(
+                        context, Icons.auto_awesome_rounded, 'Prestige',
+                        HrColors.gold, () {
+                      // Ask to prestige right away if eligible; else explain why.
+                      if (appState.canPrestige) {
+                        _confirmPrestige(context);
+                      } else {
+                        hrToast(context,
+                            'Prestige unlocks at Level $kPrestigeMinLevel',
+                            icon: Icons.auto_awesome_rounded);
+                      }
+                    }),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _progLink(context, Icons.leaderboard_rounded,
+                        'Leaderboard', HrColors.accent, () => shellTab.value = 3),
+                  ),
+                ]),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 HrSpace.gutter,
@@ -9306,20 +9341,6 @@ String _journalDate(String key) {
   return '${_kWeekdays[d.weekday - 1].substring(0, 3)} · ${_kMonths[d.month - 1]} ${d.day}';
 }
 
-// A 1–10 journal rating as a score-graded chip ("Energy 7").
-Widget _journalRatingChip(String label, int value) {
-  final col = HrColors.victory((value * 10).clamp(0, 100));
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-    decoration: BoxDecoration(
-      color: col.withValues(alpha: 0.14),
-      borderRadius: BorderRadius.circular(HrRadius.xs),
-    ),
-    child: Text('$label $value',
-        style: HrText.micro.copyWith(color: col, fontWeight: FontWeight.w800)),
-  );
-}
-
 // Long-press a journal entry → Edit / Delete.
 Future<void> _showJournalMenu(BuildContext context, Reflection r) async {
   HapticFeedback.selectionClick();
@@ -9405,114 +9426,533 @@ Future<void> _showJournalMenu(BuildContext context, Reflection r) async {
   }
 }
 
-class JournalScreen extends StatelessWidget {
+class JournalScreen extends StatefulWidget {
   const JournalScreen({this.embedded = false, super.key});
   final bool embedded;
 
   @override
+  State<JournalScreen> createState() => _JournalScreenState();
+}
+
+class _JournalScreenState extends State<JournalScreen> {
+  bool _showAll = false;
+
+  @override
   Widget build(BuildContext context) {
     final items = appState.reflections;
-    final reflectedToday = items.any((r) => r.date == dateKey(DateTime.now()));
+    final today = dateKey(DateTime.now());
+    final reflectedToday = items.any((r) => r.date == today);
+    final visibleItems = _showAll ? items : items.take(2).toList();
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         HrSpace.gutter,
-        4,
+        8,
         HrSpace.gutter,
         100,
       ),
       children: [
-        HrButton(
-          label: reflectedToday
-              ? 'Add another reflection · +20 XP'
-              : 'Reflect on today · +20 XP',
-          icon: Icons.edit_rounded,
-          kind: HrButtonKind.accent,
-          onPressed: () => showAddReflection(context),
+        _TodayReflectionCard(
+          reflectedToday: reflectedToday,
+          onWrite: () => showAddReflection(context),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 20),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text('Recent entries', style: HrText.title2),
+            const Spacer(),
+            if (items.length > 2)
+              TextButton(
+                onPressed: () => setState(() => _showAll = !_showAll),
+                style: TextButton.styleFrom(
+                  foregroundColor: HrColors.accent,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  minimumSize: const Size(40, 36),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_showAll ? 'Show less' : 'View all',
+                        style: HrText.caption.copyWith(
+                          color: HrColors.accent,
+                          fontWeight: FontWeight.w700,
+                        )),
+                    const SizedBox(width: 3),
+                    Icon(
+                      _showAll
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.chevron_right_rounded,
+                      size: 18,
+                      color: HrColors.accent,
+                    ),
+                  ],
+                ),
+              )
+            else
+              Text(
+                '${items.length} ${items.length == 1 ? 'entry' : 'entries'}',
+                style: HrText.micro,
+              ),
+          ],
+        ),
+        const SizedBox(height: 11),
         if (items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 48),
-            child: Column(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 23),
+            decoration: BoxDecoration(
+              color: HrColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: HrColors.hairline),
+            ),
+            child: Row(
               children: [
-                const Text('📓', style: TextStyle(fontSize: 40)),
-                const SizedBox(height: 12),
-                Text('No reflections yet', style: HrText.title2),
-                const SizedBox(height: 6),
-                Text(
-                  'Write your first one to earn +20 XP.',
-                  textAlign: TextAlign.center,
-                  style: HrText.bodyS,
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: HrColors.accent.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.auto_stories_rounded,
+                      color: HrColors.accent, size: 21),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Your story starts here', style: HrText.headline),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your first reflection will appear here.',
+                        style: HrText.caption,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           )
         else
-          ...items.map((r) {
-            final score = appState.dailyScore[r.date];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: HrCard(
-                onLongPress: () => _showJournalMenu(context, r),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          _journalDate(r.date).toUpperCase(),
-                          style: HrText.labelCaps,
-                        ),
-                        const Spacer(),
-                        if (score != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: HrColors.victory(score)
-                                  .withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(HrRadius.xs),
-                            ),
-                            child: Text(
-                              'Score $score',
-                              style: HrText.micro.copyWith(
-                                color: HrColors.victory(score),
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    if (r.day > 0 ||
-                        r.energy > 0 ||
-                        r.mood > 0 ||
-                        r.focus > 0) ...[
-                      const SizedBox(height: 10),
-                      Wrap(spacing: 8, runSpacing: 6, children: [
-                        if (r.day > 0) _journalRatingChip('Day', r.day),
-                        if (r.energy > 0)
-                          _journalRatingChip('Energy', r.energy),
-                        if (r.mood > 0) _journalRatingChip('Mood', r.mood),
-                        if (r.focus > 0) _journalRatingChip('Focus', r.focus),
-                      ]),
-                    ],
-                    if (r.text.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        r.text,
-                        style: HrText.body.copyWith(color: HrColors.text2),
-                      ),
-                    ],
-                  ],
-                ),
+          ...visibleItems.map(
+            (r) => Padding(
+              padding: const EdgeInsets.only(bottom: 11),
+              child: _JournalEntryCard(
+                reflection: r,
+                score: appState.dailyScore[r.date],
+                onMenu: () => _showJournalMenu(context, r),
               ),
-            );
-          }),
+            ),
+          ),
       ],
     );
   }
+}
+
+class _TodayReflectionCard extends StatelessWidget {
+  const _TodayReflectionCard({
+    required this.reflectedToday,
+    required this.onWrite,
+  });
+
+  final bool reflectedToday;
+  final VoidCallback onWrite;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final weekday = _kWeekdays[now.weekday - 1].substring(0, 3).toUpperCase();
+    final month = _kMonths[now.month - 1].toUpperCase();
+    final buttonWidth = (MediaQuery.sizeOf(context).width - 96).clamp(218.0, 256.0);
+
+    return Container(
+      height: 230,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(color: const Color(0xFF65518C).withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: HrColors.accent.withValues(alpha: 0.08),
+            blurRadius: 24,
+            spreadRadius: -9,
+          ),
+        ],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(painter: _JournalLandscapePainter(HrColors.accent)),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  Color(0xF2181720),
+                  Color(0xD4181720),
+                  Color(0x50181720),
+                ],
+                stops: [0, 0.58, 1],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      '$weekday · $month ${now.day}',
+                      style: HrText.labelCaps.copyWith(
+                        color: const Color(0xFFC3B9DE),
+                        letterSpacing: 1.25,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xAA241F2E),
+                        borderRadius: BorderRadius.circular(HrRadius.full),
+                        border: Border.all(
+                            color: HrColors.gold.withValues(alpha: 0.45)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star_rounded,
+                              size: 15, color: HrColors.gold),
+                          const SizedBox(width: 4),
+                          Text(
+                            '+20 XP',
+                            style: HrText.micro.copyWith(
+                              color: const Color(0xFFFFD779),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  "Today's reflection",
+                  style: HrText.title1.copyWith(fontSize: 23),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  reflectedToday
+                      ? 'Anything else you want to remember?'
+                      : 'What felt like a win today?',
+                  style: HrText.bodyS.copyWith(
+                    color: const Color(0xFFCDC8DA),
+                    fontSize: 14,
+                  ),
+                ),
+                const Spacer(),
+                SizedBox(
+                  width: buttonWidth,
+                  child: HrButton(
+                    label: reflectedToday ? 'Add reflection' : 'Write reflection',
+                    icon: Icons.edit_rounded,
+                    kind: HrButtonKind.accent,
+                    onPressed: onWrite,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JournalEntryCard extends StatelessWidget {
+  const _JournalEntryCard({
+    required this.reflection,
+    required this.score,
+    required this.onMenu,
+  });
+
+  final Reflection reflection;
+  final int? score;
+  final VoidCallback onMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    final moodColor = reflection.mood > 0
+        ? HrColors.victory((reflection.mood * 10).clamp(0, 100))
+        : HrColors.text3;
+    final moodIcon = reflection.mood >= 8
+        ? Icons.sentiment_very_satisfied_rounded
+        : reflection.mood >= 5
+            ? Icons.sentiment_satisfied_rounded
+            : Icons.sentiment_neutral_rounded;
+    final metrics = <({String label, int value, IconData icon, Color color})>[
+      (label: 'Day', value: reflection.day, icon: Icons.calendar_today_rounded, color: HrColors.accent),
+      (label: 'Energy', value: reflection.energy, icon: Icons.bolt_rounded, color: HrColors.gold),
+      (label: 'Mood', value: reflection.mood, icon: moodIcon, color: moodColor),
+      (label: 'Focus', value: reflection.focus, icon: Icons.center_focus_strong_rounded, color: const Color(0xFFAD91FF)),
+    ].where((metric) => metric.value > 0).toList();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(15, 12, 12, 14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF202027), Color(0xFF19191E)],
+        ),
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.075)),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 12,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                _journalDate(reflection.date).toUpperCase(),
+                style: HrText.labelCaps.copyWith(
+                  color: const Color(0xFFAAA5B7),
+                  letterSpacing: 1,
+                ),
+              ),
+              if (reflection.mood > 0) ...[
+                const SizedBox(width: 9),
+                Icon(moodIcon, color: moodColor, size: 19),
+              ],
+              const Spacer(),
+              if (score != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: HrColors.victory(score!).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(HrRadius.full),
+                    border: Border.all(
+                        color: HrColors.victory(score!).withValues(alpha: 0.25)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star_rounded,
+                          color: HrColors.victory(score!), size: 14),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Score $score',
+                        style: HrText.micro.copyWith(
+                          color: HrColors.victory(score!),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              IconButton(
+                onPressed: onMenu,
+                tooltip: 'Edit or delete entry',
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.more_vert_rounded,
+                    size: 19, color: HrColors.text3),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Text(
+            reflection.text.isEmpty ? 'A day recorded in your journal.' : reflection.text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: HrText.body.copyWith(
+              color: reflection.text.isEmpty ? HrColors.text3 : HrColors.text,
+              height: 1.38,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (metrics.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = (constraints.maxWidth - 18) / 4;
+                return Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: metrics
+                      .map((metric) => _journalMetricTile(
+                            metric.label,
+                            metric.value,
+                            metric.icon,
+                            metric.color,
+                            width,
+                          ))
+                      .toList(),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+Widget _journalMetricTile(
+  String label,
+  int value,
+  IconData icon,
+  Color color,
+  double width,
+) =>
+    Container(
+      width: width,
+      height: 60,
+      padding: const EdgeInsets.fromLTRB(7, 6, 6, 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 13, color: color),
+              const SizedBox(width: 3),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.micro.copyWith(fontSize: 9.5),
+                ),
+              ),
+            ],
+          ),
+          Text(
+            '$value',
+            style: HrText.stat.copyWith(
+              fontSize: 18,
+              height: 1,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+
+class _JournalLandscapePainter extends CustomPainter {
+  const _JournalLandscapePainter(this.accent);
+
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final moonCenter = Offset(w * 0.81, h * 0.46);
+    canvas.drawCircle(
+      moonCenter,
+      12,
+      Paint()
+        ..color = const Color(0xFFFFD895).withValues(alpha: 0.88)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+    );
+    canvas.drawCircle(
+      moonCenter,
+      8,
+      Paint()..color = const Color(0xFFFFE5AF),
+    );
+
+    final stars = <Offset>[
+      Offset(w * 0.68, h * 0.21),
+      Offset(w * 0.87, h * 0.16),
+      Offset(w * 0.94, h * 0.38),
+      Offset(w * 0.61, h * 0.42),
+      Offset(w * 0.75, h * 0.29),
+    ];
+    for (var i = 0; i < stars.length; i++) {
+      canvas.drawCircle(
+        stars[i],
+        i == 1 ? 1.5 : 1,
+        Paint()..color = Colors.white.withValues(alpha: i == 2 ? 0.76 : 0.5),
+      );
+    }
+
+    final farMountain = Path()
+      ..moveTo(w * 0.38, h)
+      ..lineTo(w * 0.54, h * 0.63)
+      ..lineTo(w * 0.64, h * 0.72)
+      ..lineTo(w * 0.77, h * 0.48)
+      ..lineTo(w * 0.87, h * 0.62)
+      ..lineTo(w, h * 0.43)
+      ..lineTo(w, h)
+      ..close();
+    canvas.drawPath(
+      farMountain,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF39314F), Color(0xFF24202F)],
+        ).createShader(Offset.zero & size),
+    );
+
+    final nearMountain = Path()
+      ..moveTo(w * 0.34, h)
+      ..lineTo(w * 0.57, h * 0.78)
+      ..lineTo(w * 0.71, h * 0.88)
+      ..lineTo(w * 0.85, h * 0.71)
+      ..lineTo(w, h * 0.8)
+      ..lineTo(w, h)
+      ..close();
+    canvas.drawPath(
+      nearMountain,
+      Paint()..color = const Color(0xFF17171F),
+    );
+
+    final river = Path()
+      ..moveTo(w * 0.77, h * 0.74)
+      ..cubicTo(w * 0.68, h * 0.8, w * 0.9, h * 0.83, w * 0.77, h * 0.9)
+      ..cubicTo(w * 0.68, h * 0.95, w * 0.86, h * 0.96, w * 0.82, h);
+    canvas.drawPath(
+      river,
+      Paint()
+        ..color = const Color(0xFFFFC868).withValues(alpha: 0.45)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.1
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+    );
+
+    final accentGlow = Paint()
+      ..shader = RadialGradient(
+        colors: [accent.withValues(alpha: 0.13), Colors.transparent],
+      ).createShader(Rect.fromCircle(
+        center: Offset(w * 0.82, h * 0.86),
+        radius: w * 0.35,
+      ));
+    canvas.drawCircle(Offset(w * 0.82, h * 0.86), w * 0.35, accentGlow);
+  }
+
+  @override
+  bool shouldRepaint(covariant _JournalLandscapePainter oldDelegate) =>
+      oldDelegate.accent != accent;
 }
 
 // ── Shared bits ─────────────────────────────────────────────────────────────
@@ -10289,6 +10729,15 @@ Widget _ratingChip(DifficultyVerdict v, bool analyzing) {
   );
 }
 
+Color _reflectionScoreColor(int value) {
+  final score = value.clamp(1, 10);
+  const low = Color(0xFFC6283D);
+  const middle = Color(0xFFF4D044);
+  const high = Color(0xFF155E34);
+  if (score <= 5) return Color.lerp(low, middle, (score - 1) / 4)!;
+  return Color.lerp(middle, high, (score - 5) / 5)!;
+}
+
 Future<void> showAddReflection(BuildContext context,
     {Reflection? existing}) async {
   final controller = TextEditingController(text: existing?.text ?? '');
@@ -10297,44 +10746,124 @@ Future<void> showAddReflection(BuildContext context,
       mood = existing?.mood ?? 0,
       focus = existing?.focus ?? 0;
 
-  // A labelled 1–10 picker; the chosen number fills with a score-graded colour.
-  Widget ratingRow(
-      String label, int value, void Function(int) onPick, StateSetter setLocal) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: HrText.caption.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 7),
-        Row(
-          children: List.generate(10, (i) {
-            final n = i + 1;
-            final sel = value == n;
-            final col = HrColors.victory((n * 10).clamp(0, 100));
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: GestureDetector(
-                  onTap: () => setLocal(() => onPick(n)),
-                  child: Container(
-                    height: 34,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: sel ? col : HrColors.surface2,
-                      borderRadius: BorderRadius.circular(HrRadius.sm),
-                    ),
-                    child: Text('$n',
-                        style: HrText.caption.copyWith(
-                            color: sel ? Colors.black : HrColors.text2,
-                            fontWeight: FontWeight.w800)),
+  Widget ratingRow({
+    required String label,
+    required IconData icon,
+    required int value,
+    required void Function(int) onPick,
+    required StateSetter setLocal,
+  }) {
+    final selectedColor = value > 0 ? _reflectionScoreColor(value) : HrColors.text3;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(11, 10, 11, 11),
+      decoration: BoxDecoration(
+        color: HrColors.surface2,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: (value > 0 ? selectedColor : HrColors.accent)
+                      .withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: value > 0 ? selectedColor : HrColors.accent,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  label,
+                  style: HrText.bodyS.copyWith(
+                    color: HrColors.text,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
                   ),
                 ),
               ),
-            );
-          }),
-        ),
-        const SizedBox(height: 16),
-      ],
+              Text(
+                value > 0 ? '$value' : '—',
+                style: HrText.stat.copyWith(
+                  color: value > 0 ? selectedColor : HrColors.text3,
+                  fontSize: 19,
+                ),
+              ),
+              Text(
+                ' / 10',
+                style: HrText.caption.copyWith(color: HrColors.text3),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: List.generate(10, (i) {
+              final n = i + 1;
+              final selected = value == n;
+              final color = _reflectionScoreColor(n);
+              final ink = color.computeLuminance() > 0.48
+                  ? const Color(0xFF1C1C1E)
+                  : Colors.white;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                  child: Semantics(
+                    button: true,
+                    selected: selected,
+                    label: '$label $n out of 10',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => setLocal(() => onPick(n)),
+                        borderRadius: BorderRadius.circular(9),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          height: 36,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: selected ? color : const Color(0xFF39393C),
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(
+                              color: selected
+                                  ? Colors.white.withValues(alpha: 0.28)
+                                  : Colors.white.withValues(alpha: 0.035),
+                            ),
+                            boxShadow: selected
+                                ? [
+                                    BoxShadow(
+                                      color: color.withValues(alpha: 0.34),
+                                      blurRadius: 9,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : const [],
+                          ),
+                          child: Text(
+                            '$n',
+                            style: HrText.caption.copyWith(
+                              color: selected ? ink : HrColors.text2,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
 
@@ -10348,7 +10877,7 @@ Future<void> showAddReflection(BuildContext context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setLocal) => Padding(
         padding: EdgeInsets.fromLTRB(
-            20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+            18, 15, 18, MediaQuery.of(ctx).viewInsets.bottom + 20),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -10366,32 +10895,167 @@ Future<void> showAddReflection(BuildContext context,
                 ),
               ),
               Text(existing == null ? 'Reflect on today' : 'Edit reflection',
-                  style: HrText.title2),
+                  style: HrText.title1),
               const SizedBox(height: 4),
               Text('Rate your day 1–10, then jot a note.',
-                  style: HrText.caption),
-              const SizedBox(height: 18),
-              ratingRow('How was your day?', day, (v) => day = v, setLocal),
-              ratingRow('How energetic were you?', energy, (v) => energy = v,
-                  setLocal),
-              ratingRow('How was your mood?', mood, (v) => mood = v, setLocal),
-              ratingRow('How focused were you?', focus, (v) => focus = v,
-                  setLocal),
-              TextField(
-                controller: controller,
-                maxLines: 3,
-                style: HrText.body,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: _taskField('Note (optional)', "Anything on your mind?"),
+                  style: HrText.bodyS.copyWith(color: HrColors.text3)),
+              const SizedBox(height: 15),
+              ratingRow(
+                label: 'How was your day?',
+                icon: Icons.wb_sunny_rounded,
+                value: day,
+                onPick: (v) => day = v,
+                setLocal: setLocal,
+              ),
+              ratingRow(
+                label: 'How energetic were you?',
+                icon: Icons.bolt_rounded,
+                value: energy,
+                onPick: (v) => energy = v,
+                setLocal: setLocal,
+              ),
+              ratingRow(
+                label: 'How was your mood?',
+                icon: Icons.sentiment_satisfied_rounded,
+                value: mood,
+                onPick: (v) => mood = v,
+                setLocal: setLocal,
+              ),
+              ratingRow(
+                label: 'How focused were you?',
+                icon: Icons.center_focus_strong_rounded,
+                value: focus,
+                onPick: (v) => focus = v,
+                setLocal: setLocal,
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),
+                decoration: BoxDecoration(
+                  color: HrColors.surface2,
+                  borderRadius: BorderRadius.circular(17),
+                  border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.055)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.edit_note_rounded,
+                            color: HrColors.accent, size: 18),
+                        const SizedBox(width: 6),
+                        Text('NOTE', style: HrText.labelCaps),
+                        const SizedBox(width: 4),
+                        Text('OPTIONAL',
+                            style: HrText.micro.copyWith(
+                              color: HrColors.text3,
+                              letterSpacing: 0.7,
+                            )),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    TextField(
+                      controller: controller,
+                      minLines: 2,
+                      maxLines: 3,
+                      style: HrText.body,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText:
+                            'A win, a challenge, or anything on your mind…',
+                        hintStyle: HrText.bodyS.copyWith(color: HrColors.text3),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
-              HrButton(
+              Semantics(
+                button: true,
                 label: existing == null
-                    ? 'Save reflection · +20 XP'
+                    ? 'Save reflection, earn 20 XP'
                     : 'Save changes',
-                icon: Icons.check_rounded,
-                kind: HrButtonKind.accent,
-                onPressed: () => Navigator.pop(ctx, true),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => Navigator.pop(ctx, true),
+                    borderRadius: BorderRadius.circular(HrRadius.full),
+                    child: Ink(
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [HrColors.accent, HrColors.accentPressed],
+                        ),
+                        borderRadius: BorderRadius.circular(HrRadius.full),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.19),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: HrColors.accent.withValues(alpha: 0.24),
+                            blurRadius: 18,
+                            spreadRadius: -4,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_rounded,
+                                color: Colors.white, size: 21),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                existing == null
+                                    ? 'Save reflection'
+                                    : 'Save changes',
+                                textAlign: TextAlign.center,
+                                style: HrText.body.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            if (existing == null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: HrColors.gold,
+                                  borderRadius:
+                                      BorderRadius.circular(HrRadius.full),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.star_rounded,
+                                        color: Color(0xFF362300), size: 15),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '+20 XP',
+                                      style: HrText.micro.copyWith(
+                                        color: const Color(0xFF362300),
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 4),
             ],

@@ -385,6 +385,24 @@ Future<Map<String, dynamic>?> setPartyGoal(
   }
 }
 
+/// Owner-only: start/change the party's co-op quest (sets the boss + target
+/// and rebaselines everyone). Returns the updated party row.
+Future<Map<String, dynamic>?> setPartyQuest(
+    String partyId, String questId, int target, String week) async {
+  if (!backendEnabled) return null;
+  try {
+    final r = await _sb.rpc('set_party_quest', params: {
+      'p_id': partyId,
+      'p_quest': questId,
+      'p_target': target,
+      'p_week': week,
+    });
+    return r is Map ? r.cast<String, dynamic>() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Recent messages for a party (oldest → newest), readable by members via RLS.
 Future<List<Map<String, dynamic>>> partyMessages(String partyId) async {
   if (!backendEnabled) return const [];

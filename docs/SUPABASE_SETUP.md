@@ -114,6 +114,17 @@ rebaselines members like parties), re-creates `discover_guilds`/`my_guilds`/
 realtime publication. Until it's run, guild chat shows an empty state and the
 goal card stays hidden/no-op.
 
+## 2h. Co-op quests (party boss goals) — optional
+
+Lets a party take on a shared themed boss: the owner picks a quest, the party's
+combined XP is the "damage," and each member claims a coin reward when it falls.
+Run `supabase/migrations/20261029060000_party_quests.sql` (after the parties
+schema). It adds a `quest_id` column to `parties` and a `set_party_quest` RPC
+(owner-only, rebaselines members like `set_party_goal`); `my_party` already
+returns `parties.*` so the quest flows through. Rewards are claimed per member
+on-device. Until it's run, the party screen's quest card shows a "start a quest"
+prompt and nothing breaks.
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

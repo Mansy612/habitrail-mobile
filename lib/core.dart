@@ -657,6 +657,7 @@ class AppState extends ChangeNotifier {
 
   final List<MilestoneEvent> milestoneLog = [];
   final Set<String> earnedAchievements = {}; // persist once earned (survives prestige)
+  final Set<String> claimedQuests = {}; // co-op quest rewards already claimed
   int totalBossDefeats = 0;
   int highestLevel = 1;
   int _prevLevel = 1;
@@ -1298,6 +1299,7 @@ class AppState extends ChangeNotifier {
     perfectDays.clear();
     questClaimedIds.clear();
     earnedAchievements.clear();
+    claimedQuests.clear();
     totalXp = 0;
     coins = 100;
     focusMinutesToday = 0;
@@ -1540,6 +1542,8 @@ class AppState extends ChangeNotifier {
           ((m['restDays'] as List?) ?? const []).map((e) => e as String));
       earnedAchievements.addAll(
           ((m['earnedAchievements'] as List?) ?? const []).map((e) => e as String));
+      claimedQuests.addAll(
+          ((m['claimedQuests'] as List?) ?? const []).map((e) => e as String));
       pfpBase64 = (m['pfpBase64'] as String?) ?? '';
       try {
         pfpBytes = pfpBase64.isEmpty ? null : base64Decode(pfpBase64);
@@ -1660,6 +1664,7 @@ class AppState extends ChangeNotifier {
           'premiumSaveMonth': premiumSaveMonth,
           'restDays': restDays.toList(),
           'earnedAchievements': earnedAchievements.toList(),
+          'claimedQuests': claimedQuests.toList(),
           'pfpBase64': pfpBase64,
           'selectedBorder': selectedBorder,
           'ownedBorders': ownedBorders.toList(),
@@ -1947,6 +1952,15 @@ class AppState extends ChangeNotifier {
 
   void deleteReflection(Reflection r) {
     reflections.remove(r);
+    notifyListeners();
+    _save();
+  }
+
+  // Grant a co-op quest reward once (keyed per party+week+quest).
+  void claimCoopQuest(String key, int reward) {
+    if (claimedQuests.contains(key)) return;
+    claimedQuests.add(key);
+    coins += reward;
     notifyListeners();
     _save();
   }
@@ -2330,3 +2344,27 @@ const Map<String, Map<String, String>> kCompanionLines = {
 
 String companionLine(String type, String trigger) =>
     kCompanionLines[type]?[trigger] ?? '';
+
+// ── Co-op quests (shared party boss goals) ──────────────────────────────────
+class CoopQuestDef {
+  const CoopQuestDef(this.id, this.name, this.emoji, this.target, this.reward);
+  final String id;
+  final String name; // boss name
+  final String emoji;
+  final int target; // combined party XP to defeat it
+  final int reward; // coins each member claims on defeat
+}
+
+const List<CoopQuestDef> kCoopQuests = [
+  CoopQuestDef('sloth', 'The Sloth Warden', '🦥', 500, 60),
+  CoopQuestDef('hydra', 'Procrastination Hydra', '🐉', 1500, 120),
+  CoopQuestDef('golem', 'Doubt Golem', '🗿', 3000, 200),
+  CoopQuestDef('leviathan', 'The Burnout Leviathan', '🐋', 6000, 350),
+];
+
+CoopQuestDef? coopQuestById(String id) {
+  for (final q in kCoopQuests) {
+    if (q.id == id) return q;
+  }
+  return null;
+}

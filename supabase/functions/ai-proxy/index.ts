@@ -49,8 +49,10 @@ Deno.serve(async (req: Request) => {
     const system = String(body.system ?? '');
     const prompt = String(body.prompt ?? '');
     if (!prompt.trim()) return json({ content: '' });
+    // Server-chosen model wins, so the app's local-default name ('llama3.2')
+    // never overrides a hosted/cloud model set via OLLAMA_MODEL.
     const model =
-      String(body.model || Deno.env.get('OLLAMA_MODEL') || 'llama3.2');
+      String(Deno.env.get('OLLAMA_MODEL') || body.model || 'llama3.2');
     const wantJson = body.json === true;
     const temperature =
       typeof body.temperature === 'number' ? body.temperature : 0.6;

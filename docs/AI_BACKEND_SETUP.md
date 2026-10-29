@@ -16,8 +16,32 @@ app (signed in) ──▶ Supabase Edge Function  ai-proxy ──▶ your hosted
   if the server is unreachable — so the app never breaks.
 - The Ollama URL + token live as Edge Function **secrets**, never in the app.
 
-The only thing you must provide is **one always-on server running Ollama**
-(a box Claude Code can't provision for you). Steps below are copy-paste.
+You provide the AI host — either **Ollama Cloud** (just an API key, no server:
+easiest, below) or **your own always-on Ollama box** (the self-host steps after
+it). Both are copy-paste.
+
+## Easiest: Ollama Cloud (no server to run)
+
+Ollama hosts the models; you only need an API key. No VPS, domain, or systemd.
+
+1. Sign up at <https://ollama.com> and create a key at **Settings → API Keys**
+   (`ollama.com/settings/keys`). The free tier has usage limits (session/weekly);
+   Pro is ~$20/mo for heavier use.
+2. Deploy the function and point it at Ollama Cloud, picking a hosted model from
+   ollama.com (e.g. `gpt-oss:20b`):
+
+   ```bash
+   supabase functions deploy ai-proxy
+   supabase secrets set OLLAMA_URL=https://ollama.com OLLAMA_TOKEN=YOUR_OLLAMA_API_KEY OLLAMA_MODEL=gpt-oss:20b
+   ```
+
+That's it. The same `ai-proxy` function calls `https://ollama.com/api/chat` with
+your key — kept server-side, never shipped in the app — so AI works for every
+signed-in user 24/7. Keep the key in the function's secrets, **not** in the app,
+so it can't be extracted and abused. The self-hosted steps below are only if
+you'd rather run Ollama on your own machine.
+
+---
 
 ## 1. Run Ollama 24/7 on a server
 

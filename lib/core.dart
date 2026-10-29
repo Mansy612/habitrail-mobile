@@ -360,12 +360,36 @@ class Habit {
 }
 
 class Reflection {
-  Reflection({required this.date, required this.text});
+  Reflection({
+    required this.date,
+    required this.text,
+    this.day = 0,
+    this.energy = 0,
+    this.mood = 0,
+    this.focus = 0,
+  });
   final String date;
   final String text;
-  Map<String, dynamic> toMap() => {'date': date, 'text': text};
-  factory Reflection.fromMap(Map<String, dynamic> m) =>
-      Reflection(date: m['date'] as String, text: m['text'] as String);
+  final int day; // 1–10 "how was your day" (0 = not rated)
+  final int energy; // 1–10
+  final int mood; // 1–10
+  final int focus; // 1–10
+  Map<String, dynamic> toMap() => {
+        'date': date,
+        'text': text,
+        'day': day,
+        'energy': energy,
+        'mood': mood,
+        'focus': focus,
+      };
+  factory Reflection.fromMap(Map<String, dynamic> m) => Reflection(
+        date: m['date'] as String,
+        text: m['text'] as String,
+        day: (m['day'] as int?) ?? 0,
+        energy: (m['energy'] as int?) ?? 0,
+        mood: (m['mood'] as int?) ?? 0,
+        focus: (m['focus'] as int?) ?? 0,
+      );
 }
 
 class MilestoneEvent {
@@ -1888,9 +1912,18 @@ class AppState extends ChangeNotifier {
     _afterAction();
   }
 
-  void addReflection(String text) {
+  void addReflection(String text,
+      {int day = 0, int energy = 0, int mood = 0, int focus = 0}) {
     reflections.insert(
-        0, Reflection(date: dateKey(DateTime.now()), text: text));
+        0,
+        Reflection(
+          date: dateKey(DateTime.now()),
+          text: text,
+          day: day,
+          energy: energy,
+          mood: mood,
+          focus: focus,
+        ));
     totalXp += 20;
     coins += 4;
     _afterAction();

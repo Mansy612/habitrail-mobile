@@ -9307,6 +9307,20 @@ String _journalDate(String key) {
   return '${_kWeekdays[d.weekday - 1].substring(0, 3)} · ${_kMonths[d.month - 1]} ${d.day}';
 }
 
+// A 1–10 journal rating as a score-graded chip ("Energy 7").
+Widget _journalRatingChip(String label, int value) {
+  final col = HrColors.victory((value * 10).clamp(0, 100));
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+    decoration: BoxDecoration(
+      color: col.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(HrRadius.xs),
+    ),
+    child: Text('$label $value',
+        style: HrText.micro.copyWith(color: col, fontWeight: FontWeight.w800)),
+  );
+}
+
 class JournalScreen extends StatelessWidget {
   const JournalScreen({this.embedded = false, super.key});
   final bool embedded;
@@ -9386,11 +9400,26 @@ class JournalScreen extends StatelessWidget {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      r.text,
-                      style: HrText.body.copyWith(color: HrColors.text2),
-                    ),
+                    if (r.day > 0 ||
+                        r.energy > 0 ||
+                        r.mood > 0 ||
+                        r.focus > 0) ...[
+                      const SizedBox(height: 10),
+                      Wrap(spacing: 8, runSpacing: 6, children: [
+                        if (r.day > 0) _journalRatingChip('Day', r.day),
+                        if (r.energy > 0)
+                          _journalRatingChip('Energy', r.energy),
+                        if (r.mood > 0) _journalRatingChip('Mood', r.mood),
+                        if (r.focus > 0) _journalRatingChip('Focus', r.focus),
+                      ]),
+                    ],
+                    if (r.text.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        r.text,
+                        style: HrText.body.copyWith(color: HrColors.text2),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -10177,33 +10206,116 @@ Widget _ratingChip(DifficultyVerdict v, bool analyzing) {
 
 Future<void> showAddReflection(BuildContext context) async {
   final controller = TextEditingController();
-  final text = await showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: kCard,
-      title: const Text('Reflection', style: TextStyle(color: kTextPrimary)),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        maxLines: 4,
-        style: const TextStyle(color: kTextPrimary),
-        textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(hintText: 'How did today go?'),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
+  int day = 0, energy = 0, mood = 0, focus = 0;
+
+  // A labelled 1–10 picker; the chosen number fills with a score-graded colour.
+  Widget ratingRow(
+      String label, int value, void Function(int) onPick, StateSetter setLocal) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: HrText.caption.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 7),
+        Row(
+          children: List.generate(10, (i) {
+            final n = i + 1;
+            final sel = value == n;
+            final col = HrColors.victory((n * 10).clamp(0, 100));
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: GestureDetector(
+                  onTap: () => setLocal(() => onPick(n)),
+                  child: Container(
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: sel ? col : HrColors.surface2,
+                      borderRadius: BorderRadius.circular(HrRadius.sm),
+                    ),
+                    child: Text('$n',
+                        style: HrText.caption.copyWith(
+                            color: sel ? Colors.black : HrColors.text2,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: kPlasma),
-          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-          child: const Text('Save'),
-        ),
+        const SizedBox(height: 16),
       ],
+    );
+  }
+
+  final saved = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: HrColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl)),
+    ),
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setLocal) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: HrColors.surface3,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text('Reflect on today', style: HrText.title2),
+              const SizedBox(height: 4),
+              Text('Rate your day 1–10, then jot a note.',
+                  style: HrText.caption),
+              const SizedBox(height: 18),
+              ratingRow('How was your day?', day, (v) => day = v, setLocal),
+              ratingRow('How energetic were you?', energy, (v) => energy = v,
+                  setLocal),
+              ratingRow('How was your mood?', mood, (v) => mood = v, setLocal),
+              ratingRow('How focused were you?', focus, (v) => focus = v,
+                  setLocal),
+              TextField(
+                controller: controller,
+                maxLines: 3,
+                style: HrText.body,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: _taskField('Note (optional)', "Anything on your mind?"),
+              ),
+              const SizedBox(height: 16),
+              HrButton(
+                label: 'Save reflection · +20 XP',
+                icon: Icons.check_rounded,
+                kind: HrButtonKind.accent,
+                onPressed: () => Navigator.pop(ctx, true),
+              ),
+              const SizedBox(height: 4),
+            ],
+          ),
+        ),
+      ),
     ),
   );
-  if (text != null && text.isNotEmpty) appState.addReflection(text);
+  if (saved == true) {
+    final t = controller.text.trim();
+    if (t.isNotEmpty || day > 0 || energy > 0 || mood > 0 || focus > 0) {
+      appState.addReflection(t,
+          day: day, energy: energy, mood: mood, focus: focus);
+    }
+  }
+  controller.dispose();
 }
 
 // ── NUTRITION ────────────────────────────────────────────────────────────────

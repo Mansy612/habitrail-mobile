@@ -68,6 +68,14 @@ on, and SECURITY DEFINER functions (`create_party`, `join_party`, `leave_party`,
 membership/ownership. Until you run it, the app's Party screen shows a friendly
 "needs an account / coming soon" state and nothing else breaks.
 
+## 2c. Party chat (real-time) — optional
+
+Adds live chat inside a party. Run `supabase/migrations/20261029010000_party_chat.sql`
+(after the parties schema) in the SQL editor. It creates `party_messages` with
+RLS (members read), a `send_party_message` RPC, and adds the table to the
+`supabase_realtime` publication so new messages stream to members live. Until
+it's run, the Party chat screen just shows an empty state.
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

@@ -4745,6 +4745,16 @@ class _PartyScreenState extends State<PartyScreen> {
                   ),
                 ),
               ])),
+          const SizedBox(height: 10),
+          HrButton(
+            label: 'Party chat',
+            icon: Icons.chat_bubble_outline_rounded,
+            kind: HrButtonKind.secondary,
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => PartyChatScreen(
+                    partyId: p['id'].toString(),
+                    title: (p['name'] ?? 'Party').toString()))),
+          ),
           const SizedBox(height: 14),
           HrCard(
               child: Column(
@@ -4831,6 +4841,166 @@ class _PartyScreenState extends State<PartyScreen> {
             ])),
         if (streak > 0) StreakPill(count: streak, quiet: true),
       ]),
+    );
+  }
+}
+
+// Live party chat. History loads via RLS-protected select; new messages stream
+// in over Supabase realtime. Degrades to an empty state when the backend/chat
+// schema isn't there.
+class PartyChatScreen extends StatefulWidget {
+  const PartyChatScreen({required this.partyId, required this.title, super.key});
+  final String partyId;
+  final String title;
+  @override
+  State<PartyChatScreen> createState() => _PartyChatScreenState();
+}
+
+class _PartyChatScreenState extends State<PartyChatScreen> {
+  final _ctrl = TextEditingController();
+  final _scroll = ScrollController();
+  List<Map<String, dynamic>> _msgs = const [];
+  Future<void> Function()? _unsub;
+  bool _loading = true;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final m = await partyMessages(widget.partyId);
+    if (!mounted) return;
+    setState(() {
+      _msgs = m;
+      _loading = false;
+    });
+    _toBottom();
+    _unsub = subscribePartyMessages(widget.partyId, (row) {
+      if (!mounted) return;
+      final id = row['id']?.toString();
+      if (id != null && _msgs.any((x) => x['id']?.toString() == id)) return;
+      setState(() => _msgs = [..._msgs, row]);
+      _toBottom();
+    });
+  }
+
+  @override
+  void dispose() {
+    _unsub?.call();
+    _ctrl.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _toBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
+  }
+
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    _ctrl.clear();
+    await sendPartyMessage(widget.partyId, text);
+    final m = await partyMessages(widget.partyId);
+    if (!mounted) return;
+    setState(() {
+      _msgs = m;
+      _sending = false;
+    });
+    _toBottom();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: HrColors.text,
+        elevation: 0,
+        title: Text(widget.title, style: HrText.title2),
+      ),
+      body: Column(children: [
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+              : _msgs.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text('No messages yet — say hi to your party.',
+                            style: HrText.bodyS.copyWith(color: HrColors.text3),
+                            textAlign: TextAlign.center),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scroll,
+                      padding: const EdgeInsets.fromLTRB(
+                          HrSpace.gutter, 12, HrSpace.gutter, 12),
+                      itemCount: _msgs.length,
+                      itemBuilder: (c, i) => _bubble(_msgs[i]),
+                    ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+            child: Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _ctrl,
+                  style: HrText.body,
+                  minLines: 1,
+                  maxLines: 4,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _send(),
+                  decoration:
+                      _taskField('Message', 'Say something to your party'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: _sending ? null : _send,
+                icon: Icon(Icons.send_rounded, color: HrColors.accent),
+              ),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _bubble(Map<String, dynamic> m) {
+    final mine = m['user_id'] == currentUserId;
+    final author = (m['author_name'] ?? 'Player').toString();
+    final body = (m['body'] ?? '').toString();
+    return Align(
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.only(
+            bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+            color: mine ? HrColors.accentSurface : HrColors.surface2,
+            borderRadius: BorderRadius.circular(HrRadius.md)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (!mine) ...[
+            Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
+            const SizedBox(height: 2),
+          ],
+          Text(body,
+              style: HrText.bodyS
+                  .copyWith(color: mine ? HrColors.text : HrColors.text2)),
+        ]),
+      ),
     );
   }
 }

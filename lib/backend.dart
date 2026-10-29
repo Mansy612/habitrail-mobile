@@ -383,3 +383,59 @@ Future<Map<String, dynamic>?> setPartyGoal(
     return null;
   }
 }
+
+/// Recent messages for a party (oldest → newest), readable by members via RLS.
+Future<List<Map<String, dynamic>>> partyMessages(String partyId) async {
+  if (!backendEnabled) return const [];
+  try {
+    final r = await _sb
+        .from('party_messages')
+        .select()
+        .eq('party_id', partyId)
+        .order('created_at', ascending: false)
+        .limit(100);
+    return (r as List).cast<Map<String, dynamic>>().reversed.toList();
+  } catch (_) {
+    return const [];
+  }
+}
+
+/// Send a party message (membership enforced server-side).
+Future<void> sendPartyMessage(String partyId, String body) async {
+  if (!backendEnabled) return;
+  try {
+    await _sb.rpc('send_party_message',
+        params: {'p_id': partyId, 'p_body': body});
+  } catch (_) {}
+}
+
+/// Subscribe to new messages in [partyId]; returns an unsubscribe callback, or
+/// null when the backend is off / on error. Keeps realtime types out of the UI.
+Future<void> Function()? subscribePartyMessages(
+    String partyId, void Function(Map<String, dynamic>) onInsert) {
+  if (!backendEnabled) return null;
+  try {
+    final ch = _sb.channel('party-chat-$partyId');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'party_messages',
+      filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'party_id',
+          value: partyId),
+      callback: (payload) {
+        try {
+          onInsert(Map<String, dynamic>.from(payload.newRecord));
+        } catch (_) {}
+      },
+    ).subscribe();
+    return () async {
+      try {
+        await _sb.removeChannel(ch);
+      } catch (_) {}
+    };
+  } catch (_) {
+    return null;
+  }
+}

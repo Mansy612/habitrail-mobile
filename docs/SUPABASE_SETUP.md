@@ -84,6 +84,14 @@ creates `guilds` + `guild_members` (RLS on) and SECURITY DEFINER RPCs
 (`create_guild`, `join_guild`, `leave_guild`, `discover_guilds`, `my_guilds`,
 `guild_members_info`). Until it's run, the Guilds screen shows an empty state.
 
+## 2e. Global chat — optional
+
+One shared room every signed-in user can read and post to (no joining). Run
+`supabase/migrations/20261029030000_global_chat.sql`: it creates
+`global_messages` (RLS: authenticated read), a `send_global_message` RPC, and
+adds the table to the `supabase_realtime` publication for live delivery. A
+per-user rate limit / moderation is a good future addition.
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

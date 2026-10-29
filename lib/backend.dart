@@ -499,3 +499,53 @@ Future<List<Map<String, dynamic>>> guildMembers(String guildId) async {
     return const [];
   }
 }
+
+// ── Global chat ───────────────────────────────────────────────────────────────
+
+/// Recent global messages (oldest → newest).
+Future<List<Map<String, dynamic>>> globalMessages() async {
+  if (!backendEnabled) return const [];
+  try {
+    final r = await _sb
+        .from('global_messages')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(100);
+    return (r as List).cast<Map<String, dynamic>>().reversed.toList();
+  } catch (_) {
+    return const [];
+  }
+}
+
+Future<void> sendGlobalMessage(String body) async {
+  if (!backendEnabled) return;
+  try {
+    await _sb.rpc('send_global_message', params: {'p_body': body});
+  } catch (_) {}
+}
+
+/// Subscribe to new global messages; returns an unsubscribe callback or null.
+Future<void> Function()? subscribeGlobalMessages(
+    void Function(Map<String, dynamic>) onInsert) {
+  if (!backendEnabled) return null;
+  try {
+    final ch = _sb.channel('global-chat');
+    ch.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'global_messages',
+      callback: (payload) {
+        try {
+          onInsert(Map<String, dynamic>.from(payload.newRecord));
+        } catch (_) {}
+      },
+    ).subscribe();
+    return () async {
+      try {
+        await _sb.removeChannel(ch);
+      } catch (_) {}
+    };
+  } catch (_) {
+    return null;
+  }
+}

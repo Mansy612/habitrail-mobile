@@ -5413,6 +5413,186 @@ class _GuildDetailScreenState extends State<GuildDetailScreen> {
   }
 }
 
+// ── Global chat (one shared room, no joining) ────────────────────────────────
+class GlobalChatScreen extends StatefulWidget {
+  const GlobalChatScreen({super.key});
+  @override
+  State<GlobalChatScreen> createState() => _GlobalChatScreenState();
+}
+
+class _GlobalChatScreenState extends State<GlobalChatScreen> {
+  final _ctrl = TextEditingController();
+  final _scroll = ScrollController();
+  List<Map<String, dynamic>> _msgs = const [];
+  Future<void> Function()? _unsub;
+  bool _loading = true;
+  bool _sending = false;
+
+  bool get _signedIn => backendEnabled && currentUserId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_signedIn) {
+      _init();
+    } else {
+      _loading = false;
+    }
+  }
+
+  Future<void> _init() async {
+    final m = await globalMessages();
+    if (!mounted) return;
+    setState(() {
+      _msgs = m;
+      _loading = false;
+    });
+    _toBottom();
+    _unsub = subscribeGlobalMessages((row) {
+      if (!mounted) return;
+      final id = row['id']?.toString();
+      if (id != null && _msgs.any((x) => x['id']?.toString() == id)) return;
+      setState(() => _msgs = [..._msgs, row]);
+      _toBottom();
+    });
+  }
+
+  @override
+  void dispose() {
+    _unsub?.call();
+    _ctrl.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _toBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
+    });
+  }
+
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    _ctrl.clear();
+    await sendGlobalMessage(text);
+    final m = await globalMessages();
+    if (!mounted) return;
+    setState(() {
+      _msgs = m;
+      _sending = false;
+    });
+    _toBottom();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: HrColors.text,
+        elevation: 0,
+        title: Text('Global chat', style: HrText.title2),
+      ),
+      body: !_signedIn
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.forum_rounded,
+                      size: 40, color: HrColors.text3),
+                  const SizedBox(height: 14),
+                  Text('Sign in to join the global chat',
+                      style: HrText.title2, textAlign: TextAlign.center),
+                  const SizedBox(height: 8),
+                  Text('Everyone with an account can talk here — no joining.',
+                      style: HrText.bodyS.copyWith(color: HrColors.text2),
+                      textAlign: TextAlign.center),
+                ]),
+              ),
+            )
+          : Column(children: [
+              Expanded(
+                child: _loading
+                    ? const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : _msgs.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Text(
+                                  'No messages yet — say hi to everyone.',
+                                  style: HrText.bodyS
+                                      .copyWith(color: HrColors.text3),
+                                  textAlign: TextAlign.center),
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _scroll,
+                            padding: const EdgeInsets.fromLTRB(
+                                HrSpace.gutter, 12, HrSpace.gutter, 12),
+                            itemCount: _msgs.length,
+                            itemBuilder: (c, i) => _bubble(_msgs[i]),
+                          ),
+              ),
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+                  child: Row(children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _ctrl,
+                        style: HrText.body,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _send(),
+                        decoration:
+                            _taskField('Message', 'Say something to everyone'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: _sending ? null : _send,
+                      icon: Icon(Icons.send_rounded, color: HrColors.accent),
+                    ),
+                  ]),
+                ),
+              ),
+            ]),
+    );
+  }
+
+  Widget _bubble(Map<String, dynamic> m) {
+    final mine = m['user_id'] == currentUserId;
+    final author = (m['author_name'] ?? 'Player').toString();
+    final body = (m['body'] ?? '').toString();
+    return Align(
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.only(
+            bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+            color: mine ? HrColors.accentSurface : HrColors.surface2,
+            borderRadius: BorderRadius.circular(HrRadius.md)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (!mine) ...[
+            Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
+            const SizedBox(height: 2),
+          ],
+          Text(body,
+              style: HrText.bodyS
+                  .copyWith(color: mine ? HrColors.text : HrColors.text2)),
+        ]),
+      ),
+    );
+  }
+}
+
 // ── MOMENTS: shared celebration dialog ──────────────────────────────────────
 void _showMoment(
   BuildContext context, {
@@ -7396,6 +7576,26 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     children: [
                       Text('Friends', style: HrText.display),
                       const Spacer(),
+                      Tooltip(
+                        message: 'Global chat',
+                        child: Material(
+                          color: HrColors.surface2,
+                          shape: const CircleBorder(),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const GlobalChatScreen())),
+                            child: const SizedBox(
+                              width: 38,
+                              height: 38,
+                              child: Icon(Icons.forum_rounded,
+                                  color: HrColors.text, size: 20),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Tooltip(
                         message: 'Guilds',
                         child: Material(

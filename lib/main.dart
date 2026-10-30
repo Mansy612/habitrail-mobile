@@ -2372,19 +2372,34 @@ class DashboardScreen extends StatelessWidget {
       ),
       body: ListenableBuilder(
         listenable: appState,
-        builder: (context, _) => ListView(
-          padding: const EdgeInsets.fromLTRB(0, 6, 0, 100),
-          children: const [
-            SizedBox(height: 4),
-            _TasksCard(),
-            _CoachCard(),
-            _ChallengeTodayCard(),
-            _VictoryCard(),
-            _NutritionCard(),
-            _BossCard(),
-            _QuestsPanel(),
-          ],
-        ),
+        builder: (context, _) {
+          final hasTasks =
+              appState.dailiesToday.isNotEmpty || appState.openTodos.isNotEmpty;
+          final hasChallenge = appState.activeChallenge != null;
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(0, 6, 0, 100),
+            children: [
+              const SizedBox(height: 4),
+              if (hasTasks || hasChallenge) ...[
+                const HrLabel('Today'),
+                if (hasTasks) const _TasksCard(),
+                if (hasChallenge) const _ChallengeTodayCard(),
+                const SizedBox(height: 12),
+              ],
+              const HrLabel('Your progress'),
+              const _VictoryCard(),
+              const _NutritionCard(),
+              const SizedBox(height: 12),
+              const HrLabel('Adventure'),
+              const _BossCard(),
+              const _QuestsPanel(),
+              const SizedBox(height: 12),
+              const HrLabel('Coach'),
+              const _CoachCard(),
+            ],
+          );
+        },
       ),
     );
   }
@@ -2667,9 +2682,49 @@ class _FiveCard extends StatefulWidget {
 
 class _FiveCardState extends State<_FiveCard> {
   bool _reorder = false;
+
+  bool _showCompleted = false;
+
+  Widget _habitRow(BuildContext context, Habit h) => Dismissible(
+    key: ValueKey('five-${h.id}'),
+    direction: DismissDirection.endToStart,
+    onDismissed: (_) {
+      appState.deleteHabit(h);
+      hrToast(context, 'Habit removed', icon: Icons.delete_outline_rounded);
+    },
+    background: Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 20),
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      decoration: BoxDecoration(
+        color: HrColors.dangerSurface,
+        borderRadius: BorderRadius.circular(HrRadius.sm),
+      ),
+      child: const Icon(
+        Icons.delete_outline_rounded,
+        color: HrColors.dangerText,
+      ),
+    ),
+    child: HabitRow(
+      title: h.name,
+      icon: h.icon,
+      rarity: h.rarity,
+      done: appState.doneToday(h),
+      streak: h.streak,
+      reminder: h.reminderMinutes != null
+          ? _fmtReminder(h.reminderMinutes!)
+          : null,
+      onToggle: () => widget.onToggle(h),
+      onEdit: () => _showHabitMenu(context, h),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final habits = appState.habits;
+    final todo = habits.where((h) => !appState.doneToday(h)).toList();
+    final completed = habits.where(appState.doneToday).toList();
+    final allDone = todo.isEmpty && completed.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
       child: HrCard(
@@ -2738,45 +2793,155 @@ class _FiveCardState extends State<_FiveCard> {
                   );
                 },
               )
-            else
-              for (final h in habits)
-                Dismissible(
-                  key: ValueKey('five-${h.id}'),
-                  direction: DismissDirection.endToStart,
-                  onDismissed: (_) {
-                    appState.deleteHabit(h);
-                    hrToast(
-                      context,
-                      'Habit removed',
-                      icon: Icons.delete_outline_rounded,
-                    );
-                  },
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    margin: const EdgeInsets.symmetric(vertical: 2),
-                    decoration: BoxDecoration(
-                      color: HrColors.dangerSurface,
+            else if (allDone) ...[
+              Container(
+                margin: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: HrColors.surface2,
+                  borderRadius: BorderRadius.circular(HrRadius.md),
+                  border: Border.all(color: HrColors.hairline),
+                ),
+                child: Row(
+                  children: [
+                    const HrCheck(done: true, size: 42),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('All done for today', style: HrText.headline),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${completed.length} ${completed.length == 1 ? 'habit' : 'habits'} checked off',
+                            style: HrText.bodyS,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const HrLabel('Completed'),
+              for (final h in (_showCompleted ? completed : completed.take(2)))
+                _habitRow(context, h),
+              if (completed.length > 2) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Divider(),
+                ),
+                Semantics(
+                  button: true,
+                  expanded: _showCompleted,
+                  label: _showCompleted
+                      ? 'Show fewer completed habits'
+                      : 'Show all ${completed.length} completed habits',
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(HrRadius.sm),
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(HrRadius.sm),
+                      onTap: () => setState(
+                        () => _showCompleted = !_showCompleted,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _showCompleted
+                                    ? 'Show less'
+                                    : 'Show all ${completed.length}',
+                                style: HrText.bodyS.copyWith(
+                                  color: HrColors.accent,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              _showCompleted
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.chevron_right_rounded,
+                              color: HrColors.accent,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: HrColors.dangerText,
-                    ),
-                  ),
-                  child: HabitRow(
-                    title: h.name,
-                    icon: h.icon,
-                    rarity: h.rarity,
-                    done: appState.doneToday(h),
-                    streak: h.streak,
-                    reminder: h.reminderMinutes != null
-                        ? _fmtReminder(h.reminderMinutes!)
-                        : null,
-                    onToggle: () => widget.onToggle(h),
-                    onEdit: () => _showHabitMenu(context, h),
                   ),
                 ),
+              ],
+            ]
+            else ...[
+              if (todo.isNotEmpty) ...[
+                HrLabel(
+                  'To do',
+                  trailing: Text(
+                    '${todo.length}',
+                    style: HrText.labelCaps.copyWith(color: HrColors.text2),
+                  ),
+                ),
+                for (final h in todo) _habitRow(context, h),
+              ],
+              if (completed.isNotEmpty) ...[
+                if (todo.isNotEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    child: Divider(),
+                  ),
+                Semantics(
+                  button: true,
+                  expanded: _showCompleted,
+                  label: _showCompleted
+                      ? 'Hide ${completed.length} completed habits'
+                      : 'Show ${completed.length} completed habits',
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(HrRadius.sm),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(HrRadius.sm),
+                      onTap: () => setState(
+                        () => _showCompleted = !_showCompleted,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            const HrCheck(done: true, size: 24),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'COMPLETED · ${completed.length}',
+                                style: HrText.labelCaps.copyWith(
+                                  color: HrColors.text2,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              _showCompleted
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.chevron_right_rounded,
+                              color: HrColors.text3,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (_showCompleted)
+                  for (final h in completed) _habitRow(context, h),
+              ],
+            ],
           ],
         ),
       ),
@@ -2818,47 +2983,43 @@ class _VictoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final v = appState.victory();
     final color = victoryColor(v.score);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: HrColors.surface,
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        border: const Border(top: BorderSide(color: HrColors.hairline)),
-      ),
-      child: Row(
-        children: [
-          SegmentedRing(
-            size: 64,
-            segments: 1,
-            value: v.score / 100,
-            stroke: 6,
-            color: color,
-            center: Text(
-              '${v.score}',
-              style: HrText.stat.copyWith(fontSize: 20),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
+      child: HrCard(
+        child: Row(
+          children: [
+            SegmentedRing(
+              size: 64,
+              segments: 1,
+              value: v.score / 100,
+              stroke: 6,
+              color: color,
+              center: Text(
+                '${v.score}',
+                style: HrText.stat.copyWith(fontSize: 20),
+              ),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('VICTORY SCORE', style: HrText.labelCaps),
-                const SizedBox(height: 3),
-                Text(
-                  victoryLabel(v.score),
-                  style: HrText.headline.copyWith(color: color),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Habits ${v.habits} · Nutr ${v.nutrition} · Focus ${v.focus} · Sleep ${v.sleep}',
-                  style: HrText.caption,
-                ),
-              ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('VICTORY SCORE', style: HrText.labelCaps),
+                  const SizedBox(height: 3),
+                  Text(
+                    victoryLabel(v.score),
+                    style: HrText.headline.copyWith(color: color),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Habits ${v.habits} · Nutr ${v.nutrition} · Focus ${v.focus} · Sleep ${v.sleep}',
+                    style: HrText.caption,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2870,70 +3031,64 @@ class _BossCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = appState.perfectDaysThisWeek().clamp(0, kBossGoal);
     final defeated = count >= kBossGoal;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: HrColors.surface,
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        border: Border(
-          top: BorderSide(color: defeated ? HrColors.gold : HrColors.hairline),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
+      child: HrCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Image.asset(
+                  kBossImageAsset,
+                  width: 42,
+                  height: 42,
+                  fit: BoxFit.contain,
+                  semanticLabel: 'Veil Regent weekly boss',
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    kBossTitle,
+                    style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                Text(
+                  defeated ? 'DEFEATED' : '$count/$kBossGoal',
+                  style: HrText.body.copyWith(
+                    color: defeated ? HrColors.gold : HrColors.text2,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(HrRadius.full),
+              child: LinearProgressIndicator(
+                value: (count / kBossGoal).clamp(0.0, 1.0).toDouble(),
+                minHeight: 8,
+                backgroundColor: HrColors.surface3,
+                valueColor: const AlwaysStoppedAnimation(HrColors.gold),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              defeated
+                  ? 'Reward claimed: +$kBossXp XP · +$kBossCoins coins'
+                  : '$kBossDesc  (+$kBossXp XP, +$kBossCoins coins)',
+              style: HrText.caption,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Season ${appState.currentSeason + 1} · ${appState.seasonBossDefeats}/4 bosses',
+              style: HrText.caption.copyWith(
+                color: HrColors.info,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Image.asset(
-                kBossImageAsset,
-                width: 42,
-                height: 42,
-                fit: BoxFit.contain,
-                semanticLabel: 'Veil Regent weekly boss',
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  kBossTitle,
-                  style: HrText.body.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-              Text(
-                defeated ? 'DEFEATED' : '$count/$kBossGoal',
-                style: HrText.body.copyWith(
-                  color: defeated ? HrColors.gold : HrColors.text2,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(HrRadius.full),
-            child: LinearProgressIndicator(
-              value: (count / kBossGoal).clamp(0.0, 1.0).toDouble(),
-              minHeight: 8,
-              backgroundColor: HrColors.surface3,
-              valueColor: const AlwaysStoppedAnimation(HrColors.gold),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            defeated
-                ? 'Reward claimed: +$kBossXp XP · +$kBossCoins coins'
-                : '$kBossDesc  (+$kBossXp XP, +$kBossCoins coins)',
-            style: HrText.caption,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Season ${appState.currentSeason + 1} · ${appState.seasonBossDefeats}/4 bosses',
-            style: HrText.caption.copyWith(
-              color: HrColors.info,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -2944,61 +3099,57 @@ class _QuestsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final claimed = appState.questClaimedIds;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: HrColors.surface,
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        border: const Border(top: BorderSide(color: HrColors.hairline)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('DAILY QUESTS', style: HrText.labelCaps),
-              Text(
-                '${claimed.length}/${kQuests.length}',
-                style: HrText.labelCaps.copyWith(color: HrColors.accent),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ...kQuests.map((q) {
-            final on = claimed.contains(q.id);
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    on ? Icons.check_circle_rounded : Icons.circle_outlined,
-                    size: 18,
-                    color: on ? HrColors.accent : HrColors.text3,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      q.title,
-                      style: HrText.bodyS.copyWith(
-                        color: on ? HrColors.text3 : HrColors.text,
-                        decoration: on ? TextDecoration.lineThrough : null,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
+      child: HrCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('DAILY QUESTS', style: HrText.labelCaps),
+                Text(
+                  '${claimed.length}/${kQuests.length}',
+                  style: HrText.labelCaps.copyWith(color: HrColors.accent),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...kQuests.map((q) {
+              final on = claimed.contains(q.id);
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      on ? Icons.check_circle_rounded : Icons.circle_outlined,
+                      size: 18,
+                      color: on ? HrColors.accent : HrColors.text3,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        q.title,
+                        style: HrText.bodyS.copyWith(
+                          color: on ? HrColors.text3 : HrColors.text,
+                          decoration: on ? TextDecoration.lineThrough : null,
+                        ),
                       ),
                     ),
-                  ),
-                  Text(
-                    '+${q.xp}',
-                    style: HrText.caption.copyWith(
-                      color: on ? HrColors.text3 : HrColors.accent,
-                      fontWeight: FontWeight.w800,
+                    Text(
+                      '+${q.xp}',
+                      style: HrText.caption.copyWith(
+                        color: on ? HrColors.text3 : HrColors.accent,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -9497,13 +9648,8 @@ class _JournalScreenState extends State<JournalScreen> {
         ),
         const SizedBox(height: 11),
         if (items.isEmpty)
-          Container(
+          HrCard(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 23),
-            decoration: BoxDecoration(
-              color: HrColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: HrColors.hairline),
-            ),
             child: Row(
               children: [
                 Container(
@@ -9568,7 +9714,7 @@ class _TodayReflectionCard extends StatelessWidget {
       height: 230,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(23),
+        borderRadius: BorderRadius.circular(HrRadius.lg),
         border: Border.all(color: const Color(0xFF65518C).withValues(alpha: 0.5)),
         boxShadow: [
           BoxShadow(
@@ -9703,24 +9849,8 @@ class _JournalEntryCard extends StatelessWidget {
     final rated = metrics.isNotEmpty;
     final scoreColor = HrColors.victory((ratingScore / 40 * 100).round());
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(15, 12, 12, 14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF202027), Color(0xFF19191E)],
-        ),
-        borderRadius: BorderRadius.circular(21),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.075)),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 12,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
+    return HrCard(
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -11403,10 +11533,8 @@ Future<void> showAddFood(BuildContext context) async {
           if (est == null) {
             ScaffoldMessenger.of(ctx).showSnackBar(
               SnackBar(
-                content: Text(
-                  appState.aiEnabled
-                      ? "Couldn't reach the AI — is Ollama running? You can enter the macros manually."
-                      : 'Turn on AI in Settings → AI difficulty, or enter the macros manually.',
+                content: const Text(
+                  'AI estimation is unavailable. You can enter the macros manually.',
                 ),
               ),
             );
@@ -12938,18 +13066,6 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _YouRow(
-                    Icons.auto_awesome_rounded,
-                    'AI difficulty',
-                    appState.aiEnabled
-                        ? 'Ollama · ${appState.aiModel}'
-                        : 'Built-in estimate',
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AiSettingsScreen(),
-                      ),
-                    ),
-                  ),
                 ]),
                 const SizedBox(height: 18),
                 const HrLabel('Data'),
@@ -13042,243 +13158,6 @@ Future<void> _confirmReset(BuildContext context) async {
   }
 }
 
-// ── AI DIFFICULTY (local Ollama) ─────────────────────────────────────────────
-class AiSettingsScreen extends StatefulWidget {
-  const AiSettingsScreen({super.key});
-  @override
-  State<AiSettingsScreen> createState() => _AiSettingsScreenState();
-}
-
-class _AiSettingsScreenState extends State<AiSettingsScreen> {
-  late final TextEditingController _url = TextEditingController(
-    text: appState.aiBaseUrl,
-  );
-  late final TextEditingController _model = TextEditingController(
-    text: appState.aiModel,
-  );
-  bool _testing = false;
-  bool _testOk = false;
-  String? _testResult;
-
-  @override
-  void dispose() {
-    _url.dispose();
-    _model.dispose();
-    super.dispose();
-  }
-
-  Future<void> _test() async {
-    // Save what's on screen, then test exactly that.
-    appState.setAiConfig(baseUrl: _url.text, model: _model.text);
-    setState(() {
-      _testing = true;
-      _testResult = null;
-    });
-    final r = await testOllama(_url.text, _model.text);
-    if (!mounted) return;
-    setState(() {
-      _testing = false;
-      _testOk = r.ok;
-      _testResult = r.message;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: appState,
-      builder: (context, _) {
-        final on = appState.aiEnabled;
-        return Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: Text('AI difficulty', style: HrText.title2),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              HrSpace.gutter,
-              8,
-              HrSpace.gutter,
-              24,
-            ),
-            children: [
-              HrCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.auto_awesome_rounded,
-                          color: HrColors.text2,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text('How it works', style: HrText.headline),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'When you add a habit, a local AI model reads it and picks a '
-                      'difficulty — harder habits earn a bigger XP multiplier. The '
-                      'rating is locked in when the habit is created, so XP stays '
-                      'fair and the app still works offline (it falls back to a '
-                      'built-in estimate whenever the model isn\'t running).',
-                      style: HrText.bodyS,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              HrCard(
-                padding: EdgeInsets.zero,
-                child: SwitchListTile(
-                  value: on,
-                  activeThumbColor: HrColors.accent,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 2,
-                  ),
-                  title: Text(
-                    'Use Ollama',
-                    style: HrText.body.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'Rate new habits with a local model',
-                    style: HrText.caption,
-                  ),
-                  onChanged: (v) => appState.setAiConfig(enabled: v),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _aiField(
-                'Server URL',
-                _url,
-                'http://localhost:11434',
-                enabled: on,
-                onChanged: (v) => appState.setAiConfig(baseUrl: v),
-              ),
-              const SizedBox(height: 12),
-              _aiField(
-                'Model',
-                _model,
-                kDefaultAiModel,
-                enabled: on,
-                onChanged: (v) => appState.setAiConfig(model: v),
-              ),
-              const SizedBox(height: 16),
-              HrButton(
-                label: _testing ? 'Testing…' : 'Test connection',
-                icon: Icons.wifi_tethering_rounded,
-                kind: HrButtonKind.secondary,
-                loading: _testing,
-                onPressed: on && !_testing ? _test : null,
-              ),
-              if (_testResult != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: (_testOk ? HrColors.accent : HrColors.danger)
-                        .withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(HrRadius.md),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _testOk
-                            ? Icons.check_circle_rounded
-                            : Icons.error_rounded,
-                        color: _testOk ? HrColors.accent : HrColors.dangerText,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _testResult!,
-                          style: HrText.caption.copyWith(
-                            color: _testOk
-                                ? HrColors.accent
-                                : HrColors.dangerText,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 20),
-              _sectionLabel('SETUP'),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
-                child: Text(
-                  '1. Install Ollama from ollama.com\n'
-                  '2. Run:  ollama pull llama3.2\n'
-                  '3. Keep Ollama running while you add habits.\n\n'
-                  'On a real iPhone later, Ollama runs on your computer, not the '
-                  'phone — set the Server URL to your computer\'s address, e.g. '
-                  'http://192.168.1.20:11434, or leave AI off to use the built-in '
-                  'estimate.',
-                  style: HrText.caption.copyWith(height: 1.5),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-Widget _aiField(
-  String label,
-  TextEditingController c,
-  String hint, {
-  required bool enabled,
-  required ValueChanged<String> onChanged,
-}) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 6),
-        child: Text(label, style: HrText.caption),
-      ),
-      TextField(
-        controller: c,
-        enabled: enabled,
-        style: HrText.body,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: HrText.body.copyWith(color: HrColors.text3),
-          filled: true,
-          fillColor: HrColors.surface,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 14,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(HrRadius.md),
-            borderSide: BorderSide.none,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(HrRadius.md),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(HrRadius.md),
-            borderSide: const BorderSide(color: HrColors.text, width: 1.5),
-          ),
-        ),
-        onChanged: onChanged,
-      ),
-    ],
-  );
-}
-
 // ── APPEARANCE (themes) ──────────────────────────────────────────────────────
 Widget _swatch(Color c) => Container(
   width: 22,
@@ -13291,8 +13170,8 @@ void _toast(BuildContext context, String msg) =>
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg), backgroundColor: kElevated));
 
-// Gold affordability-aware buy pill. Affordable → glowing gold; otherwise a
-// muted pill that still taps through to show the "not enough coins" toast.
+// Gold affordability-aware buy pill. Affordable → a restrained gold accent;
+// otherwise a muted pill that still shows the "not enough coins" toast.
 Widget _buyPill({required int cost, required VoidCallback onTap}) {
   final canAfford = appState.coins >= cost;
   return Material(
@@ -13314,9 +13193,9 @@ Widget _buyPill({required int cost, required VoidCallback onTap}) {
           boxShadow: canAfford
               ? [
                   BoxShadow(
-                    color: const Color(0xFFF5A623).withValues(alpha: 0.35),
-                    blurRadius: 12,
-                    offset: const Offset(0, 3),
+                    color: const Color(0xFFF5A623).withValues(alpha: 0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ]
               : null,
@@ -13324,10 +13203,12 @@ Widget _buyPill({required int cost, required VoidCallback onTap}) {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.bolt,
-              size: 15,
-              color: canAfford ? const Color(0xFF3A2A05) : kGold,
+            Image.asset(
+              'assets/shop/coin_stack.png',
+              width: 16,
+              height: 16,
+              fit: BoxFit.contain,
+              excludeFromSemantics: true,
             ),
             const SizedBox(width: 3),
             Text(
@@ -13401,13 +13282,8 @@ Widget _shopSectionHeader(String title, String trailing) => Padding(
 );
 
 // Coins balance hero at the top of the shop.
-Widget _balanceHero() => Container(
+Widget _balanceHero() => HrCard(
   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-  decoration: BoxDecoration(
-    color: HrColors.surface,
-    borderRadius: BorderRadius.circular(HrRadius.lg),
-    border: const Border(top: BorderSide(color: HrColors.hairline)),
-  ),
   child: Row(
     children: [
       Image.asset(
@@ -13484,51 +13360,55 @@ Widget _shopItem({
   String? activeLabel,
   String? imageAsset,
 }) {
-  return Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: HrColors.surface,
-      borderRadius: BorderRadius.circular(HrRadius.md),
-      border: const Border(top: BorderSide(color: HrColors.hairline)),
-    ),
-    child: Row(
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          alignment: Alignment.center,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(HrRadius.sm),
-            color: color.withValues(alpha: 0.16),
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: HrCard(
+      child: Row(
+        children: [
+          if (imageAsset == null)
+            SizedBox(
+              width: 46,
+              height: 46,
+              child: Icon(icon, color: color, size: 22),
+            )
+          else
+            Image.asset(
+              imageAsset,
+              width: 46,
+              height: 46,
+              fit: BoxFit.contain,
+              semanticLabel: title,
+            ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  desc,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.caption.copyWith(
+                    color: HrColors.text3.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: imageAsset == null
-              ? Icon(icon, color: color, size: 22)
-              : Image.asset(imageAsset, fit: BoxFit.cover),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: HrText.body.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 3),
-              Text(desc, style: HrText.caption),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        if (activeLabel != null)
-          _stateChip(activeLabel, HrColors.accent)
-        else if (onBuy != null)
-          _buyPill(cost: cost, onTap: onBuy)
-        else
-          _stateChip('OWNED', HrColors.accent),
-      ],
+          const SizedBox(width: 10),
+          if (activeLabel != null)
+            _stateChip(activeLabel, HrColors.accent)
+          else if (onBuy != null)
+            _buyPill(cost: cost, onTap: onBuy)
+          else
+            _stateChip('OWNED', HrColors.accent),
+        ],
+      ),
     ),
   );
 }
@@ -13625,47 +13505,40 @@ class ShopScreen extends StatelessWidget {
 Widget _borderShopTile(BuildContext context, BorderDef b) {
   final owned = appState.ownsBorder(b.id);
   final selected = appState.selectedBorder == b.id;
-  return Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: HrColors.surface,
-      borderRadius: BorderRadius.circular(HrRadius.md),
-      border: Border(
-        top: BorderSide(
-          color: selected ? HrColors.accent : HrColors.hairline,
-          width: selected ? 2 : 1,
-        ),
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: HrCard(
+      padding: const EdgeInsets.all(16),
+      color: selected ? HrColors.accentSurface : null,
+      child: Row(
+        children: [
+          _borderPreview(b, size: 42),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              b.name,
+              style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (owned)
+            selected
+                ? _stateChip('SELECTED', HrColors.accent)
+                : _secondaryPill('Select', () => appState.setBorder(b.id))
+          else
+            _buyPill(
+              cost: b.cost,
+              onTap: () {
+                if (appState.buyBorder(b.id)) {
+                  appState.setBorder(b.id);
+                  celebrate(context);
+                  _toast(context, '${b.name} unlocked & applied!');
+                } else {
+                  _toast(context, 'Not enough coins');
+                }
+              },
+            ),
+        ],
       ),
-    ),
-    child: Row(
-      children: [
-        _borderPreview(b, size: 42),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Text(
-            b.name,
-            style: HrText.body.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ),
-        if (owned)
-          selected
-              ? _stateChip('SELECTED', HrColors.accent)
-              : _secondaryPill('Select', () => appState.setBorder(b.id))
-        else
-          _buyPill(
-            cost: b.cost,
-            onTap: () {
-              if (appState.buyBorder(b.id)) {
-                appState.setBorder(b.id);
-                celebrate(context);
-                _toast(context, '${b.name} unlocked & applied!');
-              } else {
-                _toast(context, 'Not enough coins');
-              }
-            },
-          ),
-      ],
     ),
   );
 }
@@ -13673,50 +13546,43 @@ Widget _borderShopTile(BuildContext context, BorderDef b) {
 Widget _themeShopTile(BuildContext context, AppThemeDef t) {
   final owned = appState.ownsTheme(t.id);
   final active = appState.themeId == t.id;
-  return Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: HrColors.surface,
-      borderRadius: BorderRadius.circular(HrRadius.md),
-      border: Border(
-        top: BorderSide(
-          color: active ? HrColors.accent : HrColors.hairline,
-          width: active ? 2 : 1,
-        ),
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: HrCard(
+      padding: const EdgeInsets.all(16),
+      color: active ? HrColors.accentSurface : null,
+      child: Row(
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [_swatch(t.accent), _swatch(t.bright), _swatch(t.glow)],
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              t.name,
+              style: HrText.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (owned)
+            active
+                ? _stateChip('ACTIVE', HrColors.accent)
+                : _secondaryPill('Apply', () => appState.setTheme(t.id))
+          else
+            _buyPill(
+              cost: themeCost(t.id),
+              onTap: () {
+                if (appState.buyTheme(t.id)) {
+                  appState.setTheme(t.id);
+                  celebrate(context);
+                  _toast(context, '${t.name} unlocked & applied!');
+                } else {
+                  _toast(context, 'Not enough coins');
+                }
+              },
+            ),
+        ],
       ),
-    ),
-    child: Row(
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [_swatch(t.accent), _swatch(t.bright), _swatch(t.glow)],
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            t.name,
-            style: HrText.body.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ),
-        if (owned)
-          active
-              ? _stateChip('ACTIVE', HrColors.accent)
-              : _secondaryPill('Apply', () => appState.setTheme(t.id))
-        else
-          _buyPill(
-            cost: themeCost(t.id),
-            onTap: () {
-              if (appState.buyTheme(t.id)) {
-                appState.setTheme(t.id);
-                celebrate(context);
-                _toast(context, '${t.name} unlocked & applied!');
-              } else {
-                _toast(context, 'Not enough coins');
-              }
-            },
-          ),
-      ],
     ),
   );
 }

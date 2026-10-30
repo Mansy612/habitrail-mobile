@@ -37,10 +37,11 @@ Connect; **[verify]** need testing on a real device.
   App Store Connect).
 
 ## Accounts & review guidelines
-- **[verify / backend]** **Account deletion (Guideline 5.1.1(v)) is only
-  partial** — the client deletes the `profiles` row but not the `auth.users`
-  record. Add a Supabase Edge Function using the service-role key to fully
-  delete the auth user, and call it from the existing Delete-account flow.
+- **[done, deploy needed]** **Account deletion (Guideline 5.1.1(v))** now fully
+  deletes the auth user via the `delete-account` Edge Function
+  (`supabase/functions/delete-account`), invoked by the Delete-account flow; data
+  rows cascade. **Deploy it:** `npx supabase functions deploy delete-account
+  --project-ref <ref>` (no secrets needed), then verify deletion on a device.
 - **[ok]** Sign in with Apple is **not required** (email + guest only; it
   becomes mandatory only if you add Google/Facebook-style social logins).
 - **[you]** Age rating questionnaire; export-compliance (uses HTTPS only →

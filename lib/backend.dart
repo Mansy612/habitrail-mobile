@@ -181,11 +181,19 @@ class SupabaseAuthService implements AuthService {
   Future<void> deleteAccount() async {
     final id = _uid;
     if (id != null) {
-      // Removes the profile (friendships cascade). Fully deleting the auth user
-      // needs a privileged call; see docs/SUPABASE_SETUP.md.
+      // Fully delete the auth user (and all cascading rows) via the privileged
+      // 'delete-account' Edge Function. If it isn't deployed, fall back to
+      // removing the profile row so the account at least leaves the app.
+      var deleted = false;
       try {
-        await _sb.from('profiles').delete().eq('id', id);
+        final res = await _sb.functions.invoke('delete-account');
+        deleted = res.status == 200;
       } catch (_) {}
+      if (!deleted) {
+        try {
+          await _sb.from('profiles').delete().eq('id', id);
+        } catch (_) {}
+      }
     }
     await signOut();
   }

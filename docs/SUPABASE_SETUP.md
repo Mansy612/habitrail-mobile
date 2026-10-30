@@ -148,10 +148,13 @@ against the real user directory. With no credentials it stays on the on-device
 stub, unchanged.
 
 ## Notes / limitations
-- **Account deletion** removes your `profiles` row (friendships cascade) and signs
-  you out, but fully deleting the `auth.users` record needs a privileged call
-  (a Supabase Edge Function using the **service-role** key) — never done from the
-  client. The service-role key must stay server-side only.
+- **Account deletion** fully deletes the `auth.users` record (and all cascading
+  rows) via the `delete-account` Edge Function (`supabase/functions/delete-account`),
+  which the app invokes and which uses the auto-injected **service-role** key
+  server-side. Deploy it with `npx supabase functions deploy delete-account
+  --project-ref <ref>` — no extra secrets needed. If it isn't deployed, the app
+  falls back to removing just the `profiles` row. The service-role key never
+  leaves the server.
 - The **anon key is safe** to ship in a client build; Row-Level Security is what
   protects the data.
 - To test the leaderboard with real data, sign up as two users (two devices or a

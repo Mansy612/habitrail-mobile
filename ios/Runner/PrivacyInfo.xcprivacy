@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Habitrail does no tracking and shares no data with data brokers. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<!-- The App Store Connect privacy questionnaire is the authoritative data
+	     disclosure. Habitrail collects email + display name (account) and syncs
+	     a stats snapshot / optional cloud backup to Supabase; none is used for
+	     tracking. Mirror that in App Store Connect. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<!-- Required-reason APIs actually used. shared_preferences -> UserDefaults.
+	     If `flutter build ipa` later flags others (file timestamp / disk space
+	     from image_picker, path_provider, etc.), add them here with their
+	     reason codes. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

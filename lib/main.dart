@@ -14076,321 +14076,304 @@ Widget _secondaryPill(String label, VoidCallback onTap) => Material(
   ),
 );
 
-// Section header with an optional right-aligned owned-count ("3 / 7").
-Widget _shopSectionHeader(String title, String trailing) => Padding(
-  padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+/// Gold coin balance pill for page headers (Shop).
+Widget _balancePill() => Container(
+  padding: const EdgeInsets.fromLTRB(8, 6, 14, 6),
+  decoration: BoxDecoration(
+    color: HrColors.surface,
+    borderRadius: BorderRadius.circular(HrRadius.full),
+    border: Border.all(color: HrColors.gold.withValues(alpha: 0.45)),
+    boxShadow: [BoxShadow(color: HrColors.gold.withValues(alpha: 0.18), blurRadius: 12)],
+  ),
   child: Row(
+    mainAxisSize: MainAxisSize.min,
     children: [
-      Expanded(child: Text(title.toUpperCase(), style: HrText.labelCaps)),
-      if (trailing.isNotEmpty) Text(trailing, style: HrText.labelCaps),
+      Image.asset('assets/shop/coin_stack.png', width: 24, height: 24),
+      const SizedBox(width: 6),
+      Text(
+        hrNum(appState.coins),
+        style: HrText.headline.copyWith(color: HrColors.gold, fontWeight: FontWeight.w900),
+      ),
     ],
   ),
 );
 
-// Coins balance hero at the top of the shop.
-Widget _balanceHero() => HrCard(
-  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-  child: Row(
-    children: [
-      Image.asset(
-        'assets/shop/coin_stack.png',
-        width: 64,
-        height: 64,
-        fit: BoxFit.contain,
-        semanticLabel: 'Gold coin stack',
-      ),
-      const SizedBox(width: 16),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+/// Full-width gold price button; muted when the balance can't cover it.
+Widget _shopPrice(int cost, VoidCallback onTap) {
+  final canAfford = appState.coins >= cost;
+  return Semantics(
+    button: true,
+    label: 'Buy for $cost coins',
+    excludeSemantics: true,
+    child: HrPressable(
+      onTap: onTap,
+      child: Container(
+        height: 32,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(HrRadius.sm),
+          gradient: canAfford
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [HrColors.goldBright, HrColors.goldDeep],
+                )
+              : null,
+          color: canAfford ? null : HrColors.surface2,
+          border: canAfford ? null : Border.all(color: HrColors.cardEdge),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text('YOUR BALANCE', style: HrText.labelCaps),
-            const SizedBox(height: 3),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  '${appState.coins}',
-                  style: HrText.numeralXl.copyWith(
-                    color: HrColors.gold,
-                    fontSize: 34,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text('coins', style: HrText.caption),
-              ],
+            Image.asset('assets/shop/coin_stack.png', width: 18, height: 18,
+                excludeFromSemantics: true),
+            const SizedBox(width: 4),
+            Text(
+              hrNum(cost),
+              style: HrText.bodyS.copyWith(
+                color: canAfford ? HrColors.onBtnPrimary : HrColors.text2,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ],
         ),
-      ),
-      if (appState.xpBoostActive)
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-          decoration: BoxDecoration(
-            color: HrColors.accentSurface,
-            borderRadius: BorderRadius.circular(HrRadius.sm),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '2×',
-                style: HrText.bodyS.copyWith(
-                  color: HrColors.accent,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'XP',
-                style: HrText.micro.copyWith(
-                  color: HrColors.accent,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-    ],
-  ),
-);
-
-Widget _shopItem({
-  required IconData icon,
-  required Color color,
-  required String title,
-  required String desc,
-  required int cost,
-  required VoidCallback? onBuy,
-  String? activeLabel,
-  String? imageAsset,
-}) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: HrCard(
-      child: Row(
-        children: [
-          if (imageAsset == null)
-            SizedBox(
-              width: 46,
-              height: 46,
-              child: Icon(icon, color: color, size: 22),
-            )
-          else
-            Image.asset(
-              imageAsset,
-              width: 46,
-              height: 46,
-              fit: BoxFit.contain,
-              semanticLabel: title,
-            ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: HrText.body.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  desc,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: HrText.caption.copyWith(
-                    color: HrColors.text3.withValues(alpha: 0.9),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          if (activeLabel != null)
-            _stateChip(activeLabel, HrColors.accent)
-          else if (onBuy != null)
-            _buyPill(cost: cost, onTap: onBuy)
-          else
-            _stateChip('OWNED', HrColors.accent),
-        ],
       ),
     ),
   );
 }
 
-class ShopScreen extends StatelessWidget {
+/// Full-width state / secondary action for an owned item.
+Widget _shopOwned(String label, {VoidCallback? onTap}) => HrPressable(
+  onTap: onTap,
+  child: Container(
+    height: 32,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(HrRadius.sm),
+      color: onTap == null ? HrColors.accentSurface : HrColors.surface2,
+      border: Border.all(
+        color: onTap == null ? HrColors.accent : HrColors.cardEdge,
+      ),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (onTap == null) ...[
+          Icon(Icons.check_rounded, size: 15, color: HrColors.accentBright),
+          const SizedBox(width: 4),
+        ],
+        Text(
+          label,
+          style: HrText.bodyS.copyWith(
+            color: onTap == null ? HrColors.accentBright : HrColors.text,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    ),
+  ),
+);
+
+class _ShopCard extends StatelessWidget {
+  const _ShopCard({
+    required this.art,
+    required this.name,
+    required this.action,
+    this.desc,
+    this.selected = false,
+  });
+  final Widget art;
+  final String name;
+  final String? desc;
+  final Widget action;
+  final bool selected;
+  @override
+  Widget build(BuildContext context) => HrCard(
+    highlight: selected,
+    radius: HrRadius.md,
+    padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+    child: Column(
+      children: [
+        Expanded(child: Center(child: art)),
+        const SizedBox(height: 6),
+        Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w800),
+        ),
+        if (desc != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            desc!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: HrText.micro.copyWith(color: HrColors.text2),
+          ),
+        ],
+        const SizedBox(height: 8),
+        action,
+      ],
+    ),
+  );
+}
+
+class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
+  @override
+  State<ShopScreen> createState() => _ShopScreenState();
+}
+
+class _ShopScreenState extends State<ShopScreen> {
+  static const _tabs = ['All', 'Power-ups', 'Borders', 'Themes'];
+  int _tab = 0;
+
+  Widget _grid(int cols, double ratio, List<Widget> items) => GridView.count(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    crossAxisCount: cols,
+    crossAxisSpacing: 10,
+    mainAxisSpacing: 10,
+    childAspectRatio: ratio,
+    children: items,
+  );
+
+  Widget _count(String text) => Text(
+    text,
+    style: HrText.bodyS.copyWith(color: HrColors.text2, fontWeight: FontWeight.w700),
+  );
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) {
-        final ownedBorders = kBorders
-            .where((b) => appState.ownsBorder(b.id))
-            .length;
+        final ownedBorders = kBorders.where((b) => appState.ownsBorder(b.id)).length;
         // The exclusive premium theme is unlocked by Premium, not bought here.
-        final buyableThemes =
-            kThemes.where((t) => t.id != kPremiumThemeId).toList();
-        final ownedThemes =
-            buyableThemes.where((t) => appState.ownsTheme(t.id)).length;
+        final buyableThemes = kThemes.where((t) => t.id != kPremiumThemeId).toList();
+        final ownedThemes = buyableThemes.where((t) => appState.ownsTheme(t.id)).length;
+        bool show(int t) => _tab == 0 || _tab == t;
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
             title: const HrAppBarTitle('Shop'),
+            actions: [_balancePill(), const SizedBox(width: 14)],
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              HrSpace.gutter,
-              8,
-              HrSpace.gutter,
-              28,
-            ),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 6, HrSpace.gutter, 28),
             children: [
-              _balanceHero(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
-                child: Text(
-                  'Spend coins on power-ups and cosmetics to personalize your journey.',
-                  style: HrText.caption,
-                ),
+              HrFilterChips(
+                items: _tabs,
+                index: _tab,
+                onChanged: (i) => setState(() => _tab = i),
               ),
-              _shopSectionHeader('POWER-UPS', ''),
-              _shopItem(
-                icon: Icons.bolt_rounded,
-                color: kGold,
-                imageAsset: 'assets/powerups/xp_booster.png',
-                title: '2× XP Booster',
-                desc: appState.xpBoostActive
-                    ? 'Active for the rest of today'
-                    : 'Double all XP you earn today',
-                cost: 150,
-                onBuy: appState.xpBoostActive
-                    ? null
-                    : () => _toast(
-                        context,
-                        appState.buyXpBoost()
-                            ? '2× XP active for today!'
-                            : 'Not enough coins',
-                      ),
-                activeLabel: appState.xpBoostActive ? 'ACTIVE' : null,
-              ),
-              _shopItem(
-                icon: Icons.shield_rounded,
-                color: kCyan,
-                imageAsset: 'assets/powerups/streak_shield.png',
-                title: 'Streak Shield',
-                desc:
-                    'Saves a streak from one missed day · owned: ${appState.streakShields}',
-                cost: 100,
-                onBuy: () => _toast(
-                  context,
-                  appState.buyStreakShield()
-                      ? 'Streak Shield added!'
-                      : 'Not enough coins',
-              ),
-              ),
-              _shopSectionHeader(
-                'PROFILE BORDERS',
-                '$ownedBorders / ${kBorders.length}',
-              ),
-              ...kBorders.map((b) => _borderShopTile(context, b)),
-              _shopSectionHeader('THEMES', '$ownedThemes / ${buyableThemes.length}'),
-              ...buyableThemes.map((t) => _themeShopTile(context, t)),
+              const SizedBox(height: 16),
+              if (show(1)) ...[
+                const HrLabel('Power-ups'),
+                _grid(2, 0.9, [
+                  _ShopCard(
+                    art: Image.asset('assets/powerups/xp_booster.png', width: 70, height: 70),
+                    name: '2× XP Booster',
+                    desc: appState.xpBoostActive
+                        ? 'Active for the rest of today'
+                        : 'Double all XP you earn today',
+                    selected: appState.xpBoostActive,
+                    action: appState.xpBoostActive
+                        ? _shopOwned('Active')
+                        : _shopPrice(150, () => _toast(
+                              context,
+                              appState.buyXpBoost()
+                                  ? '2× XP active for today!'
+                                  : 'Not enough coins',
+                            )),
+                  ),
+                  _ShopCard(
+                    art: Image.asset('assets/powerups/streak_shield.png', width: 70, height: 70),
+                    name: 'Streak Shield',
+                    desc: 'Saves a streak from one missed day · owned: ${appState.streakShields}',
+                    action: _shopPrice(100, () => _toast(
+                          context,
+                          appState.buyStreakShield()
+                              ? 'Streak Shield added!'
+                              : 'Not enough coins',
+                        )),
+                  ),
+                ]),
+                const SizedBox(height: 18),
+              ],
+              if (show(2)) ...[
+                HrLabel('Profile borders',
+                    trailing: _count('$ownedBorders / ${kBorders.length}')),
+                _grid(3, 0.74, [for (final b in kBorders) _borderCard(context, b)]),
+                const SizedBox(height: 18),
+              ],
+              if (show(3)) ...[
+                HrLabel('Themes',
+                    trailing: _count('$ownedThemes / ${buyableThemes.length}')),
+                _grid(3, 0.74, [for (final t in buyableThemes) _themeCard(context, t)]),
+              ],
             ],
           ),
         );
       },
     );
   }
-}
 
-Widget _borderShopTile(BuildContext context, BorderDef b) {
-  final owned = appState.ownsBorder(b.id);
-  final selected = appState.selectedBorder == b.id;
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: HrCard(
-      padding: const EdgeInsets.all(16),
-      color: selected ? HrColors.accentSurface : null,
-      child: Row(
-        children: [
-          _borderPreview(b, size: 42),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              b.name,
-              style: HrText.body.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-          if (owned)
-            selected
-                ? _stateChip('SELECTED', HrColors.accent)
-                : _secondaryPill('Select', () => appState.setBorder(b.id))
-          else
-            _buyPill(
-              cost: b.cost,
-              onTap: () {
-                if (appState.buyBorder(b.id)) {
-                  appState.setBorder(b.id);
-                  celebrate(context);
-                  _toast(context, '${b.name} unlocked & applied!');
-                } else {
-                  _toast(context, 'Not enough coins');
-                }
-              },
-            ),
-        ],
-      ),
-    ),
-  );
-}
+  Widget _borderCard(BuildContext context, BorderDef b) {
+    final owned = appState.ownsBorder(b.id);
+    final selected = appState.selectedBorder == b.id;
+    return _ShopCard(
+      art: _borderPreview(b, size: 64),
+      name: b.name,
+      selected: selected,
+      action: owned
+          ? (selected
+              ? _shopOwned('Equipped')
+              : _shopOwned('Equip', onTap: () => appState.setBorder(b.id)))
+          : _shopPrice(b.cost, () {
+              if (appState.buyBorder(b.id)) {
+                appState.setBorder(b.id);
+                celebrate(context);
+                _toast(context, '${b.name} unlocked & applied!');
+              } else {
+                _toast(context, 'Not enough coins');
+              }
+            }),
+    );
+  }
 
-Widget _themeShopTile(BuildContext context, AppThemeDef t) {
-  final owned = appState.ownsTheme(t.id);
-  final active = appState.themeId == t.id;
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: HrCard(
-      padding: const EdgeInsets.all(16),
-      color: active ? HrColors.accentSurface : null,
-      child: Row(
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [_swatch(t.accent), _swatch(t.bright), _swatch(t.glow)],
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              t.name,
-              style: HrText.body.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-          if (owned)
-            active
-                ? _stateChip('ACTIVE', HrColors.accent)
-                : _secondaryPill('Apply', () => appState.setTheme(t.id))
-          else
-            _buyPill(
-              cost: themeCost(t.id),
-              onTap: () {
-                if (appState.buyTheme(t.id)) {
-                  appState.setTheme(t.id);
-                  celebrate(context);
-                  _toast(context, '${t.name} unlocked & applied!');
-                } else {
-                  _toast(context, 'Not enough coins');
-                }
-              },
-            ),
-        ],
+  Widget _themeCard(BuildContext context, AppThemeDef t) {
+    final owned = appState.ownsTheme(t.id);
+    final active = appState.themeId == t.id;
+    return _ShopCard(
+      art: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: SweepGradient(colors: [t.accent, t.bright, t.glow, t.accent]),
+          boxShadow: [BoxShadow(color: t.accent.withValues(alpha: 0.55), blurRadius: 16)],
+        ),
       ),
-    ),
-  );
+      name: t.name,
+      selected: active,
+      action: owned
+          ? (active
+              ? _shopOwned('Active')
+              : _shopOwned('Apply', onTap: () => appState.setTheme(t.id)))
+          : _shopPrice(themeCost(t.id), () {
+              if (appState.buyTheme(t.id)) {
+                appState.setTheme(t.id);
+                celebrate(context);
+                _toast(context, '${t.name} unlocked & applied!');
+              } else {
+                _toast(context, 'Not enough coins');
+              }
+            }),
+    );
+  }
 }
 
 // ── CONFETTI ─────────────────────────────────────────────────────────────────

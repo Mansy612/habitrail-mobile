@@ -3928,78 +3928,72 @@ class ChallengesScreen extends StatelessWidget {
 
   Widget _premiumBanner(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 16),
-        child: HrCard(
-          onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PremiumScreen())),
-          child: Row(children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                  color: HrColors.accentSurface,
-                  borderRadius: BorderRadius.circular(HrRadius.md)),
-              child: const Icon(Icons.workspace_premium_rounded,
-                  color: HrColors.gold, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text('Challenges are Premium', style: HrText.headline),
-                  const SizedBox(height: 2),
-                  Text('Unlock to start a guided program',
-                      style: HrText.caption),
-                ])),
-            _lockPill(),
-          ]),
-        ),
+        child: _premiumLockCard(context, 'Challenges are Premium',
+            'Unlock to start a guided program'),
       );
 
   Widget _activeCard(BuildContext context, ChallengeDef c) {
     final done = appState.challengeCheckInCount;
     final checkedToday = appState.challengeCheckedInToday;
+    final dots = c.days <= 10 ? c.days : 10; // 30-day programs show tenths
+    final lit = c.days <= 10 ? done : (done * 10 / c.days).floor();
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: HrCard(
+        highlight: true,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Icon(c.icon, color: HrColors.accent, size: 20),
-            const SizedBox(width: 8),
+            const Icon(Icons.emoji_events_rounded, color: HrColors.gold, size: 36),
+            const SizedBox(width: 10),
             Expanded(
-                child: Text(c.title,
-                    style: HrText.title2,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Active challenge',
+                    style: HrText.micro.copyWith(color: HrColors.text2)),
+                Text(c.title,
+                    style: HrText.headline,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis)),
-            _challengeDayTag(c.days),
+                    overflow: TextOverflow.ellipsis),
+              ]),
+            ),
+            Text.rich(TextSpan(children: [
+              TextSpan(text: '$done', style: HrText.title2.copyWith(color: HrColors.gold)),
+              TextSpan(text: ' / ${c.days}', style: HrText.title2.copyWith(color: HrColors.text2)),
+            ])),
           ]),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(c.focus, style: HrText.bodyS.copyWith(color: HrColors.text2)),
           const SizedBox(height: 14),
-          Row(children: [
-            Text('$done of ${c.days} days', style: HrText.headline),
-            const Spacer(),
-            Text('${(appState.challengeProgress * 100).round()}%',
-                style: HrText.caption),
-          ]),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(HrRadius.full),
-            child: LinearProgressIndicator(
-                value: appState.challengeProgress,
-                minHeight: 8,
-                backgroundColor: HrColors.surface3,
-                valueColor: AlwaysStoppedAnimation(HrColors.accent)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (var i = 0; i < dots; i++)
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: i < lit
+                        ? const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [HrColors.goldBright, HrColors.goldDeep])
+                        : null,
+                    color: i < lit ? null : const Color(0xFF1C1F33),
+                    border: i < lit ? null : Border.all(color: HrColors.cardEdge),
+                    boxShadow: i < lit
+                        ? [BoxShadow(color: HrColors.gold.withValues(alpha: 0.45), blurRadius: 8)]
+                        : null,
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           _challengeMilestones(c.days, done),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           if (checkedToday)
             Row(children: [
-              Icon(Icons.check_circle_rounded,
-                  color: HrColors.accent, size: 18),
-              const SizedBox(width: 8),
+              const HrCheck(done: true, size: 22),
+              const SizedBox(width: 10),
               Expanded(
                   child: Text(
                       'Checked in today. Come back tomorrow to keep it going.',
@@ -4026,85 +4020,125 @@ class ChallengesScreen extends StatelessWidget {
     final done = appState.completedChallenges.contains(c.id);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: HrCard(
-        child: Row(children: [
-          Container(
-            width: 42,
-            height: 42,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-                color: HrColors.surface2,
-                borderRadius: BorderRadius.circular(HrRadius.md)),
-            child: Icon(c.icon, color: HrColors.accent, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Row(children: [
-                  Flexible(
-                      child: Text(c.title,
-                          style: HrText.headline,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis)),
-                  const SizedBox(width: 6),
-                  _challengeDayTag(c.days),
-                ]),
-                const SizedBox(height: 2),
-                Text(c.blurb,
-                    style: HrText.caption,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-              ])),
-          const SizedBox(width: 10),
-          if (isActive)
-            _stateChip('ACTIVE', HrColors.accent)
-          else if (done)
-            _stateChip('DONE', HrColors.gold)
-          else
-            _secondaryPill('Start', () => _start(context, c)),
+      child: HrQuestRow(
+        title: c.title,
+        done: done,
+        leading: HrIconTile(icon: c.icon, size: 52),
+        subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(c.blurb,
+              style: HrText.caption,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 6),
+          Row(children: [
+            _challengeDayTag(c.days),
+            if (isActive) ...[
+              const SizedBox(width: 8),
+              Expanded(child: HrXpBar(value: appState.challengeProgress, height: 7)),
+            ],
+          ]),
         ]),
+        trailing: isActive
+            ? Text('${appState.challengeCheckInCount}/${c.days}',
+                style: HrText.bodyS.copyWith(color: HrColors.gold, fontWeight: FontWeight.w900))
+            : done
+                ? const HrCheck(done: true, size: 30)
+                : HrButton(
+                    label: 'Start',
+                    small: true,
+                    expand: false,
+                    kind: HrButtonKind.accent,
+                    onPressed: () => _start(context, c),
+                  ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: appState,
-      builder: (context, _) {
-        final active = appState.activeChallenge;
-        return Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
+    return _ChallengeFilter(builder: (context, seg, segmented) {
+      return ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) {
+          final active = appState.activeChallenge;
+          final shown = kChallenges
+              .where((c) => seg == 0 || (seg == 1 ? c.days <= 7 : c.days > 7))
+              .toList();
+          return Scaffold(
             backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: const HrAppBarTitle('Guided challenges'),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-                HrSpace.gutter, 8, HrSpace.gutter, 28),
-            children: [
-              if (!appState.isPremium) _premiumBanner(context),
-              if (active != null) _activeCard(context, active),
-              const HrLabel('Programs'),
-              const SizedBox(height: 10),
-              ...kChallenges.map((c) => _catalogTile(context, c)),
-            ],
-          ),
-        );
-      },
-    );
+            appBar: AppBar(
+              title: const HrAppBarTitle('Challenges',
+                  subtitle: 'Push your limits. Build a better you.'),
+            ),
+            body: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                  HrSpace.gutter, 6, HrSpace.gutter, 28),
+              children: [
+                segmented,
+                const SizedBox(height: 16),
+                if (!appState.isPremium) _premiumBanner(context),
+                if (active != null) _activeCard(context, active),
+                const HrLabel('Programs'),
+                ...shown.map((c) => _catalogTile(context, c)),
+              ],
+            ),
+          );
+        },
+      );
+    });
   }
 }
+
+/// Holds the All / 7-day / 30-day filter for the stateless challenges page.
+class _ChallengeFilter extends StatefulWidget {
+  const _ChallengeFilter({required this.builder});
+  final Widget Function(BuildContext context, int seg, Widget segmented) builder;
+  @override
+  State<_ChallengeFilter> createState() => _ChallengeFilterState();
+}
+
+class _ChallengeFilterState extends State<_ChallengeFilter> {
+  int _seg = 0;
+  @override
+  Widget build(BuildContext context) => widget.builder(
+        context,
+        _seg,
+        HrSegmented(
+          items: const ['All', '7-day', '30-day'],
+          index: _seg,
+          onChanged: (i) => setState(() => _seg = i),
+        ),
+      );
+}
+
+/// Shared Premium upsell card for locked features.
+Widget _premiumLockCard(BuildContext context, String title, String sub) => HrCard(
+  onTap: () => Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => const PremiumScreen())),
+  child: Row(children: [
+    const HrIconTile(
+        icon: Icons.workspace_premium_rounded, color: HrColors.gold, size: 44),
+    const SizedBox(width: 12),
+    Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: HrText.headline),
+      const SizedBox(height: 2),
+      Text(sub, style: HrText.caption),
+    ])),
+    _lockPill(),
+  ]),
+);
 
 // ── Premium: Streak recovery ────────────────────────────────────────────────
 class RecoveryScreen extends StatelessWidget {
   const RecoveryScreen({super.key});
 
   void _restDay(BuildContext context) {
+    if (!appState.isPremium) {
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const PremiumScreen()));
+      return;
+    }
     if (appState.restDayActiveToday) return;
     final ok = appState.takeRestDay();
     hrToast(
@@ -4116,6 +4150,60 @@ class RecoveryScreen extends StatelessWidget {
     );
   }
 
+  Widget _resetTile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String body,
+    required String action,
+    required VoidCallback? onTap,
+  }) =>
+      HrCard(
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+        radius: HrRadius.md,
+        child: Column(children: [
+          Icon(icon, size: 34, color: color, shadows: [
+            Shadow(color: color.withValues(alpha: 0.6), blurRadius: 14),
+          ]),
+          const SizedBox(height: 6),
+          Text(title,
+              textAlign: TextAlign.center,
+              style: HrText.bodyS.copyWith(
+                  color: HrColors.text, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          Expanded(
+            child: Text(body,
+                textAlign: TextAlign.center,
+                style: HrText.micro.copyWith(color: HrColors.text2)),
+          ),
+          const SizedBox(height: 6),
+          HrPressable(
+            onTap: onTap,
+            child: Container(
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: onTap == null ? HrColors.surface2 : HrColors.accent,
+                borderRadius: BorderRadius.circular(HrRadius.sm),
+                boxShadow: onTap == null
+                    ? null
+                    : [BoxShadow(color: HrColors.accent.withValues(alpha: 0.4), blurRadius: 10)],
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(action,
+                      style: HrText.micro.copyWith(
+                          color: onTap == null ? HrColors.text2 : HrColors.text,
+                          fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ),
+          ),
+        ]),
+      );
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -4124,128 +4212,130 @@ class RecoveryScreen extends StatelessWidget {
         final premium = appState.isPremium;
         final left = appState.premiumStreakSavesLeft;
         final resting = appState.restDayActiveToday;
+        final shields = appState.streakShields;
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: const HrAppBarTitle('Streak protection'),
+            title: const HrAppBarTitle('Recovery',
+                subtitle: 'Rest, reset, and keep your streak alive.'),
           ),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(
-                HrSpace.gutter, 8, HrSpace.gutter, 28),
+                HrSpace.gutter, 6, HrSpace.gutter, 28),
             children: [
-              if (!premium)
-                HrCard(
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const PremiumScreen())),
-                  child: Row(children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                          color: HrColors.accentSurface,
-                          borderRadius: BorderRadius.circular(HrRadius.md)),
-                      child: const Icon(Icons.workspace_premium_rounded,
-                          color: HrColors.gold, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                          Text('Streak protection is Premium',
-                              style: HrText.headline),
-                          const SizedBox(height: 2),
-                          Text('Streak-saves & rest days keep hard-won streaks safe',
-                              style: HrText.caption),
-                        ])),
-                    _lockPill(),
-                  ]),
-                )
-              else ...[
-                HrCard(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Icon(Icons.health_and_safety_rounded,
-                              color: HrColors.accent, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                              child:
-                                  Text('Streak saves', style: HrText.headline)),
-                          Text('$left of $kPremiumStreakSavesPerMonth',
-                              style: HrText.headline),
-                        ]),
-                        const SizedBox(height: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(HrRadius.full),
-                          child: LinearProgressIndicator(
-                              value: left / kPremiumStreakSavesPerMonth,
-                              minHeight: 8,
-                              backgroundColor: HrColors.surface3,
-                              valueColor:
-                                  AlwaysStoppedAnimation(HrColors.accent)),
+              HrCard(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Streak Repair', style: HrText.title2),
+                                const SizedBox(height: 6),
+                                Text(
+                                    'Missed a day? No worries. Shields'
+                                    '${premium ? ' and your Premium saves' : ''} '
+                                    'are spent automatically to keep your streak going.',
+                                    style: HrText.bodyS),
+                              ]),
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                            'A save is spent automatically when a missed day would '
-                            'break a streak. Your allowance refreshes at the start '
-                            'of each month.',
-                            style: HrText.bodyS.copyWith(color: HrColors.text2)),
-                      ]),
-                ),
-                const SizedBox(height: 12),
-                HrCard(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Icon(Icons.self_improvement_rounded,
-                              color: HrColors.accent, size: 18),
-                          const SizedBox(width: 8),
-                          Text('Plan a rest day', style: HrText.headline),
+                        const SizedBox(width: 10),
+                        Column(children: [
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                            Image.asset('assets/powerups/streak_shield.png',
+                                width: 40, height: 40),
+                            const SizedBox(width: 6),
+                            Text('$shields',
+                                style: HrText.title1.copyWith(color: HrColors.gold)),
+                          ]),
+                          Text('Streak shields',
+                              style: HrText.micro.copyWith(color: HrColors.text2)),
                         ]),
-                        const SizedBox(height: 8),
-                        Text(
-                            'Mark today as a rest day so a planned break keeps your '
-                            'streaks intact. Uses one save.',
-                            style: HrText.bodyS.copyWith(color: HrColors.text2)),
-                        const SizedBox(height: 12),
-                        if (resting)
-                          Row(children: [
-                            Icon(Icons.check_circle_rounded,
-                                color: HrColors.accent, size: 18),
-                            const SizedBox(width: 8),
-                            Text('Resting today — streaks protected',
-                                style: HrText.bodyS
-                                    .copyWith(color: HrColors.text2)),
-                          ])
-                        else
-                          HrButton(
-                            label: 'Take a rest day today',
-                            icon: Icons.self_improvement_rounded,
-                            kind: HrButtonKind.secondary,
-                            onPressed: left > 0 ? () => _restDay(context) : null,
-                          ),
-                        if (!resting && left <= 0) ...[
-                          const SizedBox(height: 8),
-                          Text('No saves left this month.',
-                              style: HrText.caption),
-                        ],
                       ]),
-                ),
-                if (appState.streakShields > 0) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                      'You also have ${appState.streakShields} coin streak '
-                      'shield${appState.streakShields == 1 ? '' : 's'}, used before '
-                      'your monthly saves.',
-                      style: HrText.caption),
-                ],
+                      if (premium) ...[
+                        const SizedBox(height: 14),
+                        Row(children: [
+                          Text('Premium saves',
+                              style: HrText.bodyS.copyWith(
+                                  color: HrColors.text, fontWeight: FontWeight.w800)),
+                          const Spacer(),
+                          Text('$left of $kPremiumStreakSavesPerMonth',
+                              style: HrText.bodyS.copyWith(
+                                  color: HrColors.gold, fontWeight: FontWeight.w900)),
+                        ]),
+                        const SizedBox(height: 6),
+                        HrXpBar(
+                            value: left / kPremiumStreakSavesPerMonth,
+                            height: 8,
+                            color: HrColors.accent),
+                        const SizedBox(height: 4),
+                        Text('Refreshes at the start of each month.',
+                            style: HrText.micro),
+                      ],
+                      const SizedBox(height: 14),
+                      HrButton(
+                        label: 'Get Streak Shields',
+                        icon: Icons.shield_rounded,
+                        kind: HrButtonKind.accent,
+                        onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const ShopScreen())),
+                      ),
+                    ]),
+              ),
+              const SizedBox(height: 18),
+              const HrLabel('Take a reset'),
+              SizedBox(
+                height: 200,
+                child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Expanded(
+                    child: _resetTile(
+                      icon: Icons.nightlight_round,
+                      color: const Color(0xFFB07CFF),
+                      title: 'Rest Day',
+                      body: premium
+                          ? "It's okay to pause. Uses one save."
+                          : 'Planned rest days are Premium.',
+                      action: resting
+                          ? 'Resting today'
+                          : (premium ? 'Take Rest Day' : 'Unlock'),
+                      onTap: resting || (premium && left <= 0)
+                          ? null
+                          : () => _restDay(context),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _resetTile(
+                      icon: Icons.eco_rounded,
+                      color: HrColors.success,
+                      title: 'Focus Reset',
+                      body: 'A short focus session to get back on track.',
+                      action: 'Open Focus',
+                      onTap: () {
+                        shellTab.value = 1;
+                        Navigator.of(context).popUntil((r) => r.isFirst);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _resetTile(
+                      icon: Icons.spa_rounded,
+                      color: const Color(0xFFFF6EB4),
+                      title: 'Mindful Break',
+                      body: 'Write a quick reflection to reset your head.',
+                      action: 'Reflect',
+                      onTap: () => showAddReflection(context),
+                    ),
+                  ),
+                ]),
+              ),
+              if (!premium) ...[
+                const SizedBox(height: 16),
+                _premiumLockCard(context, 'Streak protection is Premium',
+                    'Monthly streak-saves & planned rest days'),
               ],
             ],
           ),
@@ -4279,12 +4369,7 @@ Widget _taskTile(BuildContext context, TaskItem t, {VoidCallback? onEdit}) {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           child: Row(children: [
-            Icon(
-                done
-                    ? Icons.check_circle_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                color: done ? HrColors.accent : HrColors.text3,
-                size: 24),
+            HrCheck(done: done, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -4294,9 +4379,8 @@ Widget _taskTile(BuildContext context, TaskItem t, {VoidCallback? onEdit}) {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: HrText.body.copyWith(
-                          color: done ? HrColors.text3 : HrColors.text,
-                          decoration:
-                              done ? TextDecoration.lineThrough : null,
+                          fontWeight: FontWeight.w700,
+                          color: done ? HrColors.text2 : HrColors.text,
                         )),
                     if (meta.isNotEmpty) ...[
                       const SizedBox(height: 2),
@@ -4366,64 +4450,105 @@ class _TasksCard extends StatelessWidget {
   }
 }
 
-class TasksScreen extends StatelessWidget {
-  const TasksScreen({super.key});
+// Quest-style task card for the Tasks screen: tile, title, XP chip, check.
+Widget _taskRow(BuildContext context, TaskItem t) {
+  final done = appState.taskDoneToday(t);
+  final meta = _taskMeta(t);
+  final daily = t.kind == TaskKind.daily;
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: HrQuestRow(
+      title: t.title,
+      done: done,
+      leading: t.icon.trim().isEmpty
+          ? HrIconTile(
+              icon: daily ? Icons.repeat_rounded : Icons.event_note_rounded,
+              color: daily ? const Color(0xFF62D5FF) : const Color(0xFFFF9F43),
+              size: 52)
+          : HrIconTile(emoji: t.icon, size: 52),
+      subtitle: Row(children: [
+        HrXpChip(daily ? kDailyXp : kTodoXp),
+        if (meta.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(meta,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: HrText.micro.copyWith(color: HrColors.text2)),
+          ),
+        ],
+      ]),
+      onTap: () => appState.toggleTask(t),
+      onLongPress: () => _showTaskEditor(context, existing: t),
+    ),
+  );
+}
 
-  Widget _group(BuildContext context, List<TaskItem> items, String empty) {
-    if (items.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        child: Text(empty, style: HrText.caption),
-      );
-    }
-    return HrCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Column(
-          children: items
-              .map((t) => _taskTile(context, t,
-                  onEdit: () => _showTaskEditor(context, existing: t)))
-              .toList()),
-    );
-  }
+class TasksScreen extends StatefulWidget {
+  const TasksScreen({super.key});
+  @override
+  State<TasksScreen> createState() => _TasksScreenState();
+}
+
+class _TasksScreenState extends State<TasksScreen> {
+  int _seg = 0; // Today · Dailies · To-Dos
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) {
+        final items = switch (_seg) {
+          0 => [...appState.dailiesToday, ...appState.openTodos],
+          1 => appState.allDailies,
+          _ => appState.allTodos,
+        };
+        final empty = switch (_seg) {
+          0 => 'Nothing due today — add a daily or a to-do.',
+          1 => 'No dailies yet — add a recurring task.',
+          _ => 'No to-dos yet — add a one-off task.',
+        };
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: const HrAppBarTitle('Tasks'),
+            title: const HrAppBarTitle('Tasks',
+                subtitle: 'Turn good habits into epic progress.'),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.add_rounded),
-                tooltip: 'New task',
-                onPressed: () => _showTaskEditor(context),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: HrHeaderButton(
+                  icon: Icons.add_rounded,
+                  tooltip: 'New task',
+                  color: HrColors.text,
+                  onPressed: () => _showTaskEditor(context),
+                ),
               ),
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-                HrSpace.gutter, 8, HrSpace.gutter, 28),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 6, HrSpace.gutter, 28),
             children: [
-              const HrLabel('Dailies'),
+              HrSegmented(
+                items: const ['Today', 'Dailies', 'To-Dos'],
+                index: _seg,
+                onChanged: (i) => setState(() => _seg = i),
+              ),
+              const SizedBox(height: 16),
+              if (items.isEmpty)
+                HrCard(
+                  padding: const EdgeInsets.all(18),
+                  child: Text(empty, style: HrText.bodyS),
+                )
+              else
+                for (final t in items) _taskRow(context, t),
               const SizedBox(height: 8),
-              _group(context, appState.allDailies,
-                  'No dailies yet — add a recurring task.'),
-              const SizedBox(height: 18),
-              const HrLabel('To-Dos'),
-              const SizedBox(height: 8),
-              _group(context, appState.allTodos,
-                  'No to-dos yet — add a one-off task.'),
-              const SizedBox(height: 20),
+              Text('Tap to check off · long-press to edit',
+                  textAlign: TextAlign.center, style: HrText.micro),
+              const SizedBox(height: 16),
               HrButton(
                   label: 'Add a task',
                   icon: Icons.add_rounded,
-                  kind: HrButtonKind.secondary,
+                  kind: HrButtonKind.accent,
                   onPressed: () => _showTaskEditor(context)),
             ],
           ),

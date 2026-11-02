@@ -52,6 +52,12 @@ Future<void> _seed() async {
     s.addHabit('🧘 Meditate', 'common');
   }
   s.toggle(s.habits.first);
+  if (s.tasks.isEmpty) {
+    s.addTask('Drink 8 glasses', TaskKind.daily, icon: '💧');
+    s.addTask('Plan tomorrow', TaskKind.todo, icon: '📅');
+    s.addTask('Do a workout', TaskKind.daily, icon: '💪');
+    s.toggleTask(s.tasks.first);
+  }
   // A month of sample activity for the Progress charts (deterministic).
   final now = DateTime.now();
   for (var d = 1; d < now.day; d++) {

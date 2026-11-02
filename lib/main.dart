@@ -6365,11 +6365,7 @@ void _showMoment(
       insetPadding: const EdgeInsets.symmetric(horizontal: 32),
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-        decoration: BoxDecoration(
-          color: HrColors.surface,
-          borderRadius: BorderRadius.circular(HrRadius.xl),
-          border: const Border(top: BorderSide(color: HrColors.hairline)),
-        ),
+        decoration: HrCard.decoration(radius: HrRadius.xl, highlight: true),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -6381,7 +6377,7 @@ void _showMoment(
               ),
             ),
             const SizedBox(height: 16),
-            emblem,
+            HrHeroArt(width: 190, height: 150, child: emblem),
             const SizedBox(height: 18),
             Text(title, textAlign: TextAlign.center, style: HrText.title1),
             if (subtitle != null) ...[
@@ -6400,7 +6396,10 @@ void _showMoment(
               ),
             ],
             const SizedBox(height: 22),
-            HrButton(label: buttonLabel, onPressed: () => Navigator.pop(ctx)),
+            HrButton(
+                label: buttonLabel,
+                kind: HrButtonKind.accent,
+                onPressed: () => Navigator.pop(ctx)),
           ],
         ),
       ),

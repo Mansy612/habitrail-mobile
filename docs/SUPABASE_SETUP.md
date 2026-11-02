@@ -125,6 +125,14 @@ returns `parties.*` so the quest flows through. Rewards are claimed per member
 on-device. Until it's run, the party screen's quest card shows a "start a quest"
 prompt and nothing breaks.
 
+## 2i. Chat moderation / reports — recommended (App Store 1.2)
+
+Backs the in-app **Report** action on chat messages (Block is client-side).
+Run `supabase/migrations/20261029070000_content_reports.sql`: it creates
+`content_reports` with RLS so any signed-in user can file a report (insert
+only; no read policy — review reports via the dashboard / service role). Until
+it's run, reporting silently no-ops; blocking still works.
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

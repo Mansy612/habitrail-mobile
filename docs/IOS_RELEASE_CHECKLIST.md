@@ -44,6 +44,10 @@ Connect; **[verify]** need testing on a real device.
   --project-ref <ref>` (no secrets needed), then verify deletion on a device.
 - **[ok]** Sign in with Apple is **not required** (email + guest only; it
   becomes mandatory only if you add Google/Facebook-style social logins).
+- **[done; deploy + EULA needed]** **User-generated content (Guideline 1.2):**
+  in-app Report + Block are on every chat message (long-press); reports go to
+  `content_reports`. Deploy `20261029070000_content_reports.sql`, add a
+  Terms/EULA (zero tolerance + act within 24h), and publish a report contact.
 - **[you]** Age rating questionnaire; export-compliance (uses HTTPS only →
   usually "exempt", declare it).
 

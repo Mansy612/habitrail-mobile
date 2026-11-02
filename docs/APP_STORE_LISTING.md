@@ -77,9 +77,13 @@ requires UGC apps to provide:
   2. a way to **report** content,
   3. a way to **block** abusive users, and
   4. a published contact for reports + a commitment to act.
-**Before submitting, add report/block (at least in global chat) or gate global
-chat**, or review may reject it. This is a product/compliance TODO, not a
-listing field.
+**In-app Report + Block are now implemented** on every chat message (long-press
+→ Report / Block); reports are recorded in a `content_reports` table and blocked
+users are hidden on-device. Still to do before you submit: (1) **deploy**
+`supabase/migrations/20261029070000_content_reports.sql`, (2) add a short
+**Terms/EULA** stating zero tolerance for objectionable content and that you act
+on reports within 24h, and (3) publish a **report contact** (your support
+email). A basic profanity filter on outgoing messages is a nice extra.
 
 ## Review notes (App Review "Notes" field)
 - Email sign-up uses Supabase; "Confirm email" is currently off.

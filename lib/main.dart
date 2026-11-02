@@ -5183,27 +5183,36 @@ class _PartyChatScreenState extends State<PartyChatScreen> {
   }
 
   Widget _bubble(Map<String, dynamic> m) {
+    if (appState.isBlocked(m['user_id']?.toString() ?? '')) {
+      return const SizedBox.shrink();
+    }
     final mine = m['user_id'] == currentUserId;
     final author = (m['author_name'] ?? 'Player').toString();
     final body = (m['body'] ?? '').toString();
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: EdgeInsets.only(
-            bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-            color: mine ? HrColors.accentSurface : HrColors.surface2,
-            borderRadius: BorderRadius.circular(HrRadius.md)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (!mine) ...[
-            Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
-            const SizedBox(height: 2),
-          ],
-          Text(body,
-              style: HrText.bodyS
-                  .copyWith(color: mine ? HrColors.text : HrColors.text2)),
-        ]),
+    return GestureDetector(
+      onLongPress: () => _moderateMessage(context, m, 'party', () {
+        if (mounted) setState(() {});
+      }),
+      child: Align(
+        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: EdgeInsets.only(
+              bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+              color: mine ? HrColors.accentSurface : HrColors.surface2,
+              borderRadius: BorderRadius.circular(HrRadius.md)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (!mine) ...[
+              Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
+              const SizedBox(height: 2),
+            ],
+            Text(body,
+                style: HrText.bodyS
+                    .copyWith(color: mine ? HrColors.text : HrColors.text2)),
+          ]),
+        ),
       ),
     );
   }
@@ -5854,27 +5863,36 @@ class _GuildChatScreenState extends State<GuildChatScreen> {
   }
 
   Widget _bubble(Map<String, dynamic> m) {
+    if (appState.isBlocked(m['user_id']?.toString() ?? '')) {
+      return const SizedBox.shrink();
+    }
     final mine = m['user_id'] == currentUserId;
     final author = (m['author_name'] ?? 'Player').toString();
     final body = (m['body'] ?? '').toString();
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: EdgeInsets.only(
-            bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-            color: mine ? HrColors.accentSurface : HrColors.surface2,
-            borderRadius: BorderRadius.circular(HrRadius.md)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (!mine) ...[
-            Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
-            const SizedBox(height: 2),
-          ],
-          Text(body,
-              style: HrText.bodyS
-                  .copyWith(color: mine ? HrColors.text : HrColors.text2)),
-        ]),
+    return GestureDetector(
+      onLongPress: () => _moderateMessage(context, m, 'guild', () {
+        if (mounted) setState(() {});
+      }),
+      child: Align(
+        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: EdgeInsets.only(
+              bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+              color: mine ? HrColors.accentSurface : HrColors.surface2,
+              borderRadius: BorderRadius.circular(HrRadius.md)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (!mine) ...[
+              Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
+              const SizedBox(height: 2),
+            ],
+            Text(body,
+                style: HrText.bodyS
+                    .copyWith(color: mine ? HrColors.text : HrColors.text2)),
+          ]),
+        ),
       ),
     );
   }
@@ -6034,29 +6052,95 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
   }
 
   Widget _bubble(Map<String, dynamic> m) {
+    if (appState.isBlocked(m['user_id']?.toString() ?? '')) {
+      return const SizedBox.shrink();
+    }
     final mine = m['user_id'] == currentUserId;
     final author = (m['author_name'] ?? 'Player').toString();
     final body = (m['body'] ?? '').toString();
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: EdgeInsets.only(
-            bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-            color: mine ? HrColors.accentSurface : HrColors.surface2,
-            borderRadius: BorderRadius.circular(HrRadius.md)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (!mine) ...[
-            Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
-            const SizedBox(height: 2),
-          ],
-          Text(body,
-              style: HrText.bodyS
-                  .copyWith(color: mine ? HrColors.text : HrColors.text2)),
-        ]),
+    return GestureDetector(
+      onLongPress: () => _moderateMessage(context, m, 'global', () {
+        if (mounted) setState(() {});
+      }),
+      child: Align(
+        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: EdgeInsets.only(
+              bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+              color: mine ? HrColors.accentSurface : HrColors.surface2,
+              borderRadius: BorderRadius.circular(HrRadius.md)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (!mine) ...[
+              Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
+              const SizedBox(height: 2),
+            ],
+            Text(body,
+                style: HrText.bodyS
+                    .copyWith(color: mine ? HrColors.text : HrColors.text2)),
+          ]),
+        ),
       ),
     );
+  }
+}
+
+// Report/block sheet for a chat message (App Store Guideline 1.2 — user-
+// generated content needs a way to report content and block users).
+// scope is 'party' | 'guild' | 'global'.
+Future<void> _moderateMessage(BuildContext context, Map<String, dynamic> m,
+    String scope, VoidCallback onBlocked) async {
+  final authorId = m['user_id']?.toString() ?? '';
+  if (authorId.isEmpty || authorId == currentUserId) return;
+  final author = (m['author_name'] ?? 'this user').toString();
+  final action = await showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: HrColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const SizedBox(height: 10),
+        Container(
+          width: 36,
+          height: 4,
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+              color: HrColors.surface3,
+              borderRadius: BorderRadius.circular(2)),
+        ),
+        ListTile(
+          leading: const Icon(Icons.flag_outlined, color: HrColors.dangerText),
+          title: Text('Report message', style: HrText.body),
+          subtitle: Text('Flag this message for review', style: HrText.caption),
+          onTap: () => Navigator.pop(ctx, 'report'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.block_rounded, color: HrColors.dangerText),
+          title: Text('Block $author', style: HrText.body),
+          subtitle:
+              Text('Hide all messages from this user', style: HrText.caption),
+          onTap: () => Navigator.pop(ctx, 'block'),
+        ),
+        const SizedBox(height: 10),
+      ]),
+    ),
+  );
+  if (action == 'report') {
+    await reportMessage(scope, m['id']?.toString() ?? '', authorId);
+    if (context.mounted) {
+      hrToast(context, 'Reported — thanks for flagging.',
+          icon: Icons.flag_outlined);
+    }
+  } else if (action == 'block') {
+    appState.blockUser(authorId);
+    onBlocked();
+    if (context.mounted) {
+      hrToast(context, 'Blocked $author', icon: Icons.block_rounded);
+    }
   }
 }
 

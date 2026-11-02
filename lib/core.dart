@@ -658,6 +658,7 @@ class AppState extends ChangeNotifier {
   final List<MilestoneEvent> milestoneLog = [];
   final Set<String> earnedAchievements = {}; // persist once earned (survives prestige)
   final Set<String> claimedQuests = {}; // co-op quest rewards already claimed
+  final Set<String> blockedUsers = {}; // chat user ids this device has blocked
   int totalBossDefeats = 0;
   int highestLevel = 1;
   int _prevLevel = 1;
@@ -1300,6 +1301,7 @@ class AppState extends ChangeNotifier {
     questClaimedIds.clear();
     earnedAchievements.clear();
     claimedQuests.clear();
+    blockedUsers.clear();
     totalXp = 0;
     coins = 100;
     focusMinutesToday = 0;
@@ -1544,6 +1546,8 @@ class AppState extends ChangeNotifier {
           ((m['earnedAchievements'] as List?) ?? const []).map((e) => e as String));
       claimedQuests.addAll(
           ((m['claimedQuests'] as List?) ?? const []).map((e) => e as String));
+      blockedUsers.addAll(
+          ((m['blockedUsers'] as List?) ?? const []).map((e) => e as String));
       pfpBase64 = (m['pfpBase64'] as String?) ?? '';
       try {
         pfpBytes = pfpBase64.isEmpty ? null : base64Decode(pfpBase64);
@@ -1665,6 +1669,7 @@ class AppState extends ChangeNotifier {
           'restDays': restDays.toList(),
           'earnedAchievements': earnedAchievements.toList(),
           'claimedQuests': claimedQuests.toList(),
+          'blockedUsers': blockedUsers.toList(),
           'pfpBase64': pfpBase64,
           'selectedBorder': selectedBorder,
           'ownedBorders': ownedBorders.toList(),
@@ -1963,6 +1968,21 @@ class AppState extends ChangeNotifier {
     coins += reward;
     notifyListeners();
     _save();
+  }
+
+  // Chat moderation: hide all messages from a user on this device.
+  bool isBlocked(String id) => id.isNotEmpty && blockedUsers.contains(id);
+  void blockUser(String id) {
+    if (id.isEmpty || !blockedUsers.add(id)) return;
+    notifyListeners();
+    _save();
+  }
+
+  void unblockUser(String id) {
+    if (blockedUsers.remove(id)) {
+      notifyListeners();
+      _save();
+    }
   }
 
   void addFood(String name, double cal, double p, double c, double f) {

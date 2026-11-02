@@ -411,6 +411,21 @@ Future<Map<String, dynamic>?> setPartyQuest(
   }
 }
 
+/// Record a report of a chat message (App Store 1.2). Best-effort insert into
+/// content_reports; any signed-in user may file one. No-ops if not deployed.
+Future<void> reportMessage(
+    String scope, String messageId, String authorId) async {
+  if (!backendEnabled || _uid == null) return;
+  try {
+    await _sb.from('content_reports').insert({
+      'reporter_id': _uid,
+      'scope': scope,
+      'message_id': messageId,
+      'author_id': authorId.isEmpty ? null : authorId,
+    });
+  } catch (_) {}
+}
+
 /// Recent messages for a party (oldest → newest), readable by members via RLS.
 Future<List<Map<String, dynamic>>> partyMessages(String partyId) async {
   if (!backendEnabled) return const [];

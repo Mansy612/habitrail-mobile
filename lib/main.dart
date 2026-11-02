@@ -11112,71 +11112,6 @@ class _JournalLandscapePainter extends CustomPainter {
       oldDelegate.accent != accent;
 }
 
-// ── Shared bits ─────────────────────────────────────────────────────────────
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.emoji,
-    required this.title,
-    required this.subtitle,
-  });
-  final String emoji;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(24),
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
-        decoration: glassDecoration(radius: 22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 74,
-              height: 74,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(colors: _kAccentGradient),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
-                    blurRadius: 22,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: Text(emoji, style: const TextStyle(fontSize: 36)),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontFamily: kHrFont,
-                color: kTextPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: kTextTertiary,
-                fontSize: 13,
-                height: 1.4,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 void _showLevelUp(BuildContext context, int level) {
   _showMoment(
     context,
@@ -13313,50 +13248,6 @@ void _showSeasonIntro(BuildContext context) {
   );
 }
 
-// ── BODY PROFILE ─────────────────────────────────────────────────────────────
-Widget _dropdown(
-  String label,
-  String value,
-  Map<String, String> opts,
-  ValueChanged<String> onChanged,
-) => Padding(
-  padding: const EdgeInsets.symmetric(vertical: 6),
-  child: DropdownButtonFormField<String>(
-    initialValue: value,
-    dropdownColor: HrColors.surface2,
-    style: HrText.body,
-    decoration: InputDecoration(
-      labelText: label,
-      labelStyle: HrText.caption,
-      filled: true,
-      fillColor: HrColors.surface,
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        borderSide: BorderSide.none,
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        borderSide: const BorderSide(color: HrColors.text, width: 1.5),
-      ),
-    ),
-    items: opts.entries
-        .map(
-          (e) => DropdownMenuItem(
-            value: e.key,
-            child: Text(e.value, style: HrText.body),
-          ),
-        )
-        .toList(),
-    onChanged: (v) {
-      if (v != null) onChanged(v);
-    },
-  ),
-);
-
 class BodyProfileScreen extends StatefulWidget {
   const BodyProfileScreen({super.key});
   @override
@@ -13420,6 +13311,90 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
     Navigator.of(context).pop();
   }
 
+  // One settings-style row: icon, label, and an inline value on the right.
+  Widget _row(IconData icon, String label, Widget value, {VoidCallback? onTap}) =>
+      InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          child: SizedBox(
+            height: 46,
+            child: Row(children: [
+              Icon(icon, size: 22, color: const Color(0xFFC9C3F0)),
+              const SizedBox(width: 14),
+              Expanded(
+                  child: Text(label,
+                      style: HrText.body.copyWith(fontWeight: FontWeight.w700))),
+              value,
+              if (onTap != null)
+                const Icon(Icons.chevron_right_rounded,
+                    color: HrColors.text2, size: 24),
+            ]),
+          ),
+        ),
+      );
+
+  Widget _inlineNumber(TextEditingController c, String hint, String unit) =>
+      SizedBox(
+        width: 120,
+        child: TextField(
+          controller: c,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.right,
+          onChanged: (_) => setState(() {}),
+          style: HrText.body.copyWith(fontWeight: FontWeight.w800),
+          decoration: InputDecoration(
+            hintText: hint,
+            suffixText: ' $unit',
+            suffixStyle: HrText.caption,
+            isDense: true,
+            filled: false,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      );
+
+  Future<void> _pick(String title, Map<String, String> options, String current,
+      ValueChanged<String> onPick) async {
+    final v = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(title, style: HrText.title2),
+          const SizedBox(height: 8),
+          for (final e in options.entries)
+            ListTile(
+              title: Text(e.value),
+              trailing: HrCheck(done: e.key == current, size: 22),
+              onTap: () => Navigator.pop(ctx, e.key),
+            ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (v != null) setState(() => onPick(v));
+  }
+
+  Widget _valueText(String s) => Text(s,
+      style: HrText.bodyS.copyWith(color: HrColors.text2, fontWeight: FontWeight.w700));
+
+  static const _genders = {'male': 'Male', 'female': 'Female', 'other': 'Other'};
+  static const _activities = {
+    'sedentary': 'Sedentary',
+    'light': 'Light',
+    'moderate': 'Moderate',
+    'active': 'Active',
+    'very_active': 'Very active',
+  };
+  static const _goals = {
+    'cut': 'Cut (lose fat)',
+    'maintain': 'Maintain',
+    'bulk': 'Bulk (gain)',
+  };
+
   @override
   Widget build(BuildContext context) {
     final w = double.tryParse(_weight.text) ?? 0;
@@ -13440,65 +13415,35 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: HrColors.text,
-        elevation: 0,
-        title: const HrAppBarTitle('Body profile'),
+        title: const HrAppBarTitle('Body profile',
+            subtitle: 'Optional details to personalize your targets.'),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          HrSpace.gutter,
-          8,
-          HrSpace.gutter,
-          24,
-        ),
+        padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 6, HrSpace.gutter, 28),
         children: [
-          _numField(
-            _weight,
-            'Weight (kg)',
-            TextInputType.number,
-            onChanged: (_) => setState(() {}),
-          ),
-          _numField(
-            _height,
-            'Height (cm)',
-            TextInputType.number,
-            onChanged: (_) => setState(() {}),
-          ),
-          _numField(
-            _age,
-            'Age',
-            TextInputType.number,
-            onChanged: (_) => setState(() {}),
-          ),
-          _dropdown('Gender', _gender, const {
-            'male': 'Male',
-            'female': 'Female',
-            'other': 'Other',
-          }, (v) => setState(() => _gender = v)),
-          _dropdown('Activity', _activity, const {
-            'sedentary': 'Sedentary',
-            'light': 'Light',
-            'moderate': 'Moderate',
-            'active': 'Active',
-            'very_active': 'Very active',
-          }, (v) => setState(() => _activity = v)),
-          _dropdown('Goal', _goal, const {
-            'cut': 'Cut (lose fat)',
-            'maintain': 'Maintain',
-            'bulk': 'Bulk (gain)',
-          }, (v) => setState(() => _goal = v)),
-          const SizedBox(height: 16),
-          if (preview != null)
+          HrMenuGroup(children: [
+            _row(Icons.cake_rounded, 'Age', _inlineNumber(_age, 'Add', 'yrs')),
+            _row(Icons.height_rounded, 'Height', _inlineNumber(_height, 'Add', 'cm')),
+            _row(Icons.monitor_weight_rounded, 'Weight', _inlineNumber(_weight, 'Add', 'kg')),
+            _row(Icons.wc_rounded, 'Gender', _valueText(_genders[_gender] ?? _gender),
+                onTap: () => _pick('Gender', _genders, _gender, (v) => _gender = v)),
+            _row(Icons.directions_run_rounded, 'Activity level',
+                _valueText(_activities[_activity] ?? _activity),
+                onTap: () => _pick('Activity level', _activities, _activity,
+                    (v) => _activity = v)),
+            _row(Icons.flag_rounded, 'Goal', _valueText(_goals[_goal] ?? _goal),
+                onTap: () => _pick('Goal', _goals, _goal, (v) => _goal = v)),
+          ]),
+          const SizedBox(height: 12),
+          if (preview != null) ...[
             HrCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const HrLabel('Computed targets'),
-                  Text(
-                    '${preview.calories.round()} kcal',
-                    style: HrText.title1,
-                  ),
+                  Text('Computed targets', style: HrText.headline),
+                  const SizedBox(height: 6),
+                  Text('${hrNum(preview.calories)} kcal',
+                      style: HrText.title1.copyWith(color: HrColors.gold)),
                   const SizedBox(height: 4),
                   Text(
                     'Protein ${preview.protein.round()}g · Carbs ${preview.carbs.round()}g · Fat ${preview.fat.round()}g',
@@ -13507,8 +13452,22 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+          ],
+          HrCard(
+            padding: const EdgeInsets.all(14),
+            child: Row(children: [
+              const Icon(Icons.lock_rounded, color: HrColors.text2, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                    'This information is private and used only to personalize your nutrition targets.',
+                    style: HrText.caption.copyWith(color: HrColors.text2)),
+              ),
+            ]),
+          ),
           const SizedBox(height: 20),
-          HrButton(label: 'Save profile', onPressed: _save),
+          HrButton(label: 'Save', onPressed: _save),
         ],
       ),
     );
@@ -13567,21 +13526,6 @@ String _fmtDate(String iso) {
   return '${months[d.month - 1]} ${d.day} · $hh:$mm';
 }
 
-Widget _bestChip(String label, String value) => Container(
-  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-  decoration: BoxDecoration(
-    color: HrColors.surface2,
-    borderRadius: BorderRadius.circular(HrRadius.md),
-  ),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(value, style: HrText.title2),
-      Text(label, style: HrText.caption),
-    ],
-  ),
-);
-
 class LegacyScreen extends StatelessWidget {
   const LegacyScreen({super.key});
   @override
@@ -13590,51 +13534,123 @@ class LegacyScreen extends StatelessWidget {
       listenable: appState,
       builder: (context, _) {
         final log = appState.milestoneLog;
+        final level = appState.level;
+        final cycle = (level / kPrestigeMinLevel).clamp(0.0, 1.0);
+        final bests = <(String, String, Widget)>[
+          ('Peak level', '${appState.highestLevel}',
+              Icon(Icons.trending_up_rounded, size: 26, color: HrColors.accentBright)),
+          ('Bosses', '${appState.totalBossDefeats}',
+              const Icon(Icons.shield_rounded, size: 26, color: HrColors.gold)),
+          ('Season', '${appState.currentSeason + 1}',
+              const Icon(Icons.public_rounded, size: 26, color: HrColors.info)),
+        ];
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: const HrAppBarTitle('Legacy'),
+            title: const HrAppBarTitle('Legacy', subtitle: 'Your long-term journey.'),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              HrSpace.gutter,
-              8,
-              HrSpace.gutter,
-              24,
-            ),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 6, HrSpace.gutter, 28),
             children: [
               HrCard(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const HrLabel('Career bests'),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _bestChip('Peak level', '${appState.highestLevel}'),
-                        _bestChip('Prestige', '★${appState.prestige}'),
-                        _bestChip('Bosses', '${appState.totalBossDefeats}'),
-                        _bestChip('Season', '${appState.currentSeason + 1}'),
-                        _bestChip('Best streak', '${appState.bestStreak}'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (log.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: _EmptyState(
-                    emoji: '📜',
-                    title: 'No milestones yet',
-                    subtitle: 'Level up, defeat the boss, or hit a streak.',
+                child: Row(children: [
+                  const Icon(Icons.star_rounded, size: 52, color: HrColors.gold,
+                      shadows: [Shadow(color: Color(0xAAFFD43B), blurRadius: 18)]),
+                  const SizedBox(width: 12),
+                  Text('${appState.prestige}',
+                      style: HrText.displayXl.copyWith(color: HrColors.gold)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Prestige stars', style: HrText.headline),
+                      const SizedBox(height: 2),
+                      Text('Earned through completed cycles. +5% XP each.',
+                          style: HrText.caption),
+                    ]),
                   ),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              HrCard(
+                child: Row(children: [
+                  SegmentedRing(
+                    size: 64,
+                    segments: 1,
+                    value: cycle,
+                    stroke: 8,
+                    color: HrColors.accent,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Current cycle', style: HrText.caption.copyWith(color: HrColors.text2)),
+                      Text(
+                          level >= kPrestigeMinLevel
+                              ? 'Level $level · ready to rebirth'
+                              : 'Level $level of $kPrestigeMinLevel',
+                          style: HrText.title2),
+                      const SizedBox(height: 8),
+                      HrXpBar(value: cycle, height: 8, color: HrColors.accent),
+                    ]),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              HrCard(
+                onTap: () {
+                  if (appState.canPrestige) {
+                    _confirmPrestige(context);
+                  } else {
+                    hrToast(context, 'Prestige unlocks at Level $kPrestigeMinLevel',
+                        icon: Icons.auto_awesome_rounded);
+                  }
+                },
+                child: Row(children: [
+                  const HrIconTile(
+                      icon: Icons.autorenew_rounded, color: Color(0xFFFF9F43), size: 50),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Rebirth', style: HrText.headline),
+                      const SizedBox(height: 2),
+                      Text(
+                          appState.canPrestige
+                              ? 'Ready — reset your level to start a new cycle. Keep your stars.'
+                              : 'Reach Level $kPrestigeMinLevel to start a new cycle and earn a star.',
+                          style: HrText.caption),
+                    ]),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: HrColors.text2, size: 28),
+                ]),
+              ),
+              const SizedBox(height: 18),
+              const HrLabel('Career bests'),
+              Row(children: [
+                for (var i = 0; i < bests.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  Expanded(
+                    child: HrStatTile(
+                        value: bests[i].$2, label: bests[i].$1, leading: bests[i].$3),
+                  ),
+                ],
+              ]),
+              const SizedBox(height: 18),
+              const HrLabel('Milestones'),
+              if (log.isEmpty)
+                HrCard(
+                  padding: const EdgeInsets.all(18),
+                  child: Row(children: [
+                    const HrIconTile(emoji: '📜', size: 46),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('No milestones yet', style: HrText.headline),
+                        const SizedBox(height: 2),
+                        Text('Level up, defeat the boss, or hit a streak.',
+                            style: HrText.caption),
+                      ]),
+                    ),
+                  ]),
                 )
               else
                 ...log.map((m) => _MilestoneTile(m)),
@@ -13652,49 +13668,29 @@ class _MilestoneTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _milestoneColor(m.type);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: HrColors.surface,
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        border: const Border(top: BorderSide(color: HrColors.hairline)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.15),
-            ),
-            child: Icon(_milestoneIcon(m.type), color: color, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  m.description,
-                  style: HrText.body.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 2),
-                Text(_fmtDate(m.date), style: HrText.caption),
-              ],
-            ),
-          ),
-          if (m.xp > 0)
-            Text(
-              '+${m.xp}',
-              style: HrText.caption.copyWith(
-                color: color,
-                fontWeight: FontWeight.w800,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: HrCard(
+        padding: const EdgeInsets.all(12),
+        radius: HrRadius.md,
+        child: Row(
+          children: [
+            HrIconTile(icon: _milestoneIcon(m.type), color: color, size: 40),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(m.description,
+                      style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(_fmtDate(m.date), style: HrText.caption),
+                ],
               ),
             ),
-        ],
+            if (m.xp > 0) HrXpChip(m.xp),
+          ],
+        ),
       ),
     );
   }
@@ -14201,73 +14197,9 @@ Future<void> _confirmReset(BuildContext context) async {
   }
 }
 
-// ── APPEARANCE (themes) ──────────────────────────────────────────────────────
-Widget _swatch(Color c) => Container(
-  width: 22,
-  height: 22,
-  margin: const EdgeInsets.symmetric(horizontal: 3),
-  decoration: BoxDecoration(shape: BoxShape.circle, color: c),
-);
-
 void _toast(BuildContext context, String msg) =>
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg), backgroundColor: kElevated));
-
-// Gold affordability-aware buy pill. Affordable → a restrained gold accent;
-// otherwise a muted pill that still shows the "not enough coins" toast.
-Widget _buyPill({required int cost, required VoidCallback onTap}) {
-  final canAfford = appState.coins >= cost;
-  return Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: canAfford
-              ? const LinearGradient(
-                  colors: [Color(0xFFFFD873), Color(0xFFF5A623)],
-                )
-              : null,
-          color: canAfford ? null : kElevated,
-          border: canAfford ? null : Border.all(color: kBorder),
-          boxShadow: canAfford
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFF5A623).withValues(alpha: 0.2),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/shop/coin_stack.png',
-              width: 16,
-              height: 16,
-              fit: BoxFit.contain,
-              excludeFromSemantics: true,
-            ),
-            const SizedBox(width: 3),
-            Text(
-              '$cost',
-              style: TextStyle(
-                color: canAfford ? const Color(0xFF3A2A05) : kTextSecondary,
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
 
 // Small status chip for an owned/active cosmetic (check + label).
 Widget _stateChip(String label, Color color) => Container(
@@ -14845,101 +14777,200 @@ class _WeekTrendCard extends StatelessWidget {
 
 class AppearanceScreen extends StatelessWidget {
   const AppearanceScreen({super.key});
+
+  Future<void> _pickTheme(BuildContext context, AppThemeDef t) async {
+    if (appState.canUseTheme(t.id)) {
+      appState.setTheme(t.id);
+      return;
+    }
+    if (t.id == kPremiumThemeId) {
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const PremiumScreen()));
+      return;
+    }
+    final cost = themeCost(t.id);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Unlock ${t.name}?'),
+        content: Text('This accent costs $cost coins. You have ${hrNum(appState.coins)}.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Not now')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Unlock · $cost',
+                  style: const TextStyle(color: HrColors.gold))),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    if (appState.buyTheme(t.id)) {
+      appState.setTheme(t.id);
+      celebrate(context);
+      _toast(context, '${t.name} unlocked & applied!');
+    } else {
+      _toast(context, 'Not enough coins');
+    }
+  }
+
+  Widget _accentDot(BuildContext context, AppThemeDef t) {
+    final active = appState.themeId == t.id;
+    final canUse = appState.canUseTheme(t.id);
+    return Semantics(
+      button: true,
+      selected: active,
+      label: '${t.name}${canUse ? '' : ', locked'}',
+      excludeSemantics: true,
+      child: HrPressable(
+        onTap: () => _pickTheme(context, t),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          AnimatedContainer(
+            duration: HrMotion.of(context, HrMotion.base),
+            width: 46,
+            height: 46,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                  color: active ? HrColors.text : Colors.transparent, width: 2),
+            ),
+            child: Container(
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [t.bright, t.accent],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                      color: t.accent.withValues(alpha: active ? 0.7 : 0.35),
+                      blurRadius: active ? 14 : 8),
+                ],
+              ),
+              child: active
+                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
+                  : canUse
+                      ? null
+                      : const Icon(Icons.lock_rounded,
+                          color: Color(0xCCFFFFFF), size: 15),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            canUse
+                ? (active ? 'On' : 'Owned')
+                : (t.id == kPremiumThemeId ? 'Premium' : '${themeCost(t.id)}'),
+            style: HrText.micro.copyWith(
+                color: canUse ? HrColors.text2 : HrColors.gold,
+                fontWeight: FontWeight.w800),
+          ),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) {
+        final current = themeById(appState.themeId);
+        final companions = kCompanions
+            .where((c) => appState.companionUnlocked(c.type))
+            .take(3)
+            .toList();
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: const HrAppBarTitle('Appearance'),
+            title: const HrAppBarTitle('Appearance',
+                subtitle: 'Make Habitrail feel yours.'),
           ),
-          body: GridView.count(
-            padding: const EdgeInsets.fromLTRB(
-              HrSpace.gutter,
-              8,
-              HrSpace.gutter,
-              24,
-            ),
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.1,
-            children: kThemes.map((t) {
-              final active = appState.themeId == t.id;
-              final isPremiumTheme = t.id == kPremiumThemeId;
-              final canUse = appState.canUseTheme(t.id);
-              return GestureDetector(
-                onTap: canUse ? () => appState.setTheme(t.id) : null,
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: HrColors.surface,
-                    borderRadius: BorderRadius.circular(HrRadius.md),
-                    border: Border(
-                      top: BorderSide(
-                        color: active ? HrColors.accent : HrColors.hairline,
-                        width: active ? 2 : 1,
-                      ),
-                    ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 6, HrSpace.gutter, 28),
+            children: [
+              HrCard(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(child: Text('Accent color', style: HrText.headline)),
+                    Text(current.name,
+                        style: HrText.bodyS.copyWith(
+                            color: HrColors.accentBright, fontWeight: FontWeight.w800)),
+                  ]),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 12,
+                    children: [for (final t in kThemes) _accentDot(context, t)],
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Opacity(
-                        opacity: canUse ? 1 : 0.5,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _swatch(t.accent),
-                            _swatch(t.bright),
-                            _swatch(t.glow),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        t.name,
-                        textAlign: TextAlign.center,
-                        style: HrText.body.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      if (active)
-                        _stateChip('ACTIVE', HrColors.accent)
-                      else if (canUse)
-                        _secondaryPill('Apply', () => appState.setTheme(t.id))
-                      else if (isPremiumTheme)
-                        _secondaryPill(
-                            'PREMIUM',
-                            () => Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => const PremiumScreen())))
-                      else
-                        _buyPill(
-                          cost: themeCost(t.id),
-                          onTap: () {
-                            if (appState.buyTheme(t.id)) {
-                              appState.setTheme(t.id);
-                              celebrate(context);
-                              _toast(context, '${t.name} unlocked & applied!');
-                            } else {
-                              _toast(context, 'Not enough coins');
-                            }
-                          },
-                        ),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              HrCard(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Row(children: [
+                    Expanded(child: Text('Companion style', style: HrText.headline)),
+                    HrLink('See all',
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const CompanionsScreen()))),
+                  ]),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    for (var i = 0; i < companions.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 8),
+                      Expanded(child: _companionStyle(companions[i])),
                     ],
-                  ),
+                  ]),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              HrMenuGroup(children: [
+                HrMenuRow(
+                  icon: Icons.blur_circular_rounded,
+                  label: 'Profile border',
+                  subtitle: borderById(appState.selectedBorder).name,
+                  onTap: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
                 ),
-              );
-            }).toList(),
+              ]),
+            ],
           ),
         );
       },
+    );
+  }
+
+  Widget _companionStyle(CompanionDef c) {
+    final active = appState.activeCompanion == c.type;
+    return HrPressable(
+      onTap: () => appState.setCompanion(c.type),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 8),
+        decoration: BoxDecoration(
+          color: active ? HrColors.goldSurface : HrColors.surface2,
+          borderRadius: BorderRadius.circular(HrRadius.md),
+          border: Border.all(
+              color: active ? HrColors.gold : HrColors.cardEdge,
+              width: active ? 1.6 : 1),
+        ),
+        child: Column(children: [
+          Stack(clipBehavior: Clip.none, children: [
+            _CompanionOrb(color: c.color, icon: c.icon, size: 60, imageAsset: c.imageAsset),
+            if (active)
+              const Positioned(right: -6, top: -6, child: HrCheck(done: true, size: 20)),
+          ]),
+          const SizedBox(height: 6),
+          Text(c.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.bodyS.copyWith(
+                  color: HrColors.text, fontWeight: FontWeight.w800)),
+        ]),
+      ),
     );
   }
 }

@@ -12651,29 +12651,20 @@ class _CompanionCard extends StatelessWidget {
   }
 }
 
-class CompanionsScreen extends StatelessWidget {
+class CompanionsScreen extends StatefulWidget {
   const CompanionsScreen({super.key});
+  @override
+  State<CompanionsScreen> createState() => _CompanionsScreenState();
+}
 
-  // Big preview of the active companion, wearing the chosen skin + accessory.
-  Widget _companionPreview() {
-    final c = companionByType(appState.activeCompanion);
-    return Column(children: [
-      _CompanionOrb(
-        color: c.color,
-        icon: c.icon,
-        size: 108,
-        imageAsset: c.imageAsset,
-        glowColor: appState.companionSkin == 'classic'
-            ? null
-            : companionGlowColor(appState.companionSkin, c.color),
-        accessoryEmoji: companionAccessoryById(appState.companionAccessory).emoji,
-      ),
-      const SizedBox(height: 12),
-      Text(c.name, style: HrText.title2),
-      const SizedBox(height: 2),
-      Text(c.tagline, style: HrText.caption),
-    ]);
-  }
+class _CompanionsScreenState extends State<CompanionsScreen> {
+  // The companion being browsed (starts on the active one).
+  late int _view = kCompanions
+      .indexWhere((c) => c.type == appState.activeCompanion)
+      .clamp(0, kCompanions.length - 1);
+
+  void _step(int d) => setState(
+      () => _view = (_view + d) % kCompanions.length);
 
   Widget _skinSwatch(CompanionSkin s) {
     final sel = appState.companionSkin == s.id;
@@ -12691,7 +12682,7 @@ class CompanionsScreen extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: RadialGradient(colors: [col, col.withValues(alpha: 0.3)]),
             border: Border.all(
-                color: sel ? HrColors.accent : HrColors.hairline,
+                color: sel ? HrColors.accentBright : HrColors.cardEdge,
                 width: sel ? 2 : 1),
           ),
           child: s.id == 'classic'
@@ -12719,36 +12710,12 @@ class CompanionsScreen extends StatelessWidget {
           shape: BoxShape.circle,
           color: HrColors.surface2,
           border: Border.all(
-              color: sel ? HrColors.accent : HrColors.hairline,
+              color: sel ? HrColors.accentBright : HrColors.cardEdge,
               width: sel ? 2 : 1),
         ),
         child: a.emoji.isEmpty
             ? const Icon(Icons.block_rounded, size: 18, color: HrColors.text3)
             : Text(a.emoji, style: const TextStyle(fontSize: 22)),
-      ),
-    );
-  }
-
-  // A compact badge of the player's current cosmetic class.
-  Widget _classBadge() {
-    final cl = classById(appState.playerClass);
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: cl.color.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(HrRadius.full),
-          border: Border.all(color: cl.color.withValues(alpha: 0.5)),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(cl.emoji, style: const TextStyle(fontSize: 14)),
-          const SizedBox(width: 6),
-          Text(cl.name.toUpperCase(),
-              style: HrText.micro.copyWith(
-                  color: cl.color,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w800)),
-        ]),
       ),
     );
   }
@@ -12768,7 +12735,7 @@ class CompanionsScreen extends StatelessWidget {
               shape: BoxShape.circle,
               color: sel ? cl.color.withValues(alpha: 0.18) : HrColors.surface2,
               border: Border.all(
-                  color: sel ? cl.color : HrColors.hairline,
+                  color: sel ? cl.color : HrColors.cardEdge,
                   width: sel ? 2 : 1),
             ),
             child: Text(cl.emoji, style: const TextStyle(fontSize: 24)),
@@ -12791,16 +12758,8 @@ class CompanionsScreen extends StatelessWidget {
         onTap: () => Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => const PremiumScreen())),
         child: Row(children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-                color: HrColors.accentSurface,
-                borderRadius: BorderRadius.circular(HrRadius.md)),
-            child: const Icon(Icons.workspace_premium_rounded,
-                color: HrColors.gold, size: 22),
-          ),
+          const HrIconTile(
+              icon: Icons.workspace_premium_rounded, color: HrColors.gold, size: 42),
           const SizedBox(width: 12),
           Expanded(
               child:
@@ -12813,21 +12772,21 @@ class CompanionsScreen extends StatelessWidget {
         ]),
       );
     }
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const HrLabel('Skin'),
-      const SizedBox(height: 10),
-      Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: kCompanionSkins.map(_skinSwatch).toList()),
-      const SizedBox(height: 18),
-      const HrLabel('Accessory'),
-      const SizedBox(height: 10),
-      Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: kCompanionAccessories.map(_accessorySwatch).toList()),
-    ]);
+    return HrCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const HrLabel('Skin'),
+        Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: kCompanionSkins.map(_skinSwatch).toList()),
+        const SizedBox(height: 18),
+        const HrLabel('Accessory'),
+        Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: kCompanionAccessories.map(_accessorySwatch).toList()),
+      ]),
+    );
   }
 
   @override
@@ -12835,130 +12794,236 @@ class CompanionsScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) {
+        final c = kCompanions[_view];
+        final unlocked = appState.companionUnlocked(c.type);
+        final active = appState.activeCompanion == c.type;
+        final unlockedCount =
+            kCompanions.where((x) => appState.companionUnlocked(x.type)).length;
+        final ld = levelFromXp(appState.totalXp);
+        final traits = c.tagline.split(' · ');
+        final voice = companionLine(c.type, 'elite_day');
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: const HrAppBarTitle('Companions'),
+            title: const HrAppBarTitle('Companions', art: false),
+            actions: [
+              Container(
+                margin: const EdgeInsets.only(right: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: HrColors.surface,
+                  borderRadius: BorderRadius.circular(HrRadius.full),
+                  border: Border.all(color: HrColors.cardEdge),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.pets_rounded, size: 18, color: HrColors.gold),
+                  const SizedBox(width: 6),
+                  Text('$unlockedCount / ${kCompanions.length}',
+                      style: HrText.bodyS.copyWith(
+                          color: HrColors.text, fontWeight: FontWeight.w900)),
+                ]),
+              ),
+            ],
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              HrSpace.gutter,
-              8,
-              HrSpace.gutter,
-              24,
-            ),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 28),
             children: [
-              _classBadge(),
+              Text('Collect, level up, and adventure together.',
+                  style: HrText.bodyS),
               const SizedBox(height: 14),
-              _companionPreview(),
-              const SizedBox(height: 18),
-              _customizeSection(context),
-              const SizedBox(height: 18),
-              const HrLabel('Choose companion'),
-              const SizedBox(height: 10),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.92,
-                children: kCompanions.map((c) {
-              final unlocked = appState.companionUnlocked(c.type);
-              final active = appState.activeCompanion == c.type;
-              return GestureDetector(
-                onTap: unlocked ? () => appState.setCompanion(c.type) : null,
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: HrColors.surface,
-                    borderRadius: BorderRadius.circular(HrRadius.md),
-                    border: Border(
-                      top: BorderSide(
-                        color: active ? HrColors.accent : HrColors.hairline,
-                        width: active ? 2 : 1,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Big preview with browse arrows.
+                  Expanded(
+                    flex: 11,
+                    child: SizedBox(
+                      height: 230,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          HrHeroArt(
+                            width: 180,
+                            height: 220,
+                            child: Opacity(
+                              opacity: unlocked ? 1 : 0.4,
+                              child: _CompanionOrb(
+                                color: c.color,
+                                icon: c.icon,
+                                size: 130,
+                                imageAsset: c.imageAsset,
+                                glowColor: active && appState.companionSkin != 'classic'
+                                    ? companionGlowColor(appState.companionSkin, c.color)
+                                    : null,
+                                accessoryEmoji: active
+                                    ? companionAccessoryById(appState.companionAccessory).emoji
+                                    : '',
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: 0,
+                            child: HrHeaderButton(
+                              icon: Icons.chevron_left_rounded,
+                              tooltip: 'Previous companion',
+                              color: HrColors.text,
+                              onPressed: () => _step(-1),
+                            ),
+                          ),
+                          Positioned(
+                            right: 0,
+                            child: HrHeaderButton(
+                              icon: Icons.chevron_right_rounded,
+                              tooltip: 'Next companion',
+                              color: HrColors.text,
+                              onPressed: () => _step(1),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 54,
-                        height: 54,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Positioned.fill(
-                              child: Opacity(
-                                opacity: unlocked ? 1 : 0.48,
-                                child: _CompanionOrb(
-                                  color: c.color,
-                                  icon: c.icon,
-                                  size: 54,
-                                  imageAsset: c.imageAsset,
-                                ),
+                  const SizedBox(width: 10),
+                  // Info card: name, level, traits and voice line.
+                  Expanded(
+                    flex: 10,
+                    child: HrCard(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(c.name, style: HrText.title2),
+                          const SizedBox(height: 4),
+                          if (unlocked) ...[
+                            Text.rich(TextSpan(children: [
+                              TextSpan(text: 'Level ', style: HrText.bodyS.copyWith(color: HrColors.lavender)),
+                              TextSpan(
+                                text: '${ld.level}',
+                                style: HrText.bodyS.copyWith(
+                                    color: HrColors.accentBright, fontWeight: FontWeight.w900),
                               ),
+                            ])),
+                            const SizedBox(height: 6),
+                            HrXpBar(value: ld.progress, height: 8),
+                            const SizedBox(height: 4),
+                            Text.rich(TextSpan(children: [
+                              TextSpan(
+                                text: hrNum(ld.currentXp),
+                                style: HrText.micro.copyWith(color: HrColors.gold, fontWeight: FontWeight.w900),
+                              ),
+                              TextSpan(
+                                text: ' / ${hrNum(ld.requiredXp)} XP',
+                                style: HrText.micro.copyWith(color: HrColors.text2),
+                              ),
+                            ])),
+                          ] else
+                            Text('Unlocks at Level ${c.unlockLevel}',
+                                style: HrText.caption.copyWith(color: HrColors.gold)),
+                          const SizedBox(height: 10),
+                          for (final t in traits)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(children: [
+                                Icon(Icons.auto_awesome, size: 14, color: c.color),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(t,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: HrText.caption.copyWith(color: HrColors.text)),
+                                ),
+                              ]),
                             ),
-                            if (!unlocked)
-                              Positioned(
-                                right: -2,
-                                bottom: -2,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: HrColors.surface2,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.lock_rounded,
-                                    size: 12,
-                                    color: HrColors.text3,
-                                  ),
-                                ),
-                              ),
+                          if (voice.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text('“$voice”',
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: HrText.micro.copyWith(
+                                    color: HrColors.text2, fontStyle: FontStyle.italic)),
                           ],
-                        ),
+                        ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        c.name,
-                        style: HrText.body.copyWith(
-                          color: unlocked ? HrColors.text : HrColors.text3,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        unlocked ? c.tagline : 'Unlock at Lv ${c.unlockLevel}',
-                        textAlign: TextAlign.center,
-                        style: HrText.caption,
-                      ),
-                      if (active) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          'ACTIVE',
-                          style: HrText.micro.copyWith(
-                            color: HrColors.accent,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 72,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: kCompanions.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 10),
+                  itemBuilder: (_, i) {
+                    final x = kCompanions[i];
+                    final open = appState.companionUnlocked(x.type);
+                    final sel = i == _view;
+                    return Semantics(
+                      button: true,
+                      selected: sel,
+                      label: '${x.name}${open ? '' : ', locked'}',
+                      excludeSemantics: true,
+                      child: HrPressable(
+                        onTap: () => setState(() => _view = i),
+                        child: AnimatedContainer(
+                          duration: HrMotion.of(context, HrMotion.base),
+                          width: 70,
+                          decoration: BoxDecoration(
+                            color: HrColors.surface,
+                            borderRadius: BorderRadius.circular(HrRadius.md),
+                            border: Border.all(
+                              color: sel ? HrColors.accentBright : HrColors.cardEdge,
+                              width: sel ? 2 : 1,
+                            ),
+                            boxShadow: sel
+                                ? [BoxShadow(color: HrColors.accent.withValues(alpha: 0.5), blurRadius: 12)]
+                                : null,
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Opacity(
+                                opacity: open ? 1 : 0.3,
+                                child: _CompanionOrb(
+                                    color: x.color, icon: x.icon, size: 50, imageAsset: x.imageAsset),
+                              ),
+                              if (!open)
+                                const Icon(Icons.lock_rounded, color: HrColors.text, size: 20),
+                            ],
                           ),
                         ),
-                      ],
-                    ],
-                  ),
+                      ),
+                    );
+                  },
                 ),
-              );
-                }).toList(),
+              ),
+              const SizedBox(height: 14),
+              HrButton(
+                label: active
+                    ? 'Active companion'
+                    : unlocked
+                        ? 'Set as Active Companion'
+                        : 'Unlocks at Level ${c.unlockLevel}',
+                icon: active ? Icons.check_rounded : null,
+                kind: HrButtonKind.accent,
+                onPressed: unlocked && !active
+                    ? () {
+                        appState.setCompanion(c.type);
+                        hrToast(context, '${c.name} is now your companion',
+                            icon: Icons.pets_rounded);
+                      }
+                    : null,
               ),
               const SizedBox(height: 20),
-              const HrLabel('Your class'),
-              const SizedBox(height: 6),
-              Text(classById(appState.playerClass).tagline,
-                  style: HrText.caption),
+              _customizeSection(context),
+              const SizedBox(height: 20),
+              HrLabel('Your class',
+                  trailing: Text(classById(appState.playerClass).name,
+                      style: HrText.bodyS.copyWith(
+                          color: classById(appState.playerClass).color,
+                          fontWeight: FontWeight.w900))),
+              Text(classById(appState.playerClass).tagline, style: HrText.caption),
               const SizedBox(height: 4),
               Text('Cosmetic only — never changes XP or difficulty.',
                   style: HrText.micro.copyWith(color: HrColors.text3)),

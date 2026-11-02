@@ -14993,31 +14993,25 @@ class AppearanceScreen extends StatelessWidget {
 
 // ── DAILY BRIEFING ───────────────────────────────────────────────────────────
 Widget _briefPanel(String tag, String title, Widget body) => Padding(
-  padding: const EdgeInsets.all(28),
+  padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
   child: Column(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
       Text(
         tag,
-        style: const TextStyle(
-          color: kCyan,
-          letterSpacing: 3,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
+        style: HrText.labelCaps.copyWith(color: HrColors.gold, letterSpacing: 2.5),
       ),
-      const SizedBox(height: 10),
+      const SizedBox(height: 8),
       Text(
         title,
         textAlign: TextAlign.center,
-        style: TextStyle(fontFamily: kHrFont,
-          color: Colors.white,
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-        ),
+        style: HrText.display.copyWith(fontSize: 30),
       ),
-      const SizedBox(height: 28),
-      body,
+      const SizedBox(height: 22),
+      HrCard(
+        padding: const EdgeInsets.all(20),
+        child: SizedBox(width: double.infinity, child: body),
+      ),
     ],
   ),
 );
@@ -15092,50 +15086,44 @@ class _DailyBriefingState extends State<_DailyBriefing> {
 
   @override
   Widget build(BuildContext context) {
-    final ld = levelFromXp(appState.totalXp);
     final v = appState.victory();
     final who = companionByType(appState.activeCompanion);
+    final orb = _CompanionOrb(
+      color: who.color,
+      icon: who.icon,
+      size: 84,
+      imageAsset: who.imageAsset,
+    );
+    final quote = HrText.body.copyWith(
+      color: HrColors.text2,
+      fontStyle: FontStyle.italic,
+      height: 1.5,
+    );
     final panels = <Widget>[
       _briefPanel(
         'COACH',
         'Your coach',
         Column(
           children: [
-            _CompanionOrb(
-              color: who.color,
-              icon: who.icon,
-              size: 56,
-              imageAsset: who.imageAsset,
-            ),
-            const SizedBox(height: 18),
+            HrHeroArt(width: 150, height: 120, child: orb),
+            const SizedBox(height: 12),
             if (_coachLoading)
               Column(
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: kPlasmaBright,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Reading your day…',
-                    style: TextStyle(color: kTextTertiary, fontSize: 13),
-                  ),
+                  Text('Reading your day…', style: HrText.caption),
                 ],
               )
             else
               Text(
                 '"${_coach ?? _coachFallback()}"',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: kTextSecondary,
-                  fontSize: 15,
-                  fontStyle: FontStyle.italic,
-                  height: 1.5,
-                ),
+                style: quote,
               ),
           ],
         ),
@@ -15145,36 +15133,19 @@ class _DailyBriefingState extends State<_DailyBriefing> {
         'Welcome back, ${appState.displayName}',
         Column(
           children: [
-            Container(
-              width: 72,
-              height: 72,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(colors: [kPlasma, kBlue]),
-              ),
-              child: Text(
-                '${ld.level}',
-                style: TextStyle(fontFamily: kHrFont,
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              levelTitle(ld.level).toUpperCase(),
-              style: const TextStyle(
-                color: kCyan,
-                letterSpacing: 2,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Best streak: ${appState.bestStreak} days',
-              style: const TextStyle(color: kTextSecondary),
+            const _LevelPanel(),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset('assets/streaks/enamel_flame.png',
+                    width: 30, height: 30),
+                const SizedBox(width: 8),
+                Text('${appState.bestStreak}',
+                    style: HrText.title1.copyWith(color: HrColors.gold)),
+                const SizedBox(width: 6),
+                Text('day streak', style: HrText.body),
+              ],
             ),
           ],
         ),
@@ -15184,45 +15155,23 @@ class _DailyBriefingState extends State<_DailyBriefing> {
         'Today',
         Column(
           children: [
-            SizedBox(
-              width: 96,
-              height: 96,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  GlowRing(
-                    value: v.score / 100,
-                    size: 96,
-                    stroke: 8,
-                    colors: [
-                      victoryColor(v.score),
-                      Color.lerp(victoryColor(v.score), Colors.white, 0.35)!,
-                    ],
-                  ),
-                  Text(
-                    '${v.score}',
-                    style: TextStyle(fontFamily: kHrFont,
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
+            SegmentedRing(
+              size: 110,
+              segments: 1,
+              value: v.score / 100,
+              stroke: 9,
+              color: victoryColor(v.score),
+              center: Text('${v.score}', style: HrText.display),
             ),
             const SizedBox(height: 12),
             Text(
               victoryLabel(v.score),
-              style: TextStyle(
-                color: victoryColor(v.score),
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+              style: HrText.title2.copyWith(color: victoryColor(v.score)),
             ),
             const SizedBox(height: 6),
             Text(
-              '${appState.doneTodayCount}/${appState.habits.length} habits · ${appState.coins} coins',
-              style: const TextStyle(color: kTextSecondary),
+              '${appState.doneTodayCount}/${appState.habits.length} habits · ${hrNum(appState.coins)} coins',
+              style: HrText.bodyS,
             ),
           ],
         ),
@@ -15234,32 +15183,19 @@ class _DailyBriefingState extends State<_DailyBriefing> {
           children: kQuests.map((q) {
             final on = appState.questClaimedIds.contains(q.id);
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 children: [
-                  Icon(
-                    on ? Icons.check_circle_rounded : Icons.circle_outlined,
-                    size: 16,
-                    color: on ? kGreen : kTextTertiary,
-                  ),
-                  const SizedBox(width: 8),
+                  HrCheck(done: on, size: 22),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       q.title,
-                      style: const TextStyle(
-                        color: kTextSecondary,
-                        fontSize: 13,
-                      ),
+                      style: HrText.bodyS.copyWith(
+                          color: HrColors.text, fontWeight: FontWeight.w700),
                     ),
                   ),
-                  Text(
-                    '+${q.xp}',
-                    style: TextStyle(
-                      color: kPlasmaGlow,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  HrXpChip(q.xp),
                 ],
               ),
             );
@@ -15271,20 +15207,12 @@ class _DailyBriefingState extends State<_DailyBriefing> {
         who.name,
         Column(
           children: [
-            _CompanionOrb(
-              color: who.color,
-              icon: who.icon,
-              size: 60,
-              imageAsset: who.imageAsset,
-            ),
-            const SizedBox(height: 14),
+            HrHeroArt(width: 150, height: 120, child: orb),
+            const SizedBox(height: 12),
             Text(
               '"${companionLine(appState.activeCompanion, v.score >= 90 ? 'elite_day' : 'level_up')}"',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: kTextSecondary,
-                fontStyle: FontStyle.italic,
-              ),
+              style: quote,
             ),
           ],
         ),
@@ -15292,46 +15220,54 @@ class _DailyBriefingState extends State<_DailyBriefing> {
     ];
     final last = panels.length - 1;
     return Dialog.fullscreen(
-      backgroundColor: kBase,
-      child: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: PageView(
-                controller: _pc,
-                onPageChanged: (i) => setState(() => _page = i),
-                children: panels,
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                panels.length,
-                (i) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.all(4),
-                  width: i == _page ? 18 : 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    color: i == _page ? kPlasma : const Color(0x33FFFFFF),
+      backgroundColor: Colors.transparent,
+      child: Stack(
+        children: [
+          const Positioned.fill(child: HrAmbientBackdrop()),
+          SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: PageView(
+                    controller: _pc,
+                    onPageChanged: (i) => setState(() => _page = i),
+                    children: panels,
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-              child: SizedBox(
-                width: double.infinity,
-                child: GradientButton(
-                  label: _page >= last ? 'Start the day' : 'Next',
-                  onPressed: () => _next(last),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    panels.length,
+                    (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.all(4),
+                      width: i == _page ? 22 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        color: i == _page ? HrColors.accent : HrColors.surface3,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                  child: HrButton(
+                    label: _page >= last ? 'Start the day' : 'Next',
+                    icon: _page >= last
+                        ? Icons.rocket_launch_rounded
+                        : Icons.arrow_forward_rounded,
+                    kind: _page >= last
+                        ? HrButtonKind.primary
+                        : HrButtonKind.accent,
+                    onPressed: () => _next(last),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

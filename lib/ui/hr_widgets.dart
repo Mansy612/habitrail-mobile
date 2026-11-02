@@ -77,7 +77,7 @@ class HrHeroArt extends StatelessWidget {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    radius: 0.62,
+                    radius: 0.5,
                     colors: [
                       HrColors.accent.withValues(alpha: 0.30),
                       HrColors.accent.withValues(alpha: 0.0),

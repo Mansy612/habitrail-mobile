@@ -202,5 +202,14 @@ void main() {
       _navKey.currentState!.pop();
       await tester.pump(const Duration(milliseconds: 600));
     }
+
+    // The daily briefing pops up on a fresh shell when today's is unseen.
+    if (_wanted('briefing')) {
+      appState.lastBriefingDate = '';
+      _navKey.currentState!
+          .push(MaterialPageRoute<void>(builder: (_) => const HomeShell()));
+      await _shot(tester, 'briefing');
+      appState.markBriefingSeen();
+    }
   }, skip: !_on);
 }

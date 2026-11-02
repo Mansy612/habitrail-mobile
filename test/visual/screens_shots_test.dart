@@ -23,6 +23,7 @@ import 'package:habitrail/ui/hr_widgets.dart';
 const _on = bool.fromEnvironment('SHOTS');
 const _out = String.fromEnvironment('SHOTS_DIR', defaultValue: 'build/shots');
 const _only = String.fromEnvironment('SHOTS_ONLY'); // comma list of names
+const _tall = bool.fromEnvironment('SHOTS_TALL'); // full-length route pages
 
 final _shotKey = GlobalKey();
 final _navKey = GlobalKey<NavigatorState>();
@@ -174,6 +175,7 @@ void main() {
       'login': () => const LoginScreen(),
       'app_settings': () => const AppSettingsScreen(),
     };
+    if (_tall) tester.view.physicalSize = const Size(390 * 2, 1700 * 2);
     for (final e in routes.entries) {
       if (!_wanted(e.key)) continue;
       _navKey.currentState!.push(MaterialPageRoute<void>(builder: (_) => e.value()));

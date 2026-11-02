@@ -3315,22 +3315,23 @@ class _PremiumProp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
-          width: 34,
-          height: 34,
+          width: 24,
+          height: 24,
+          margin: const EdgeInsets.only(top: 1),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-              color: HrColors.accentSurface,
-              borderRadius: BorderRadius.circular(HrRadius.sm)),
-          child: Icon(icon, color: HrColors.accent, size: 18),
+            shape: BoxShape.circle,
+            border: Border.all(color: HrColors.gold, width: 1.6),
+          ),
+          child: Icon(icon, color: HrColors.gold, size: 13),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: HrText.headline),
-            const SizedBox(height: 2),
+            Text(title, style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
             Text(sub, style: HrText.caption),
           ]),
         ),
@@ -3339,7 +3340,7 @@ class _PremiumProp extends StatelessWidget {
   }
 }
 
-// Entry card on the You screen: upsell when free, status when Premium.
+// Entry card on the Profile screen: upsell when free, status when Premium.
 class _PremiumYouCard extends StatelessWidget {
   const _PremiumYouCard();
   @override
@@ -3349,39 +3350,41 @@ class _PremiumYouCard extends StatelessWidget {
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const PremiumScreen()),
       ),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       child: Row(children: [
-        Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-              color: HrColors.accentSurface,
-              borderRadius: BorderRadius.circular(HrRadius.md)),
-          child: const Icon(Icons.workspace_premium_rounded,
-              color: HrColors.gold, size: 22),
-        ),
+        const HrIconTile(
+            icon: Icons.workspace_premium_rounded, color: HrColors.gold, size: 46),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(premium ? 'Habitrail Premium' : 'Go Premium',
-                style: HrText.headline),
+            Text.rich(TextSpan(children: [
+              TextSpan(text: premium ? 'Habitrail ' : 'Go ', style: HrText.headline),
+              TextSpan(
+                  text: 'Premium',
+                  style: HrText.headline.copyWith(color: HrColors.gold)),
+            ])),
             const SizedBox(height: 2),
             Text(premium ? 'Active — manage your plan' : 'Coach, insights & more',
                 style: HrText.caption),
           ]),
         ),
         if (premium)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-                color: HrColors.accentSurface,
-                borderRadius: BorderRadius.circular(HrRadius.xs)),
-            child: Text('PREMIUM',
-                style: HrText.micro
-                    .copyWith(color: HrColors.accent, fontWeight: FontWeight.w800)),
-          )
+          _premiumTag()
         else
-          const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [HrColors.goldBright, HrColors.goldDeep],
+              ),
+              borderRadius: BorderRadius.circular(HrRadius.sm),
+            ),
+            child: Text('Upgrade',
+                style: HrText.bodyS.copyWith(
+                    color: HrColors.onBtnPrimary, fontWeight: FontWeight.w900)),
+          ),
       ]),
     );
   }
@@ -3409,13 +3412,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
   }
 
   List<Widget> _props() => [
-        _PremiumProp(Icons.auto_awesome_rounded, 'AI coach & plans',
+        _PremiumProp(Icons.check_rounded, 'AI coach & plans',
             '$kPremiumCoachLimit prompts a week, a Weekly Report and a Weekly Plan'),
-        const _PremiumProp(Icons.insights_rounded, 'Deeper insights',
+        const _PremiumProp(Icons.check_rounded, 'Deeper insights',
             'Consistency trends, best days, and cross-habit patterns'),
-        const _PremiumProp(Icons.flag_rounded, 'Challenges & recovery',
+        const _PremiumProp(Icons.check_rounded, 'Challenges & recovery',
             'Guided 7 & 30-day programs, streak-saves and rest days'),
-        const _PremiumProp(Icons.palette_rounded, 'Make it yours',
+        const _PremiumProp(Icons.check_rounded, 'Make it yours',
             'Companion skins, the Nebula theme and a PREMIUM badge'),
       ];
 
@@ -3434,11 +3437,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
   void _manage() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: HrColors.surface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(HrRadius.xl))),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
         child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -3471,56 +3471,117 @@ class _PremiumScreenState extends State<PremiumScreen> {
     );
   }
 
-  Widget _planCard(String id, String title, String price, String sub,
-      {bool popular = false}) {
-    final selected = _plan == id;
-    return GestureDetector(
-      onTap: () => setState(() => _plan = id),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: selected ? HrColors.accentSurface : HrColors.surface,
-          borderRadius: BorderRadius.circular(HrRadius.lg),
-          border: Border.all(
-              color: selected ? HrColors.accent : HrColors.hairline,
-              width: selected ? 2 : 1),
-        ),
-        child: Row(children: [
-          Icon(
-              selected
-                  ? Icons.radio_button_checked_rounded
-                  : Icons.radio_button_unchecked_rounded,
-              color: selected ? HrColors.accent : HrColors.text3,
-              size: 22),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Text(title, style: HrText.headline),
-                if (popular) ...[
-                  const SizedBox(width: 8),
+  // Gold Monthly / Yearly switch with the annual saving.
+  Widget _planToggle() {
+    Widget seg(String id, String label, {String? badge}) {
+      final on = _plan == id;
+      return Expanded(
+        child: Semantics(
+          button: true,
+          selected: on,
+          label: label,
+          child: HrPressable(
+            onTap: () => setState(() => _plan = id),
+            child: AnimatedContainer(
+              duration: HrMotion.of(context, HrMotion.base),
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(HrRadius.md - 3),
+                gradient: on
+                    ? const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [HrColors.goldBright, HrColors.goldDeep],
+                      )
+                    : null,
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(label,
+                    style: HrText.bodyS.copyWith(
+                        color: on ? HrColors.onBtnPrimary : HrColors.text2,
+                        fontWeight: FontWeight.w900)),
+                if (badge != null) ...[
+                  const SizedBox(width: 6),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                        color: HrColors.accent,
-                        borderRadius: BorderRadius.circular(HrRadius.xs)),
-                    child: Text('MOST POPULAR',
+                      color: on ? const Color(0x33000000) : HrColors.goldSurface,
+                      borderRadius: BorderRadius.circular(HrRadius.xs),
+                    ),
+                    child: Text(badge,
                         style: HrText.micro.copyWith(
-                            color: HrColors.onAccent,
-                            fontWeight: FontWeight.w800)),
+                            color: on ? HrColors.onBtnPrimary : HrColors.gold,
+                            fontWeight: FontWeight.w900)),
                   ),
                 ],
               ]),
-              const SizedBox(height: 2),
-              Text(sub, style: HrText.caption),
-            ]),
+            ),
           ),
-          Text(price, style: HrText.headline),
-        ]),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1220),
+        borderRadius: BorderRadius.circular(HrRadius.md),
+        border: Border.all(color: HrColors.cardEdge),
       ),
+      child: Row(children: [
+        seg('monthly', 'Monthly'),
+        seg('annual', 'Yearly', badge: 'Save $kPremiumAnnualSavingsPct%'),
+      ]),
     );
   }
+
+  Widget _tierCard({
+    required String name,
+    required String price,
+    required String per,
+    required List<String> features,
+    bool premium = false,
+  }) =>
+      HrCard(
+        highlight: premium,
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            if (premium) ...[
+              const Icon(Icons.workspace_premium_rounded,
+                  size: 18, color: HrColors.gold),
+              const SizedBox(width: 4),
+            ],
+            Expanded(child: Text(name, style: HrText.headline)),
+            if (premium) const HrCheck(done: true, size: 20),
+          ]),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text.rich(TextSpan(children: [
+              TextSpan(text: price, style: HrText.title1),
+              TextSpan(text: ' $per', style: HrText.caption),
+            ])),
+          ),
+          const SizedBox(height: 10),
+          for (final f in features)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(Icons.check_rounded,
+                    size: 15, color: premium ? HrColors.gold : HrColors.text2),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(f,
+                      style: HrText.micro.copyWith(
+                          color: premium ? HrColors.text : HrColors.text2)),
+                ),
+              ]),
+            ),
+        ]),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -3528,55 +3589,50 @@ class _PremiumScreenState extends State<PremiumScreen> {
       listenable: Listenable.merge([appState, purchases]),
       builder: (context, _) {
         final premium = appState.isPremium;
+        final annual = _plan == 'annual';
+        final price = annual
+            ? purchases.priceFor('annual', kPremiumAnnualPrice)
+            : purchases.priceFor('monthly', kPremiumMonthlyPrice);
         return Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: const HrAppBarTitle('Habitrail Premium'),
-          ),
+          appBar: AppBar(),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-                HrSpace.gutter, 4, HrSpace.gutter, 32),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 32),
             children: [
-              Row(children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                      color: HrColors.accentSurface,
-                      borderRadius: BorderRadius.circular(HrRadius.md)),
-                  child: const Icon(Icons.workspace_premium_rounded,
-                      color: HrColors.gold, size: 26),
-                ),
-                const SizedBox(width: 12),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(premium ? "You're Premium" : 'Go Premium',
-                            style: HrText.title1),
-                        const SizedBox(height: 2),
-                        Text(
-                            premium
-                                ? 'Thanks for supporting Habitrail.'
-                                : 'Your personal coach, unlocked.',
-                            style: HrText.caption),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Icon(Icons.workspace_premium_rounded,
+                        size: 40, color: HrColors.gold),
+                    const SizedBox(height: 4),
+                    Text.rich(
+                      TextSpan(children: [
+                        TextSpan(text: 'Habitrail\n', style: HrText.display),
+                        TextSpan(
+                            text: 'Premium',
+                            style: HrText.display.copyWith(color: HrColors.gold)),
                       ]),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                        premium
+                            ? 'Thanks for supporting Habitrail.'
+                            : 'More progress. More together.',
+                        style: HrText.bodyS),
+                  ]),
                 ),
+                const HrHeroArt(width: 140, height: 160),
               ]),
               const SizedBox(height: 18),
               if (premium) ...[
                 HrCard(
+                  highlight: true,
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(children: [
-                          Icon(Icons.verified_rounded,
-                              color: HrColors.accent, size: 18),
-                          const SizedBox(width: 8),
+                          const HrCheck(done: true, size: 22),
+                          const SizedBox(width: 10),
                           Text(
                               appState.premiumPlan == 'annual'
                                   ? 'Annual plan'
@@ -3594,7 +3650,6 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 ),
                 const SizedBox(height: 16),
                 const HrLabel("What's included"),
-                const SizedBox(height: 10),
                 ..._props(),
                 const SizedBox(height: 18),
                 HrButton(
@@ -3602,50 +3657,66 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     kind: HrButtonKind.secondary,
                     onPressed: _manage),
               ] else ...[
-                const HrLabel('What you get'),
-                const SizedBox(height: 10),
                 ..._props(),
-                const SizedBox(height: 18),
-                _planCard(
-                    'annual',
-                    'Annual',
-                    '${purchases.priceFor('annual', kPremiumAnnualPrice)}/yr',
-                    '≈ $kPremiumAnnualPerMonth/mo · Save $kPremiumAnnualSavingsPct%',
-                    popular: true),
-                const SizedBox(height: 10),
-                _planCard(
-                    'monthly',
-                    'Monthly',
-                    '${purchases.priceFor('monthly', kPremiumMonthlyPrice)}/mo',
-                    'Billed monthly'),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
+                _planToggle(),
+                const SizedBox(height: 12),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _tierCard(
+                          name: 'Free',
+                          price: r'$0',
+                          per: '',
+                          features: const [
+                            'Core habit tracking',
+                            'Join parties & guilds',
+                            'Basic companion',
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _tierCard(
+                          name: 'Premium',
+                          premium: true,
+                          price: price,
+                          per: annual ? '/ year' : '/ month',
+                          features: [
+                            'All Free features',
+                            if (annual) '≈ $kPremiumAnnualPerMonth / month',
+                            'AI coach & plans',
+                            'Advanced insights',
+                            'Companion skins',
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 HrButton(
                   label: purchases.busy
                       ? 'Processing…'
-                      : _plan == 'annual'
-                          ? 'Start Premium — ${purchases.priceFor('annual', kPremiumAnnualPrice)}/yr'
-                          : 'Start Premium — ${purchases.priceFor('monthly', kPremiumMonthlyPrice)}/mo',
+                      : 'Start Premium — $price${annual ? '/yr' : '/mo'}',
                   icon: Icons.workspace_premium_rounded,
-                  kind: HrButtonKind.accent,
                   loading: purchases.busy,
                   onPressed: purchases.busy ? null : _start,
                 ),
                 if (purchases.error != null) ...[
                   const SizedBox(height: 8),
                   Text(purchases.error!,
-                      style:
-                          HrText.caption.copyWith(color: HrColors.dangerText),
+                      style: HrText.caption.copyWith(color: HrColors.dangerText),
                       textAlign: TextAlign.center),
                 ],
-                if (purchases.available) ...[
-                  const SizedBox(height: 4),
+                if (purchases.available)
                   Center(
                     child: TextButton(
                         onPressed: purchases.restore,
-                        child:
-                            Text('Restore purchases', style: HrText.caption)),
+                        child: Text('Restore purchases', style: HrText.caption)),
                   ),
-                ],
                 const SizedBox(height: 10),
                 Text(
                   purchases.available

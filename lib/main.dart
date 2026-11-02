@@ -12284,6 +12284,30 @@ class _NutritionCard extends StatelessWidget {
 
 class NutritionScreen extends StatelessWidget {
   const NutritionScreen({super.key});
+
+  Widget _ring(String label, String value, String sub, double v, Color color,
+          IconData icon) =>
+      Column(children: [
+        SegmentedRing(
+          size: 92,
+          segments: 1,
+          value: v.isNaN ? 0 : v.clamp(0.0, 1.0),
+          stroke: 8,
+          color: color,
+          center: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 18, color: color),
+            Text(value,
+                style: HrText.bodyS.copyWith(
+                    color: HrColors.text, fontWeight: FontWeight.w900)),
+            Text(sub, style: HrText.micro.copyWith(fontSize: 9.5)),
+          ]),
+        ),
+        const SizedBox(height: 6),
+        Text(label,
+            style: HrText.caption.copyWith(
+                color: HrColors.text, fontWeight: FontWeight.w800)),
+      ]);
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -12295,120 +12319,111 @@ class NutritionScreen extends StatelessWidget {
         final score = appState.nutritionScore();
         final t = appState.targets();
         final p = appState.bodyProfile;
+        double pct(double a, double b) => b <= 0 ? 0 : a / b;
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: const HrAppBarTitle('Nutrition'),
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => showAddFood(context),
-            backgroundColor: HrColors.accent,
-            foregroundColor: HrColors.onAccent,
-            icon: const Icon(Icons.add),
-            label: const Text('Log food'),
+            title: const HrAppBarTitle('Nutrition',
+                subtitle: 'Fuel your body. Power your progress.'),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              HrSpace.gutter,
-              8,
-              HrSpace.gutter,
-              96,
-            ),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 6, HrSpace.gutter, 28),
             children: [
               HrCard(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('NUTRITION SCORE', style: HrText.labelCaps),
-                              Text(
-                                '$score / 100',
-                                style: HrText.stat.copyWith(
-                                  color: HrColors.victory(score),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.restaurant_rounded,
-                          color: HrColors.victory(score),
-                          size: 32,
-                        ),
-                      ],
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
+                child: Column(children: [
+                  Row(children: [
+                    Expanded(child: Text("Today's nutrition", style: HrText.title2)),
+                    HrButton(
+                      label: 'Log meal',
+                      icon: Icons.add_rounded,
+                      kind: HrButtonKind.accent,
+                      small: true,
+                      expand: false,
+                      onPressed: () => showAddFood(context),
                     ),
-                    const SizedBox(height: 14),
-                    _macroBar(
-                      'Calories',
-                      n.calories,
-                      t.calories,
-                      'kcal',
-                      HrColors.gold,
-                    ),
-                    _macroBar(
-                      'Protein',
-                      n.protein,
-                      t.protein,
-                      'g',
-                      HrColors.danger,
-                    ),
-                    _macroBar('Carbs', n.carbs, t.carbs, 'g', HrColors.info),
-                    _macroBar('Fat', n.fat, t.fat, 'g', HrColors.accent),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            p == null
-                                ? 'Targets: defaults'
-                                : 'TDEE ${computeTDEE(p).round()} kcal · ${p.goal}',
-                            style: HrText.caption,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const BodyProfileScreen(),
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.person_rounded,
-                            size: 16,
-                            color: HrColors.text2,
-                          ),
-                          label: Text(
-                            p == null ? 'Set body profile' : 'Edit profile',
-                            style: HrText.bodyS.copyWith(
-                              color: HrColors.text,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              if (todays.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: _EmptyState(
-                    emoji: '🍎',
-                    title: 'No food logged today',
-                    subtitle: 'Tap "Log food" to add a meal.',
+                  ]),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _ring('Meals', '${todays.length} / 3', 'meals',
+                          todays.length / 3, HrColors.success, Icons.restaurant_rounded),
+                      _ring('Calories', hrNum(n.calories), '/ ${hrNum(t.calories)}',
+                          pct(n.calories, t.calories), const Color(0xFFFF9F43),
+                          Icons.local_fire_department_rounded),
+                      _ring('Protein', '${n.protein.round()} g', '/ ${t.protein.round()} g',
+                          pct(n.protein, t.protein), const Color(0xFF62D5FF),
+                          Icons.fitness_center_rounded),
+                    ],
                   ),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              HrCard(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Row(children: [
+                    Text('Nutrition score', style: HrText.headline),
+                    const Spacer(),
+                    Text.rich(TextSpan(children: [
+                      TextSpan(
+                          text: '$score',
+                          style: HrText.title2.copyWith(color: HrColors.victory(score))),
+                      TextSpan(text: ' / 100', style: HrText.bodyS),
+                    ])),
+                  ]),
+                  const SizedBox(height: 10),
+                  for (final m in [
+                    ('Carbs', n.carbs, t.carbs, HrColors.info),
+                    ('Fat', n.fat, t.fat, HrColors.accentBright),
+                  ]) ...[
+                    Row(children: [
+                      Text(m.$1, style: HrText.caption.copyWith(color: HrColors.text2)),
+                      const Spacer(),
+                      Text('${m.$2.round()} / ${m.$3.round()} g', style: HrText.caption),
+                    ]),
+                    const SizedBox(height: 5),
+                    HrXpBar(value: pct(m.$2, m.$3), height: 8, color: m.$4),
+                    const SizedBox(height: 10),
+                  ],
+                  Row(children: [
+                    Expanded(
+                      child: Text(
+                        p == null
+                            ? 'Targets: defaults'
+                            : 'TDEE ${computeTDEE(p).round()} kcal · ${p.goal}',
+                        style: HrText.caption,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const BodyProfileScreen()),
+                      ),
+                      icon: const Icon(Icons.person_rounded, size: 16),
+                      label: Text(p == null ? 'Set body profile' : 'Edit profile'),
+                    ),
+                  ]),
+                ]),
+              ),
+              const SizedBox(height: 18),
+              const HrLabel("Today's meals"),
+              if (todays.isEmpty)
+                HrCard(
+                  padding: const EdgeInsets.all(18),
+                  child: Row(children: [
+                    const HrIconTile(emoji: '🍎', size: 46),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('No food logged today', style: HrText.headline),
+                        const SizedBox(height: 2),
+                        Text('Tap "Log meal" to add one.', style: HrText.caption),
+                      ]),
+                    ),
+                  ]),
                 )
               else
-                ...todays.map((e) => _FoodTile(e)),
+                HrMenuGroup(children: [for (final e in todays) _FoodTile(e)]),
             ],
           ),
         );
@@ -12417,78 +12432,39 @@ class NutritionScreen extends StatelessWidget {
   }
 }
 
-Widget _macroBar(
-  String label,
-  double value,
-  double target,
-  String unit,
-  Color color,
-) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 5),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: HrText.caption.copyWith(color: HrColors.text2)),
-            Text(
-              '${value.round()} / ${target.round()} $unit',
-              style: HrText.caption,
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(HrRadius.full),
-          child: LinearProgressIndicator(
-            value: (target <= 0 ? 0.0 : value / target)
-                .clamp(0.0, 1.0)
-                .toDouble(),
-            minHeight: 7,
-            backgroundColor: HrColors.surface3,
-            valueColor: AlwaysStoppedAnimation(color),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
 class _FoodTile extends StatelessWidget {
   const _FoodTile(this.e);
   final FoodEntry e;
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: HrCard(
-        padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    e.name,
-                    style: HrText.body.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${e.calories.round()} kcal · P${e.protein.round()} C${e.carbs.round()} F${e.fat.round()}',
-                    style: HrText.caption,
-                  ),
-                ],
-              ),
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      child: Row(
+        children: [
+          const HrIconTile(emoji: '🍽️', size: 42),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(e.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text(
+                  '${e.calories.round()} kcal · P${e.protein.round()} C${e.carbs.round()} F${e.fat.round()}',
+                  style: HrText.caption,
+                ),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.close, color: HrColors.text3, size: 18),
-              onPressed: () => appState.deleteFood(e),
-            ),
-          ],
-        ),
+          ),
+          IconButton(
+            tooltip: 'Remove',
+            icon: const Icon(Icons.close_rounded, color: HrColors.text3, size: 20),
+            onPressed: () => appState.deleteFood(e),
+          ),
+        ],
       ),
     );
   }

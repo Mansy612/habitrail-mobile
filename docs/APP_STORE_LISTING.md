@@ -83,7 +83,8 @@ users are hidden on-device. Still to do before you submit: (1) **deploy**
 `supabase/migrations/20261029070000_content_reports.sql`, (2) add a short
 **Terms/EULA** stating zero tolerance for objectionable content and that you act
 on reports within 24h, and (3) publish a **report contact** (your support
-email). A basic profanity filter on outgoing messages is a nice extra.
+email). Displayed chat messages are now **profanity-masked** (whole-word mask in
+`maskProfanity`); swap in a maintained word list/service for production.
 
 ## Review notes (App Review "Notes" field)
 - Email sign-up uses Supabase; "Confirm email" is currently off.

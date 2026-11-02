@@ -2365,6 +2365,29 @@ const Map<String, Map<String, String>> kCompanionLines = {
 String companionLine(String type, String trigger) =>
     kCompanionLines[type]?[trigger] ?? '';
 
+// Basic chat profanity mask (App Store 1.2 "filter objectionable content").
+// Whole-word, case-insensitive; keeps stored text raw so reports stay reviewable.
+// Not exhaustive — swap in a maintained word list / service for production.
+const List<String> _profaneWords = [
+  'fuck', 'fucking', 'fucked', 'fucker', 'motherfucker', 'shit', 'shitty',
+  'bullshit', 'bitch', 'bitches', 'asshole', 'assholes', 'bastard', 'dick',
+  'dickhead', 'cock', 'cunt', 'piss', 'pissed', 'slut', 'whore', 'douche',
+  'nigger', 'nigga', 'faggot', 'fag', 'retard', 'spic', 'chink', 'kike',
+  'wetback', 'tranny',
+];
+
+final RegExp _profaneRe = RegExp(
+  '\\b(${_profaneWords.map(RegExp.escape).join('|')})\\b',
+  caseSensitive: false,
+);
+
+/// Replace profane words with asterisks of the same length. Used when rendering
+/// chat messages so objectionable words are never shown.
+String maskProfanity(String text) {
+  if (text.isEmpty) return text;
+  return text.replaceAllMapped(_profaneRe, (m) => '*' * m[0]!.length);
+}
+
 // ── Co-op quests (shared party boss goals) ──────────────────────────────────
 class CoopQuestDef {
   const CoopQuestDef(this.id, this.name, this.emoji, this.target, this.reward);

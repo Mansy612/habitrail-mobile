@@ -5188,7 +5188,7 @@ class _PartyChatScreenState extends State<PartyChatScreen> {
     }
     final mine = m['user_id'] == currentUserId;
     final author = (m['author_name'] ?? 'Player').toString();
-    final body = (m['body'] ?? '').toString();
+    final body = maskProfanity((m['body'] ?? '').toString());
     return GestureDetector(
       onLongPress: () => _moderateMessage(context, m, 'party', () {
         if (mounted) setState(() {});
@@ -5868,7 +5868,7 @@ class _GuildChatScreenState extends State<GuildChatScreen> {
     }
     final mine = m['user_id'] == currentUserId;
     final author = (m['author_name'] ?? 'Player').toString();
-    final body = (m['body'] ?? '').toString();
+    final body = maskProfanity((m['body'] ?? '').toString());
     return GestureDetector(
       onLongPress: () => _moderateMessage(context, m, 'guild', () {
         if (mounted) setState(() {});
@@ -6057,7 +6057,7 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
     }
     final mine = m['user_id'] == currentUserId;
     final author = (m['author_name'] ?? 'Player').toString();
-    final body = (m['body'] ?? '').toString();
+    final body = maskProfanity((m['body'] ?? '').toString());
     return GestureDetector(
       onLongPress: () => _moderateMessage(context, m, 'global', () {
         if (mounted) setState(() {});

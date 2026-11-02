@@ -169,6 +169,10 @@ void main() {
       'dashboard': () => const DashboardScreen(),
       'welcome': () => const WelcomeScreen(),
       'personalize': () => const OnboardingQuizScreen(),
+      'onboarding': () => const OnboardingScreen(),
+      'signup': () => const SignUpScreen(),
+      'login': () => const LoginScreen(),
+      'app_settings': () => const AppSettingsScreen(),
     };
     for (final e in routes.entries) {
       if (!_wanted(e.key)) continue;

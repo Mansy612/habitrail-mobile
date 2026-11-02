@@ -192,17 +192,17 @@ class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    final comp = companionByType(appState.activeCompanion);
+    final violet = HrText.displayXl.copyWith(
+      foreground: Paint()
+        ..shader = const LinearGradient(
+          colors: [Color(0xFFC9A8FF), Color(0xFF9B6BFF)],
+        ).createShader(const Rect.fromLTWH(0, 0, 260, 44)),
+    );
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            HrSpace.gutter,
-            12,
-            HrSpace.gutter,
-            24,
-          ),
+          padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 12, HrSpace.gutter, 20),
           child: Column(
             children: [
               Expanded(
@@ -210,59 +210,65 @@ class WelcomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 36),
-                      Center(
-                        child: CompanionSticker(
-                          icon: comp.icon,
-                          color: comp.color,
-                          size: 104,
-                          semanticLabel: comp.name,
-                          imageAsset: comp.imageAsset,
+                      const SizedBox(height: 8),
+                      Semantics(
+                        header: true,
+                        label: 'Build better habits together',
+                        excludeSemantics: true,
+                        child: Text.rich(
+                          TextSpan(children: [
+                            TextSpan(text: 'Build\n', style: HrText.displayXl),
+                            TextSpan(text: 'better habits\ntogether', style: violet),
+                          ]),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      const Center(
-                        child: SpeechBubble(
-                          "Five habits. Every day. I'm watching.",
-                          maxWidth: 260,
-                        ),
+                      const SizedBox(height: 14),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                'Habitrail turns daily progress into an adventure. Complete goals, earn XP, and stay motivated with friends.',
+                                style: HrText.body.copyWith(color: HrColors.text2),
+                              ),
+                            ),
+                          ),
+                          const HrHeroArt(width: 150, height: 190),
+                        ],
                       ),
-                      const SizedBox(height: 36),
-                      Text(
-                        'Build habits.\nEarn XP.\nLevel up your life.',
-                        style: HrText.displayXl,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Check off up to five habits a day, keep the streak alive, and let your companion keep you honest.',
-                        style: HrText.bodyS,
-                      ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 18),
                     ],
                   ),
                 ),
               ),
               HrButton(
                 label: 'Create account',
-                onPressed: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const SignUpScreen())),
+                icon: Icons.person_add_alt_1_rounded,
+                onPressed: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const SignUpScreen())),
               ),
               const SizedBox(height: 10),
               HrButton(
                 label: 'Log in',
+                icon: Icons.login_rounded,
                 kind: HrButtonKind.secondary,
-                onPressed: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const LoginScreen())),
+                onPressed: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const LoginScreen())),
               ),
-              const SizedBox(height: 6),
-              TextButton(
+              const SizedBox(height: 10),
+              HrButton(
+                label: 'Continue without an account',
+                icon: Icons.arrow_forward_rounded,
+                kind: HrButtonKind.secondary,
                 onPressed: () => auth.continueAsGuest(),
-                child: Text(
-                  'Continue without an account',
-                  style: HrText.caption,
-                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'You can create an account later to back up and sync your progress.',
+                textAlign: TextAlign.center,
+                style: HrText.micro.copyWith(color: HrColors.text3),
               ),
             ],
           ),
@@ -1001,9 +1007,11 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
                     width: 44,
                     child: _page > 0
                         ? IconButton(
+                            tooltip: 'Back',
                             icon: const Icon(
-                              Icons.arrow_back_rounded,
-                              color: HrColors.text2,
+                              Icons.chevron_left_rounded,
+                              size: 32,
+                              color: HrColors.text,
                             ),
                             onPressed: () => _pc.previousPage(
                               duration: const Duration(milliseconds: 240),
@@ -1013,15 +1021,17 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
                         : null,
                   ),
                   Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(HrRadius.full),
-                      child: LinearProgressIndicator(
-                        value: (_page + 1) / (_last + 1),
-                        minHeight: 6,
-                        backgroundColor: HrColors.surface3,
-                        valueColor: const AlwaysStoppedAnimation(HrColors.text),
-                      ),
+                    child: HrXpBar(
+                      value: (_page + 1) / (_last + 1),
+                      height: 9,
+                      color: HrColors.accent,
                     ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '${_page + 1} / ${_last + 1}',
+                    style: HrText.bodyS.copyWith(
+                        color: HrColors.text, fontWeight: FontWeight.w800),
                   ),
                   SizedBox(
                     width: 54,
@@ -1054,7 +1064,8 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
             Padding(
               padding: const EdgeInsets.all(20),
               child: HrButton(
-                label: last ? "Let's go" : 'Continue',
+                label: last ? "Let's go" : 'Next',
+                icon: last ? Icons.rocket_launch_rounded : Icons.arrow_forward_rounded,
                 onPressed: _canAdvance ? _next : null,
               ),
             ),
@@ -1064,52 +1075,98 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     );
   }
 
-  Widget _quizPage(String title, String? subtitle, Widget content) => ListView(
-    padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 12, HrSpace.gutter, 16),
-    children: [
-      Text(title, style: HrText.display.copyWith(height: 1.1)),
-      if (subtitle != null) ...[
-        const SizedBox(height: 8),
-        Text(subtitle, style: HrText.bodyS),
-      ],
-      const SizedBox(height: 24),
-      content,
-    ],
-  );
+  Widget _quizPage(String title, String? subtitle, Widget content,
+          {bool art = false}) =>
+      ListView(
+        padding:
+            const EdgeInsets.fromLTRB(HrSpace.gutter, 12, HrSpace.gutter, 16),
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: HrText.display.copyWith(height: 1.1)),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 8),
+                      Text(subtitle, style: HrText.bodyS),
+                    ],
+                  ],
+                ),
+              ),
+              if (art) const HrHeroArt(width: 116, height: 128),
+            ],
+          ),
+          const SizedBox(height: 24),
+          content,
+        ],
+      );
 
   Widget _areasPage() => _quizPage(
-    'What do you want to work on?',
-    "Pick a few — we'll set up starter habits for each.",
-    Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [for (final a in _kAreas) _areaChip(a.$1, a.$2, a.$3)],
+    'Personalize your journey',
+    "What do you want to focus on? Pick a few — we'll set up starter habits for each.",
+    art: true,
+    HrCard(
+      padding: const EdgeInsets.all(12),
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 2.1,
+        children: [for (final a in _kAreas) _areaChip(a.$1, a.$2, a.$3)],
+      ),
     ),
   );
 
   Widget _areaChip(String id, String label, String emoji) {
     final on = _areas.contains(id);
-    return GestureDetector(
-      onTap: () => setState(() => on ? _areas.remove(id) : _areas.add(id)),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(HrRadius.full),
-          color: on ? HrColors.text : HrColors.surface,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: HrText.body.copyWith(
-                color: on ? HrColors.bg : HrColors.text,
-                fontWeight: FontWeight.w700,
-              ),
+    return Semantics(
+      button: true,
+      selected: on,
+      label: label,
+      excludeSemantics: true,
+      child: HrPressable(
+        onTap: () => setState(() => on ? _areas.remove(id) : _areas.add(id)),
+        child: AnimatedContainer(
+          duration: HrMotion.of(context, HrMotion.base),
+          padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            color: on ? HrColors.goldSurface : HrColors.surface2,
+            border: Border.all(
+              color: on ? HrColors.gold : HrColors.cardEdge,
+              width: on ? 1.6 : 1,
             ),
-          ],
+            boxShadow: on
+                ? [BoxShadow(color: HrColors.gold.withValues(alpha: 0.3), blurRadius: 12)]
+                : null,
+          ),
+          child: Row(
+            children: [
+              HrIconTile(emoji: emoji, size: 34),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: HrText.bodyS.copyWith(
+                      color: HrColors.text,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              HrCheck(done: on, size: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -1299,23 +1356,10 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
 
   Widget _summaryTile(IconData icon, String title, String value) => Container(
     padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: HrColors.surface,
-      borderRadius: BorderRadius.circular(HrRadius.md),
-      border: const Border(top: BorderSide(color: HrColors.hairline)),
-    ),
+    decoration: HrCard.decoration(radius: HrRadius.md),
     child: Row(
       children: [
-        Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: HrColors.accent,
-          ),
-          child: Icon(icon, color: HrColors.bg, size: 18),
-        ),
+        HrIconTile(icon: icon, size: 40),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -1353,15 +1397,15 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(HrRadius.md),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: HrColors.cardEdge),
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(HrRadius.md),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: HrColors.cardEdge),
           ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(HrRadius.md),
-        borderSide: const BorderSide(color: HrColors.text, width: 1.5),
+        borderSide: BorderSide(color: HrColors.accent, width: 1.5),
       ),
     ),
   );
@@ -1374,38 +1418,40 @@ class _OnboardingQuizScreenState extends State<OnboardingQuizScreen> {
     ValueChanged<String> onTap,
   ) {
     final on = group == id;
-    return GestureDetector(
-      onTap: () => onTap(id),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(HrRadius.md),
-          color: HrColors.surface,
-          border: Border(
-            top: BorderSide(
-              color: on ? HrColors.accent : HrColors.hairline,
-              width: on ? 2 : 1,
+    return Semantics(
+      button: true,
+      selected: on,
+      label: label,
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: HrPressable(
+          onTap: () => onTap(id),
+          child: AnimatedContainer(
+            duration: HrMotion.of(context, HrMotion.base),
+            padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(HrRadius.md),
+              color: on ? HrColors.goldSurface : HrColors.surface,
+              border: Border.all(
+                color: on ? HrColors.gold : HrColors.cardEdge,
+                width: on ? 1.6 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                HrIconTile(emoji: emoji, size: 40),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                HrCheck(done: on, size: 24),
+              ],
             ),
           ),
-        ),
-        child: Row(
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 20)),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                label,
-                style: HrText.body.copyWith(fontWeight: FontWeight.w600),
-            ),
-            ),
-            if (on)
-              Icon(
-                Icons.check_circle_rounded,
-                color: HrColors.accent,
-                size: 22,
-              ),
-          ],
         ),
       ),
     );

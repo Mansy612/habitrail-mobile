@@ -599,144 +599,193 @@ class AccountScreen extends StatelessWidget {
         final u = auth.user;
         if (u == null) return const SizedBox.shrink();
         final ld = levelFromXp(appState.totalXp);
+        final since = _memberSince(u.createdAt);
         return Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: const HrAppBarTitle('Account'),
-          ),
+          appBar: AppBar(title: const HrAppBarTitle('Account')),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              HrSpace.gutter,
-              8,
-              HrSpace.gutter,
-              24,
-            ),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 6, HrSpace.gutter, 28),
             children: [
               HrCard(
-                padding: const EdgeInsets.all(18),
-                child: Column(
+                padding: const EdgeInsets.all(16),
+                child: Row(
                   children: [
-                    GestureDetector(
-                      onTap: () => _pickProfilePhoto(context),
-                      child: Stack(
-                        children: [
-                          _Avatar(size: 76),
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(5),
+                    Semantics(
+                      button: true,
+                      label: 'Change profile photo',
+                      child: GestureDetector(
+                        onTap: () => _pickProfilePhoto(context),
+                        child: Stack(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(3),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: HrColors.accent,
-                                border: Border.all(
-                                  color: HrColors.surface,
-                                  width: 2,
+                                border: Border.all(color: HrColors.accentBright, width: 2),
+                                boxShadow: [
+                                  BoxShadow(
+                                      color: HrColors.accent.withValues(alpha: 0.55),
+                                      blurRadius: 16),
+                                ],
                               ),
-                              ),
-                              child: const Icon(
-                                Icons.camera_alt_rounded,
-                                size: 12,
-                                color: HrColors.bg,
+                              child: _Avatar(size: 76),
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(5),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: HrColors.accent,
+                                  border: Border.all(color: HrColors.surface, width: 2),
+                                ),
+                                child: const Icon(Icons.camera_alt_rounded,
+                                    size: 12, color: Colors.white),
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(u.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: HrText.title1),
+                          const SizedBox(height: 2),
+                          Text.rich(TextSpan(children: [
+                            TextSpan(
+                              text: 'Level ${ld.level}',
+                              style: HrText.bodyS.copyWith(
+                                  color: HrColors.accentBright,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                            TextSpan(
+                              text: '  ·  ${appState.bestStreak} day streak',
+                              style: HrText.bodyS.copyWith(color: HrColors.text2),
+                            ),
+                          ])),
+                          if (u.username.isNotEmpty)
+                            Text('@${u.username}', style: HrText.caption),
+                          const SizedBox(height: 10),
+                          HrButton(
+                            label: 'Edit profile',
+                            kind: HrButtonKind.secondary,
+                            small: true,
+                            expand: false,
+                            onPressed: () => _editAccountName(context),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    _photoActions(context),
-                    const SizedBox(height: 12),
-                    Text(u.name, style: HrText.title1),
-                    const SizedBox(height: 2),
-                    Text(u.email, style: HrText.caption),
-                    if (u.username.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '@${u.username}',
-                        style: HrText.caption.copyWith(
-                          color: HrColors.text2,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                    if (_memberSince(u.createdAt).isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(_memberSince(u.createdAt), style: HrText.micro),
-                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 4),
-              _sectionLabel('LIFETIME'),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _statChip('Level', '${ld.level}'),
-                  _statChip('Total XP', '${appState.totalXp}'),
-                  _statChip('Best streak', '${appState.bestStreak}'),
-                  _statChip('Habits', '${appState.habits.length}'),
-                  _statChip('Prestige', '${appState.prestige}'),
-                ],
-              ),
-              const SizedBox(height: 16),
-              HrButton(
-                label: 'Share my progress',
-                icon: Icons.ios_share_rounded,
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ShareCardScreen()),
+              const SizedBox(height: 8),
+              Center(child: _photoActions(context)),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: HrStatTile(
+                    value: hrNum(appState.totalXp),
+                    label: 'Total XP',
+                    leading: const Icon(Icons.auto_awesome, size: 26, color: HrColors.gold),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              _sectionLabel('ACCOUNT'),
-              _settingsTile(
-                Icons.edit_rounded,
-                'Edit name',
-                u.name,
-                () => _editAccountName(context),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: HrStatTile(
+                    value: '${appState.habits.length}',
+                    label: 'Habits',
+                    leading: const Icon(Icons.check_circle_rounded,
+                        size: 26, color: HrColors.success),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: HrStatTile(
+                    value: '★${appState.prestige}',
+                    label: 'Prestige',
+                    leading: Icon(Icons.workspace_premium_rounded,
+                        size: 26, color: HrColors.accentBright),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              HrMenuGroup(children: [
+                HrMenuRow(
+                  icon: Icons.person_rounded,
+                  label: 'Profile',
+                  subtitle: 'Name and photo',
+                  onTap: () => _editAccountName(context),
+                ),
+                HrMenuRow(
+                  icon: Icons.alternate_email_rounded,
+                  label: 'Email',
+                  subtitle: u.email,
+                  chevron: false,
+                ),
+                HrMenuRow(
+                  icon: Icons.ios_share_rounded,
+                  label: 'Share progress',
+                  subtitle: 'Level · streak · score',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ShareCardScreen()),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
               if (!auth.isRemote)
-                _settingsTile(
-                  Icons.cloud_off_rounded,
-                  'Cloud sync',
-                  'On this device for now — Supabase wires in later',
-                  null,
+                const HrMenuGroup(children: [
+                  HrMenuRow(
+                    icon: Icons.cloud_off_rounded,
+                    label: 'Cloud sync',
+                    subtitle: 'On this device for now — Supabase wires in later',
+                    chevron: false,
+                  ),
+                ])
+              else
+                HrMenuGroup(title: 'Backup', children: [
+                  HrMenuRow(
+                    icon: Icons.cloud_upload_rounded,
+                    label: 'Back up now',
+                    subtitle: appState.lastBackupAt.isEmpty
+                        ? 'Save your progress to your account'
+                        : 'Last backed up ${_fmtBackup(appState.lastBackupAt)}',
+                    onTap: () => _backupNow(context),
+                  ),
+                  HrMenuRow(
+                    icon: Icons.cloud_download_rounded,
+                    label: 'Restore from cloud',
+                    subtitle: 'Replace this device with your backup',
+                    onTap: () => _confirmRestore(context),
+                  ),
+                ]),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: HrColors.dangerSurface.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(HrRadius.lg),
+                  border: Border.all(color: HrColors.danger.withValues(alpha: 0.45)),
                 ),
-              if (auth.isRemote) ...[
-                const SizedBox(height: 4),
-                _sectionLabel('BACKUP'),
-                _settingsTile(
-                  Icons.cloud_upload_rounded,
-                  'Back up now',
-                  appState.lastBackupAt.isEmpty
-                      ? 'Save your progress to your account'
-                      : 'Last backed up ${_fmtBackup(appState.lastBackupAt)}',
-                  () => _backupNow(context),
-                ),
-                _settingsTile(
-                  Icons.cloud_download_rounded,
-                  'Restore from cloud',
-                  'Replace this device with your backup',
-                  () => _confirmRestore(context),
-                ),
-              ],
-              const SizedBox(height: 10),
-              TextButton.icon(
-                onPressed: () => _confirmDeleteAccount(context),
-                icon: const Icon(
-                  Icons.delete_forever_rounded,
-                  size: 18,
-                  color: HrColors.dangerText,
-                ),
-                label: Text(
-                  'Delete account',
-                  style: HrText.body.copyWith(color: HrColors.dangerText),
+                child: HrMenuRow(
+                  icon: Icons.delete_forever_rounded,
+                  label: 'Account actions',
+                  subtitle: 'Delete your account and its data',
+                  iconColor: HrColors.dangerText,
+                  labelColor: HrColors.dangerText,
+                  onTap: () => _confirmDeleteAccount(context),
                 ),
               ),
+              if (since.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Center(child: Text(since, style: HrText.micro)),
+              ],
             ],
           ),
         );
@@ -1607,23 +1656,6 @@ Widget _authNote() {
   );
 }
 
-Widget _statChip(String label, String value) => Container(
-  width: 104,
-  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-  decoration: BoxDecoration(
-    color: HrColors.surface,
-    borderRadius: BorderRadius.circular(HrRadius.md),
-    border: const Border(top: BorderSide(color: HrColors.hairline)),
-  ),
-  child: Column(
-    children: [
-      Text(value, style: HrText.stat),
-      const SizedBox(height: 2),
-      Text(label, textAlign: TextAlign.center, style: HrText.caption),
-    ],
-  ),
-);
-
 String _memberSince(String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return '';
@@ -2421,20 +2453,32 @@ class DashboardScreen extends StatelessWidget {
             children: [
               const SizedBox(height: 4),
               if (hasTasks || hasChallenge) ...[
-                const HrLabel('Today'),
+                const Padding(
+                padding: EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+                child: HrLabel('Today'),
+              ),
                 if (hasTasks) const _TasksCard(),
                 if (hasChallenge) const _ChallengeTodayCard(),
                 const SizedBox(height: 12),
               ],
-              const HrLabel('Your progress'),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+                child: HrLabel('Your progress'),
+              ),
               const _VictoryCard(),
               const _NutritionCard(),
               const SizedBox(height: 12),
-              const HrLabel('Adventure'),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+                child: HrLabel('Adventure'),
+              ),
               const _BossCard(),
               const _QuestsPanel(),
               const SizedBox(height: 12),
-              const HrLabel('Coach'),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+                child: HrLabel('Coach'),
+              ),
               const _CoachCard(),
             ],
           );
@@ -2950,7 +2994,7 @@ class _VictoryCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('VICTORY SCORE', style: HrText.labelCaps),
+                  Text('Victory score', style: HrText.caption.copyWith(color: HrColors.text2, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 3),
                   Text(
                     victoryLabel(v.score),
@@ -3052,12 +3096,14 @@ class _QuestsPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('DAILY QUESTS', style: HrText.labelCaps),
+                Expanded(child: Text('Daily quests', style: HrText.headline)),
+                const Icon(Icons.auto_awesome, size: 14, color: HrColors.gold),
+                const SizedBox(width: 5),
                 Text(
-                  '${claimed.length}/${kQuests.length}',
-                  style: HrText.labelCaps.copyWith(color: HrColors.accent),
+                  '${claimed.length} / ${kQuests.length}',
+                  style: HrText.bodyS.copyWith(
+                      color: HrColors.text, fontWeight: FontWeight.w900),
                 ),
               ],
             ),
@@ -3068,28 +3114,18 @@ class _QuestsPanel extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
                   children: [
-                    Icon(
-                      on ? Icons.check_circle_rounded : Icons.circle_outlined,
-                      size: 18,
-                      color: on ? HrColors.accent : HrColors.text3,
-                    ),
-                    const SizedBox(width: 10),
+                    HrCheck(done: on, size: 22),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         q.title,
                         style: HrText.bodyS.copyWith(
-                          color: on ? HrColors.text3 : HrColors.text,
-                          decoration: on ? TextDecoration.lineThrough : null,
+                          color: on ? HrColors.text2 : HrColors.text,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                    Text(
-                      '+${q.xp}',
-                      style: HrText.caption.copyWith(
-                        color: on ? HrColors.text3 : HrColors.accent,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    HrXpChip(q.xp),
                   ],
                 ),
               );
@@ -3172,7 +3208,7 @@ class _CoachCardState extends State<_CoachCard> {
       child: HrCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Expanded(child: Text('YOUR COACH', style: HrText.labelCaps)),
+            Expanded(child: Text('Your coach', style: HrText.headline)),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
@@ -4413,7 +4449,7 @@ class _TasksCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(children: [
-                    Text('TASKS', style: HrText.labelCaps),
+                    Text('Tasks', style: HrText.headline),
                     const Spacer(),
                     GestureDetector(
                       onTap: () => Navigator.of(context).push(MaterialPageRoute(
@@ -8777,25 +8813,31 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
       builder: (context, _) {
         final ld = levelFromXp(appState.totalXp);
         final v = appState.victory();
+        final streak = appState.bestStreak;
         final cardWidth = min(
           360.0,
           MediaQuery.sizeOf(context).width - HrSpace.gutter * 2,
         );
+        Widget statLine(Widget icon, String value, String label) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(children: [
+                SizedBox(width: 28, child: Center(child: icon)),
+                const SizedBox(width: 8),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(value,
+                      style: HrText.title2.copyWith(height: 1.1)),
+                  Text(label, style: HrText.micro.copyWith(color: HrColors.text2)),
+                ]),
+              ]),
+            );
         return Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            foregroundColor: HrColors.text,
-            elevation: 0,
-            title: const HrAppBarTitle('Share progress'),
+            title: const HrAppBarTitle('Share progress',
+                subtitle: 'Preview of your share image'),
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              HrSpace.gutter,
-              8,
-              HrSpace.gutter,
-              32,
-            ),
+            padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 6, HrSpace.gutter, 32),
             children: [
               Center(
                 child: RepaintBoundary(
@@ -8804,175 +8846,102 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                     width: cardWidth,
                     height: cardWidth * 16 / 9,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 24,
-                      ),
+                      clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF17151E), Color(0xFF0A0A0D)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0xFF221548), Color(0xFF120E28), Color(0xFF0A0B12)],
+                          stops: [0, 0.55, 1],
                         ),
                         borderRadius: BorderRadius.circular(HrRadius.xl),
-                        border: Border.all(color: const Color(0xFF34313D)),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x553E2B65),
-                            blurRadius: 24,
-                            spreadRadius: -10,
-                          ),
+                        border: Border.all(color: HrColors.accent.withValues(alpha: 0.6), width: 1.4),
+                        boxShadow: [
+                          BoxShadow(color: HrColors.accent.withValues(alpha: 0.35), blurRadius: 24),
                         ],
                       ),
                       child: Stack(
                         children: [
+                          // Night landscape: moon, stars and mountains.
                           Positioned(
-                            top: -70,
-                            right: -80,
-                            child: Container(
-                              width: 180,
-                              height: 180,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Color(0x182C87FF),
-                                    blurRadius: 70,
-                                    spreadRadius: 18,
-                                  ),
-                                ],
-                              ),
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            height: cardWidth * 0.95,
+                            child: CustomPaint(
+                                painter: _JournalLandscapePainter(HrColors.accent)),
+                          ),
+                          Positioned(
+                            right: -12,
+                            top: cardWidth * 0.42,
+                            child: HrHeroArt(
+                              width: cardWidth * 0.62,
+                              height: cardWidth * 0.78,
                             ),
                           ),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.route_rounded,
-                                    size: 17,
-                                    color: Color(0xFF8B73FF),
-                                  ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  const Icon(Icons.route_rounded,
+                                      size: 17, color: HrColors.lavender),
                                   const SizedBox(width: 7),
-                                  Text(
-                                    'HABITRAIL',
-                                    style: HrText.caption.copyWith(
-                                      color: HrColors.text,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 2.2,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Column(
-                                children: [
-                                  Image.asset(
-                                    'assets/streaks/enamel_flame.png',
-                                    width: 48,
-                                    height: 48,
-                                    fit: BoxFit.contain,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${appState.bestStreak}',
-                                    style: const TextStyle(
-                                      color: Color(0xFFFFB547),
-                                      fontSize: 48,
-                                      height: 1,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -1.5,
-                                    ),
-                                  ),
-                                  Text(
-                                    appState.bestStreak == 1
-                                        ? 'DAY IN A ROW'
-                                        : 'DAYS IN A ROW',
-                                    style: HrText.micro.copyWith(
-                                      color: const Color(0xFFFFC979),
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _Avatar(size: 64),
-                                  const SizedBox(width: 12),
-                                  Flexible(
+                                  Text('HABITRAIL',
+                                      style: HrText.caption.copyWith(
+                                          color: HrColors.text,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 2.2)),
+                                ]),
+                                const SizedBox(height: 22),
+                                Text('$streak day',
+                                    style: HrText.displayXl.copyWith(fontSize: 52, height: 1)),
+                                Text('streak',
+                                    style: HrText.displayXl.copyWith(
+                                        fontSize: 44, height: 1.05, color: HrColors.gold)),
+                                const SizedBox(height: 26),
+                                statLine(
+                                    Image.asset('assets/streaks/enamel_flame.png',
+                                        width: 24, height: 24),
+                                    '$streak',
+                                    streak == 1 ? 'day streak' : 'days in a row'),
+                                statLine(
+                                    const Icon(Icons.auto_awesome, color: HrColors.gold, size: 22),
+                                    hrNum(appState.totalXp),
+                                    'total XP'),
+                                statLine(
+                                    Icon(Icons.workspace_premium_rounded,
+                                        color: HrColors.accentBright, size: 24),
+                                    'Level ${ld.level}',
+                                    levelTitle(ld.level)),
+                                statLine(
+                                    const Icon(Icons.emoji_events_rounded,
+                                        color: HrColors.gold, size: 22),
+                                    '${v.score}',
+                                    'daily score'),
+                                const Spacer(),
+                                Row(children: [
+                                  _Avatar(size: 46),
+                                  const SizedBox(width: 10),
+                                  Expanded(
                                     child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          appState.displayName,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: HrText.title2,
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          'Level ${ld.level} · ${levelTitle(ld.level)}',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: HrText.caption,
-                                        ),
-                                      ],
-                                    ),
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(appState.displayName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: HrText.headline),
+                                          Text('Build your own streak with Habitrail.',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: HrText.micro.copyWith(
+                                                  color: HrColors.text2)),
+                                        ]),
                                   ),
-                                ],
-                              ),
-                              Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      _shareStat(
-                                        Icons.emoji_events_rounded,
-                                        HrColors.gold,
-                                        'Daily Score',
-                                        '${v.score}',
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _shareStat(
-                                        Icons.bolt_rounded,
-                                        const Color(0xFF79DCFF),
-                                        'Total XP',
-                                        '${appState.totalXp}',
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      _shareStat(
-                                        Icons.check_circle_rounded,
-                                        const Color(0xFF7FE2B0),
-                                        'Habits',
-                                        '${appState.habits.length}',
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _shareStat(
-                                        Icons.workspace_premium_rounded,
-                                        const Color(0xFFC49BFF),
-                                        'Prestige',
-                                        '${appState.prestige}',
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                'Build your own streak with Habitrail.',
-                                textAlign: TextAlign.center,
-                                style: HrText.bodyS.copyWith(
-                                  fontStyle: FontStyle.italic,
-                                  color: HrColors.text2,
-                                ),
-                              ),
-                            ],
+                                ]),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -8980,7 +8949,7 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               HrButton(
                 label: _busy ? 'Preparing…' : 'Share',
                 icon: Icons.ios_share_rounded,
@@ -9000,31 +8969,6 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
     );
   }
 }
-
-Widget _shareStat(IconData icon, Color tint, String label, String value) =>
-    Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1B1A20),
-          borderRadius: BorderRadius.circular(HrRadius.md),
-          border: Border.all(color: const Color(0xFF302E37)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 17, color: tint),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: HrText.headline.copyWith(color: HrColors.text),
-            ),
-            Text(label, style: HrText.micro),
-          ],
-        ),
-      ),
-    );
 
 // ── FRIENDS & LEADERBOARD ────────────────────────────────────────────────────
 
@@ -12208,7 +12152,7 @@ class _NutritionCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('NUTRITION', style: HrText.labelCaps),
+                  Text('Nutrition', style: HrText.caption.copyWith(color: HrColors.text2, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 3),
                   Text(
                     '${n.calories.round()} / ${t.calories.round()} kcal · ${n.protein.round()}g protein',
@@ -13711,63 +13655,6 @@ class _MilestoneTile extends StatelessWidget {
     );
   }
 }
-
-// ── SETTINGS & ACCOUNT ───────────────────────────────────────────────────────
-Widget _settingsTile(
-  IconData icon,
-  String title,
-  String subtitle,
-  VoidCallback? onTap, {
-  bool danger = false,
-}) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Material(
-      color: HrColors.surface,
-      borderRadius: BorderRadius.circular(HrRadius.md),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: danger ? HrColors.dangerText : HrColors.text2,
-                size: 20,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: HrText.body.copyWith(
-                        color: danger ? HrColors.dangerText : HrColors.text,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(subtitle, style: HrText.caption),
-                  ],
-                ),
-              ),
-              if (onTap != null)
-                const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-Widget _sectionLabel(String s) => Padding(
-  padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
-  child: Text(s.toUpperCase(), style: HrText.labelCaps),
-);
 
 // ── PROFILE (tab) + app settings ─────────────────────────────────────────────
 void _go(BuildContext context, Widget page) =>

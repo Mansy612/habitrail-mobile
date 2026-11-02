@@ -1870,7 +1870,12 @@ class _Avatar extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final b = borderById(appState.selectedBorder);
     final hasBorder = b.id != 'none';
     // Thicker, glowing ring with a thin dark gap so the colour reads as a
@@ -2523,7 +2528,12 @@ class _LevelPanel extends StatelessWidget {
   const _LevelPanel({this.compact = false});
   final bool compact;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final ld = levelFromXp(appState.totalXp);
     return HrCard(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
@@ -2798,7 +2808,12 @@ class _FiveCardState extends State<_FiveCard> {
       );
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final habits = appState.habits;
     final done = habits.where(appState.doneToday).length;
     final allDone = done == habits.length && habits.isNotEmpty;
@@ -2970,7 +2985,12 @@ Widget _todayEmpty(BuildContext context) => Padding(
 class _VictoryCard extends StatelessWidget {
   const _VictoryCard();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final v = appState.victory();
     final color = victoryColor(v.score);
     return Padding(
@@ -3018,7 +3038,12 @@ class _VictoryCard extends StatelessWidget {
 class _BossCard extends StatelessWidget {
   const _BossCard();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final count = appState.perfectDaysThisWeek().clamp(0, kBossGoal);
     final defeated = count >= kBossGoal;
     return Padding(
@@ -3087,7 +3112,12 @@ class _BossCard extends StatelessWidget {
 class _QuestsPanel extends StatelessWidget {
   const _QuestsPanel();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final claimed = appState.questClaimedIds;
     return Padding(
       padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
@@ -3200,7 +3230,12 @@ class _CoachCardState extends State<_CoachCard> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final left = appState.coachUsesLeft;
     final atLimit = !appState.canUseCoach;
     return Padding(
@@ -3372,7 +3407,12 @@ class _PremiumProp extends StatelessWidget {
 class _PremiumYouCard extends StatelessWidget {
   const _PremiumYouCard();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final premium = appState.isPremium;
     return HrCard(
       onTap: () => Navigator.of(context).push(
@@ -4373,6 +4413,17 @@ class RecoveryScreen extends StatelessWidget {
   }
 }
 
+// A sheet or dialog's future completes as soon as it starts closing, while
+// its text fields still paint during the exit animation — so controllers
+// are disposed only after that animation has finished.
+void _disposeAfterClose(List<ChangeNotifier> controllers) {
+  Future<void>.delayed(const Duration(milliseconds: 600), () {
+    for (final c in controllers) {
+      c.dispose();
+    }
+  });
+}
+
 // ── Tasks: Dailies & To-Dos ─────────────────────────────────────────────────
 String _taskMeta(TaskItem t) {
   if (t.kind == TaskKind.daily) {
@@ -4752,10 +4803,7 @@ void _showTaskEditor(BuildContext context, {TaskItem? existing}) {
             ]);
       }),
     ),
-  ).whenComplete(() {
-    titleCtrl.dispose();
-    iconCtrl.dispose();
-  });
+  ).whenComplete(() => _disposeAfterClose([titleCtrl, iconCtrl]));
 }
 
 String _fmtDue(String key) {
@@ -4937,7 +4985,12 @@ class _PartyScreenState extends State<PartyScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final name = (_party?['name'] ?? 'My Party').toString();
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -5527,10 +5580,7 @@ class _GuildsScreenState extends State<GuildsScreen> {
               ),
             ]),
       ),
-    ).whenComplete(() {
-      nameCtrl.dispose();
-      descCtrl.dispose();
-    });
+    ).whenComplete(() => _disposeAfterClose([nameCtrl, descCtrl]));
   }
 
   @override
@@ -5773,7 +5823,7 @@ class _GuildDetailScreenState extends State<GuildDetailScreen> {
       ),
     );
     final target = int.tryParse(ctrl.text.trim()) ?? 0;
-    ctrl.dispose();
+    _disposeAfterClose([ctrl]);
     if (ok != true) return;
     final updated = await setGuildGoal(widget.guildId, target, _partyWeekKey());
     if (updated != null && mounted) {
@@ -8535,7 +8585,12 @@ class _WeeklyReportCardState extends State<_WeeklyReportCard> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final premium = appState.isPremium;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
@@ -8629,7 +8684,12 @@ class _WeeklyPlanCardState extends State<_WeeklyPlanCard> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final premium = appState.isPremium;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
@@ -8763,7 +8823,12 @@ class _InsightsCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final premium = appState.isPremium;
     final rows = premium ? _insights() : const <(IconData, String, String)>[];
     return Padding(
@@ -8832,7 +8897,12 @@ Widget _lockPill() => Container(
 class _HabitStreaksCard extends StatelessWidget {
   const _HabitStreaksCard();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final habits = [...appState.habits]
       ..sort((a, b) => b.streak.compareTo(a.streak));
     if (habits.isEmpty) return const SizedBox.shrink();
@@ -10392,7 +10462,12 @@ class _AwardsScreenState extends State<AwardsScreen> {
   int _filter = 0;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final earnedList = kAchievements.where(appState.isAchievementEarned).toList();
     final total = kAchievements.length;
     // The hardest earned award stands in for "latest" (no timestamps stored).
@@ -10534,7 +10609,12 @@ class _AchievementCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final on = appState.isAchievementEarned(a);
     return Semantics(
       button: true,
@@ -12239,14 +12319,19 @@ Future<void> showAddReflection(BuildContext context,
           day: day, energy: energy, mood: mood, focus: focus);
     }
   }
-  controller.dispose();
+  _disposeAfterClose([controller]);
 }
 
 // ── NUTRITION ────────────────────────────────────────────────────────────────
 class _NutritionCard extends StatelessWidget {
   const _NutritionCard();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final n = appState.todayNutrition();
     final t = appState.targets();
     final score = appState.nutritionScore();
@@ -12442,7 +12527,12 @@ class _FoodTile extends StatelessWidget {
   const _FoodTile(this.e);
   final FoodEntry e;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
       child: Row(
@@ -12750,7 +12840,12 @@ class _CompanionOrb extends StatelessWidget {
 class _CompanionCard extends StatelessWidget {
   const _CompanionCard();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final c = companionByType(appState.activeCompanion);
     final stage = companionStage(appState.level);
     final line = appState.lastCompanionLine.isEmpty
@@ -14661,7 +14756,12 @@ class _ConfettiPainter extends CustomPainter {
 class _HeatmapCard extends StatelessWidget {
   const _HeatmapCard();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final now = DateTime.now();
     final todayK = dateKey(now);
     const n = 35; // 5 weeks
@@ -14709,7 +14809,12 @@ class _HeatmapCard extends StatelessWidget {
 class _WeekTrendCard extends StatelessWidget {
   const _WeekTrendCard();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => _liveBuild(context),
+      );
+
+  Widget _liveBuild(BuildContext context) {
     final days = appState.weekTrend();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),

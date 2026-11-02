@@ -4,49 +4,50 @@
 import 'package:flutter/material.dart';
 
 abstract final class HrColors {
-  static const bg = Color(0xFF000000);
-  static const surface = Color(0xFF1C1C1E);
-  static const surface2 = Color(0xFF2C2C2E);
-  static const surface3 = Color(0xFF3A3A3C);
-  static const hairline = Color(0x14FFFFFF);
-  static const controlBorder = Color(0xFF7C7C80);
+  static const bg = Color(0xFF070811);
+  static const surface = Color(0xFF11121D);
+  static const surface2 = Color(0xFF191A29);
+  static const surface3 = Color(0xFF292A3C);
+  static const hairline = Color(0x335D5A88);
+  static const cardEdge = Color(0x665F4C91);
+  static const controlBorder = Color(0xFF55566F);
 
   static const text = Color(0xFFFFFFFF);
-  static const text2 = Color(0xFFA1A1A6);
-  static const text3 = Color(0xFF8E8E93);
-  static const textDisabled = Color(0xFF636366);
+  static const text2 = Color(0xFFB4B4C8);
+  static const text3 = Color(0xFF85869C);
+  static const textDisabled = Color(0xFF5B5C70);
 
-  static const btnPrimary = Color(0xFFFFFFFF);
-  static const btnPrimaryPressed = Color(0xFFD8D8DC);
-  static const onBtnPrimary = Color(0xFF000000);
-  static const onAccent = Color(0xFF000000);
+  static const btnPrimary = Color(0xFFFFC82F);
+  static const btnPrimaryPressed = Color(0xFFEBAE1D);
+  static const onBtnPrimary = Color(0xFF17101F);
+  static const onAccent = Color(0xFFFFFFFF);
 
-  static const streak = Color(0xFFFF9F0A);
-  static const streakSurface = Color(0xFF3A2606);
+  static const streak = Color(0xFFFFA32B);
+  static const streakSurface = Color(0xFF36210E);
   static const onStreak = Color(0xFF000000);
-  static const gold = Color(0xFFFFD60A);
-  static const goldSurface = Color(0xFF332B07);
+  static const gold = Color(0xFFFFCA35);
+  static const goldSurface = Color(0xFF33270C);
   static const danger = Color(0xFFFF453A);
   static const dangerText = Color(0xFFFF6961);
   static const dangerSurface = Color(0xFF3A1412);
-  static const info = Color(0xFF64D2FF);
+  static const info = Color(0xFF70D6FF);
 
   static const stickerFill = Color(0xFFFFD60A);
   static const stickerInk = Color(0xFF000000);
   static const stickerOutline = Color(0xFFFFFFFF);
-  static const bubble = Color(0xFFFFFFFF);
-  static const bubbleInk = Color(0xFF000000);
-  static const glass = Color(0xCC262B3D);
-  static const glassEdge = Color(0x1FFFFFFF);
-  static const navBg = Color(0xE6121214);
+  static const bubble = Color(0xF01A1B2A);
+  static const bubbleInk = Color(0xFFF5F2FF);
+  static const glass = Color(0xE9161726);
+  static const glassEdge = Color(0x3D8170B3);
+  static const navBg = Color(0xF20D0E18);
   static const scrim = Color(0xB3000000);
-  static const focusRing = Color(0xFFFFFFFF);
+  static const focusRing = Color(0xFFA96BFF);
 
   static const rarity = <String, Color>{
     'common': Color(0xFF8E8E93),
-    'rare': Color(0xFF409CFF),
-    'epic': Color(0xFFC38BFF),
-    'legendary': Color(0xFFFFD60A),
+    'rare': Color(0xFF61CFFF),
+    'epic': Color(0xFFB585FF),
+    'legendary': Color(0xFFFFCA35),
     'mythic': Color(0xFFFF6482),
   };
 
@@ -59,9 +60,9 @@ abstract final class HrColors {
   }
 
   // ── Themed accent (Appearance) ────────────────────────────────────────────
-  static Color accent = const Color(0xFF30D158);
-  static Color accentPressed = const Color(0xFF28B84C);
-  static Color accentSurface = const Color(0xFF14301B);
+  static Color accent = const Color(0xFFA45AFF);
+  static Color accentPressed = const Color(0xFF8B42EF);
+  static Color accentSurface = const Color(0xFF25163C);
 }
 
 class HrAccentTheme {

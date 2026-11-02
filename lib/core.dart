@@ -5,18 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ui/hr_tokens.dart';
 
-// ── Exact palette from the web app (tailwind.config.ts) ─────────────────────
-const kBase = Color(0xFF07040F);
-const kElevated = Color(0xD9221445); // translucent glass (secondary surface)
-const kCard = Color(0xCC1A0F34); // translucent glass (primary surface)
-const kSurfacePrimary = Color(0xFF0B0420);
-const kBorder = Color(0x26FFFFFF); // luminous glass edge (white ~15%)
+// ── Habitrail night-sky palette shared by core and the mobile theme ──────────
+const kBase = Color(0xFF070811);
+const kElevated = Color(0xE9181929); // deep indigo secondary surface
+const kCard = Color(0xE0121320); // dark card surface
+const kSurfacePrimary = Color(0xFF0B0C16);
+const kBorder = Color(0x665B4A83); // restrained violet edge
 // Accent trio — mutable so appearance themes can swap them at runtime.
-Color kPlasma = const Color(0xFF8B5CF6);
-Color kPlasmaBright = const Color(0xFFA78BFA);
-Color kPlasmaGlow = const Color(0xFFC4B5FD);
-const kCyan = Color(0xFF22D3EE);
-const kGold = Color(0xFFFBBF24);
+Color kPlasma = const Color(0xFF974DFF);
+Color kPlasmaBright = const Color(0xFFB47AFF);
+Color kPlasmaGlow = const Color(0xFFD0B2FF);
+const kCyan = Color(0xFF62D5FF);
+const kGold = Color(0xFFFFC82F);
 const kBlue = Color(0xFF4F7CFF);
 const kGreen = Color(0xFF34D399);
 const kRed = Color(0xFFFB7185);

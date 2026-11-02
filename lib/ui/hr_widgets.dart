@@ -7,6 +7,126 @@ import 'package:flutter/services.dart' show HapticFeedback;
 
 import 'hr_tokens.dart';
 
+/// A static night-sky backdrop shared by every app page.
+class HrAmbientBackdrop extends StatelessWidget {
+  const HrAmbientBackdrop({super.key});
+
+  @override
+  Widget build(BuildContext context) => const CustomPaint(
+    painter: _HrAmbientBackdropPainter(),
+    size: Size.infinite,
+  );
+}
+
+/// Full-body brand mascot art for hero areas and focus screens.
+class HrMascotArtwork extends StatelessWidget {
+  const HrMascotArtwork({
+    this.width = 180,
+    this.height = 220,
+    this.opacity = 1,
+    super.key,
+  });
+
+  final double width;
+  final double height;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: ExcludeSemantics(
+      child: Opacity(
+        opacity: opacity,
+        child: Image.asset(
+          'assets/mascot/habit_trail_mascot.png',
+          width: width,
+          height: height,
+          fit: BoxFit.contain,
+          cacheWidth: (width * 2).round(),
+          filterQuality: FilterQuality.medium,
+        ),
+      ),
+    ),
+  );
+}
+
+/// Consistent secondary-page heading with the app's small 3D brand companion.
+class HrAppBarTitle extends StatelessWidget {
+  const HrAppBarTitle(this.label, {super.key});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Flexible(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: HrText.title2,
+        ),
+      ),
+      const SizedBox(width: 8),
+      const HrMascotArtwork(width: 28, height: 36, opacity: 0.92),
+    ],
+  );
+}
+
+class _HrAmbientBackdropPainter extends CustomPainter {
+  const _HrAmbientBackdropPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bounds = Offset.zero & size;
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF080812), Color(0xFF05060B), Color(0xFF080711)],
+          stops: [0, 0.55, 1],
+        ).createShader(bounds),
+    );
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(0.9, -0.85),
+          radius: 1.0,
+          colors: [Color(0x3C512B79), Color(0x00110A20)],
+        ).createShader(bounds),
+    );
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(-0.9, 0.8),
+          radius: 0.9,
+          colors: [Color(0x1C492477), Color(0x000A0712)],
+        ).createShader(bounds),
+    );
+
+    final pixels = <(double, double, double, Color)>[
+      (0.10, 0.16, 4, Color(0x997F4CC8)),
+      (0.86, 0.23, 5, Color(0x99FFC935)),
+      (0.91, 0.30, 3, Color(0x887C4BD1)),
+      (0.16, 0.76, 3, Color(0x667A4CC2)),
+      (0.79, 0.69, 4, Color(0x66FFC935)),
+    ];
+    for (final (x, y, edge, color) in pixels) {
+      final point = Offset(size.width * x, size.height * y);
+      canvas.drawRect(
+        Rect.fromCenter(center: point, width: edge, height: edge),
+        Paint()..color = color,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _HrAmbientBackdropPainter oldDelegate) => false;
+}
+
 // ── Button (replaces GradientButton) ────────────────────────────────────────
 enum HrButtonKind { primary, accent, secondary, ghost, danger }
 
@@ -70,6 +190,26 @@ class _HrButtonState extends State<HrButton> {
         ? HrColors.surface2
         : (_down ? pressed : bg);
     final ink = widget.onPressed == null ? HrColors.textDisabled : fg;
+    final buttonGradient = widget.onPressed == null
+        ? null
+        : widget.kind == HrButtonKind.primary
+        ? LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: _down
+                ? [HrColors.btnPrimaryPressed, const Color(0xFFD78F16)]
+                : [const Color(0xFFFFE27A), HrColors.btnPrimary, const Color(0xFFF2A91D)],
+          )
+        : widget.kind == HrButtonKind.accent
+        ? LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              _down ? HrColors.accentPressed : HrColors.accent,
+              Color.lerp(HrColors.accentPressed, const Color(0xFF4D20A8), 0.35)!,
+            ],
+          )
+        : null;
     final h = widget.small
         ? 36.0
         : (widget.kind == HrButtonKind.ghost ? 44.0 : 52.0);
@@ -96,8 +236,25 @@ class _HrButtonState extends State<HrButton> {
               width: widget.expand ? double.infinity : null,
               padding: EdgeInsets.symmetric(horizontal: widget.small ? 16 : 24),
               decoration: BoxDecoration(
-                color: fill,
-                borderRadius: BorderRadius.circular(HrRadius.full),
+                color: buttonGradient == null ? fill : null,
+                gradient: buttonGradient,
+                borderRadius: BorderRadius.circular(HrRadius.md),
+                border: widget.kind == HrButtonKind.secondary
+                    ? Border.all(color: HrColors.cardEdge.withValues(alpha: 0.6))
+                    : buttonGradient != null
+                    ? Border.all(color: Colors.white.withValues(alpha: 0.22))
+                    : null,
+                boxShadow: enabled && !_down &&
+                        (widget.kind == HrButtonKind.primary ||
+                            widget.kind == HrButtonKind.accent)
+                    ? [
+                        BoxShadow(
+                          color: bg.withValues(alpha: 0.22),
+                          blurRadius: 16,
+                          offset: const Offset(0, 5),
+                        ),
+                      ]
+                    : null,
               ),
               alignment: Alignment.center,
               child: widget.loading
@@ -154,17 +311,72 @@ class HrCard extends StatelessWidget {
     Color? color,
     double radius = HrRadius.lg,
   }) => BoxDecoration(
-        color: color ?? HrColors.surface,
+        color: color,
+        gradient: color == null
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF191A2A), Color(0xFF11121D)],
+              )
+            : null,
         borderRadius: BorderRadius.circular(radius),
-        border: const Border(top: BorderSide(color: HrColors.hairline)),
+        border: Border.all(color: HrColors.cardEdge, width: 0.8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x26050012),
+            blurRadius: 18,
+            offset: Offset(0, 7),
+          ),
+        ],
       );
 
   @override
   Widget build(BuildContext context) {
     final box = Container(
-      padding: padding,
+      clipBehavior: Clip.antiAlias,
       decoration: decoration(color: color),
-      child: child,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(-0.95, -1.1),
+                    radius: 1.15,
+                    colors: [
+                      HrColors.accent.withValues(alpha: 0.11),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 20,
+            right: 20,
+            height: 1,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      HrColors.text.withValues(alpha: 0.18),
+                      HrColors.gold.withValues(alpha: 0.38),
+                      HrColors.text.withValues(alpha: 0.12),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(padding: padding, child: child),
+        ],
+      ),
     );
     return (onTap == null && onLongPress == null)
         ? box
@@ -784,13 +996,19 @@ class _BubblePainter extends CustomPainter {
       path.shift(const Offset(0, 4)),
       Paint()..color = const Color(0x73000000),
     );
+    c.drawPath(
+      path,
+      Paint()
+        ..color = HrColors.accent.withValues(alpha: 0.18)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+    );
     c.drawPath(path, Paint()..color = HrColors.bubble);
     c.drawPath(
       path,
       Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-        ..color = HrColors.bubbleInk,
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = HrColors.accent.withValues(alpha: 0.55),
     );
   }
 
@@ -871,13 +1089,21 @@ class HrTabBar extends StatelessWidget {
                         const SizedBox(height: 3),
                         AnimatedContainer(
                           duration: HrMotion.of(context, HrMotion.base),
-                          width: i == index ? 18 : 4,
-                          height: 3,
+                          width: 5,
+                          height: 5,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(2),
+                            shape: BoxShape.circle,
                             color: i == index
-                                ? HrColors.accent
+                                ? HrColors.gold
                                 : Colors.transparent,
+                            boxShadow: i == index
+                                ? [
+                                    BoxShadow(
+                                      color: HrColors.gold.withValues(alpha: 0.45),
+                                      blurRadius: 8,
+                                    ),
+                                  ]
+                                : null,
                         ),
                         ),
                       ],
@@ -908,6 +1134,7 @@ class HrSegmented extends StatelessWidget {
         padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
       color: HrColors.surface,
+      border: Border.all(color: HrColors.cardEdge.withValues(alpha: 0.55)),
       borderRadius: BorderRadius.circular(HrRadius.full),
     ),
     child: LayoutBuilder(
@@ -924,7 +1151,10 @@ class HrSegmented extends StatelessWidget {
               bottom: 0,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: HrColors.text,
+                  color: HrColors.accentSurface,
+                  border: Border.all(
+                    color: HrColors.accent.withValues(alpha: 0.7),
+                  ),
                   borderRadius: BorderRadius.circular(HrRadius.full),
             ),
               ),
@@ -948,7 +1178,7 @@ class HrSegmented extends StatelessWidget {
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 color: i == index
-                                    ? HrColors.bg
+                                    ? HrColors.text
                                     : (onChanged == null
                                           ? HrColors.textDisabled
                                           : HrColors.text2),

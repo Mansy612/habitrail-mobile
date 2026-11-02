@@ -87,6 +87,7 @@ flutter:
     - assets/profile_borders/
     - assets/onboarding/
     - assets/leaderboard/
+    - assets/mascot/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

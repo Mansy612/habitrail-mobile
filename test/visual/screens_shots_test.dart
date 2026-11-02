@@ -180,6 +180,7 @@ void main() {
       'signup': () => const SignUpScreen(),
       'login': () => const LoginScreen(),
       'app_settings': () => const AppSettingsScreen(),
+      'friend_profile': () => FriendProfileScreen(friendId: friends.friends.first.id),
     };
     if (_tall) tester.view.physicalSize = const Size(390 * 2, 1700 * 2);
     for (final e in routes.entries) {

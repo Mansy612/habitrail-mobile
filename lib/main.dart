@@ -3261,15 +3261,7 @@ void _showCoachPaywall(BuildContext context) {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 18),
-              decoration: BoxDecoration(
-                  color: HrColors.surface3, borderRadius: BorderRadius.circular(2)),
-            ),
-          ),
+          const SizedBox.shrink(),
           Row(children: [
             const Icon(Icons.workspace_premium_rounded, color: HrColors.gold, size: 24),
             const SizedBox(width: 10),
@@ -6306,14 +6298,7 @@ Future<void> _moderateMessage(BuildContext context, Map<String, dynamic> m,
     builder: (ctx) => SafeArea(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const SizedBox(height: 10),
-        Container(
-          width: 36,
-          height: 4,
-          margin: const EdgeInsets.only(bottom: 10),
-          decoration: BoxDecoration(
-              color: HrColors.surface3,
-              borderRadius: BorderRadius.circular(2)),
-        ),
+        const SizedBox.shrink(),
         ListTile(
           leading: const Icon(Icons.flag_outlined, color: HrColors.dangerText),
           title: Text('Report message', style: HrText.body),
@@ -10578,15 +10563,7 @@ Future<void> _showJournalMenu(BuildContext context, Reflection r) async {
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 8),
-          Container(
-            width: 36,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: HrColors.surface3,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          const SizedBox.shrink(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
             child: Row(children: [
@@ -11399,15 +11376,7 @@ Future<void> _showHabitMenu(BuildContext context, Habit h) async {
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 8),
-          Container(
-            width: 36,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: HrColors.surface3,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+          const SizedBox.shrink(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
             child: Row(
@@ -11582,223 +11551,223 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
           });
         }
 
+        void save() {
+          final name = controller.text.trim();
+          if (name.isEmpty) {
+            Navigator.pop(ctx);
+            return;
+          }
+          debounce?.cancel();
+          final v = verdict;
+          if (existing == null) {
+            appState.addHabit(
+              name,
+              v.rarity,
+              icon: icon,
+              aiRated: v.fromAi,
+              reason: v.reason,
+              reminderMinutes: reminderMinutes,
+            );
+          } else {
+            appState.editHabit(
+              existing,
+              name: name,
+              rarity: v.rarity,
+              icon: icon,
+              aiRated: v.fromAi,
+              reason: v.reason,
+            );
+            appState.setHabitReminder(existing, reminderMinutes);
+          }
+          Navigator.pop(ctx);
+        }
+
+        Future<void> pickReminder() async {
+          final init = reminderMinutes != null
+              ? TimeOfDay(
+                  hour: reminderMinutes! ~/ 60,
+                  minute: reminderMinutes! % 60,
+                )
+              : const TimeOfDay(hour: 20, minute: 0);
+          final picked = await showTimePicker(context: ctx, initialTime: init);
+          if (picked != null) {
+            setLocal(() => reminderMinutes = picked.hour * 60 + picked.minute);
+          }
+        }
+
         return Padding(
           padding: EdgeInsets.fromLTRB(
             20,
-            20,
+            0,
             20,
             20 + MediaQuery.of(ctx).viewInsets.bottom,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: HrColors.surface3,
-                    borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              ),
-              Text(
-                existing == null ? 'New habit' : 'Edit habit',
-                style: HrText.title2,
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: controller,
-                autofocus: existing == null,
-                style: HrText.body,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: 'e.g. Meditate 10 min',
-                  hintStyle: HrText.body.copyWith(color: HrColors.text3),
-                  filled: true,
-                  fillColor: HrColors.surface2,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(HrRadius.md),
-                    borderSide: BorderSide.none,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(HrRadius.md),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(HrRadius.md),
-                    borderSide: const BorderSide(
-                      color: HrColors.text,
-                      width: 1.5,
-                    ),
-                  ),
-                ),
-                onChanged: analyze,
-              ),
-              const SizedBox(height: 16),
-              const HrLabel('Icon'),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: emojis.map((e) {
-                  final sel = e == icon;
-                  return GestureDetector(
-                    onTap: () => setLocal(() {
-                    icon = sel ? '' : e;
-                    iconManual = true;
-                  }),
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: sel ? HrColors.accent : HrColors.surface2,
-                        borderRadius: BorderRadius.circular(HrRadius.sm),
-                      ),
-                      child: e == '💰'
-                          ? Image.asset(
-                              'assets/shop/coin_stack.png',
-                              width: 27,
-                              height: 27,
-                              fit: BoxFit.contain,
-                              semanticLabel: 'Coins',
-                            )
-                          : Text(e, style: const TextStyle(fontSize: 20)),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-              _difficultyCard(verdict, analyzing),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.fromLTRB(12, 2, 6, 2),
-                decoration: BoxDecoration(
-                  color: HrColors.surface2,
-                  borderRadius: BorderRadius.circular(HrRadius.md),
-                ),
-                child: Row(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Live preview: the quest tile as it will appear on Today.
+                Row(
                   children: [
-                    Icon(
-                      Icons.notifications_active_rounded,
-                      size: 18,
-                      color: reminderMinutes != null
-                          ? HrColors.accent
-                          : HrColors.text3,
-                    ),
-                    const SizedBox(width: 10),
+                    icon == '💰'
+                        ? const HrIconTile(
+                            asset: 'assets/shop/coin_stack.png', size: 56)
+                        : HrIconTile(emoji: icon, size: 56),
+                    const SizedBox(width: 14),
                     Expanded(
-                      child: Text(
-                        reminderMinutes == null
-                            ? 'No daily reminder'
-                            : 'Remind me at ${_fmtReminder(reminderMinutes!)}',
-                        style: HrText.bodyS.copyWith(color: HrColors.text),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            existing == null ? 'New habit' : 'Edit habit',
+                            style: HrText.title1,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'It joins your quests on Today.',
+                            style: HrText.caption,
+                          ),
+                        ],
                       ),
                     ),
-                    TextButton(
-                      onPressed: () async {
-                        final init = reminderMinutes != null
-                            ? TimeOfDay(
-                                hour: reminderMinutes! ~/ 60,
-                                minute: reminderMinutes! % 60,
-                              )
-                            : const TimeOfDay(hour: 20, minute: 0);
-                        final picked = await showTimePicker(
-                          context: ctx,
-                          initialTime: init,
-                        );
-                        if (picked != null) {
-                          setLocal(
-                            () => reminderMinutes =
-                                picked.hour * 60 + picked.minute,
-                          );
-                        }
-                      },
-                      child: Text(
-                        reminderMinutes == null ? 'Set' : 'Change',
-                        style: HrText.bodyS.copyWith(
-                          color: HrColors.text,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    if (reminderMinutes != null)
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () => setLocal(() => reminderMinutes = null),
-                        icon: const Icon(
-                          Icons.close,
-                          size: 18,
-                          color: HrColors.text3,
-                        ),
-                      ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  if (existing != null)
-                    TextButton.icon(
-                      onPressed: () {
-                        appState.deleteHabit(existing);
-                        Navigator.pop(ctx);
-                      },
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        color: HrColors.dangerText,
-                      ),
-                      label: Text(
-                        'Delete',
-                        style: HrText.body.copyWith(color: HrColors.dangerText),
-                      ),
-                    ),
-                  const Spacer(),
-                  SizedBox(
-                    width: 130,
-                    child: HrButton(
-                      label: existing == null ? 'Add' : 'Save',
-                      onPressed: () {
-                        final name = controller.text.trim();
-                        if (name.isEmpty) {
-                          Navigator.pop(ctx);
-                          return;
-                        }
-                        debounce?.cancel();
-                        final v = verdict;
-                        if (existing == null) {
-                          appState.addHabit(
-                            name,
-                            v.rarity,
-                            icon: icon,
-                            aiRated: v.fromAi,
-                            reason: v.reason,
-                            reminderMinutes: reminderMinutes,
-                          );
-                        } else {
-                          appState.editHabit(
-                            existing,
-                            name: name,
-                            rarity: v.rarity,
-                            icon: icon,
-                            aiRated: v.fromAi,
-                            reason: v.reason,
-                          );
-                          appState.setHabitReminder(existing, reminderMinutes);
-                        }
-                        Navigator.pop(ctx);
-                      },
-                    ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  autofocus: existing == null,
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    hintText: 'e.g. Meditate 10 min',
                   ),
-                ],
-              ),
-            ],
+                  onChanged: analyze,
+                ),
+                const SizedBox(height: 16),
+                const HrLabel('Icon'),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: emojis.map((e) {
+                    final sel = e == icon;
+                    return Semantics(
+                      button: true,
+                      selected: sel,
+                      label: 'Icon $e',
+                      child: HrPressable(
+                        onTap: () => setLocal(() {
+                          icon = sel ? '' : e;
+                          iconManual = true;
+                        }),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: sel ? HrColors.accentSurface : HrColors.surface2,
+                            borderRadius: BorderRadius.circular(HrRadius.sm + 2),
+                            border: Border.all(
+                              color: sel ? HrColors.accentBright : HrColors.cardEdge,
+                              width: sel ? 1.6 : 1,
+                            ),
+                            boxShadow: sel
+                                ? [
+                                    BoxShadow(
+                                      color: HrColors.accent.withValues(alpha: 0.45),
+                                      blurRadius: 10,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: e == '💰'
+                              ? Image.asset(
+                                  'assets/shop/coin_stack.png',
+                                  width: 27,
+                                  height: 27,
+                                  fit: BoxFit.contain,
+                                  semanticLabel: 'Coins',
+                                )
+                              : Text(e, style: const TextStyle(fontSize: 21)),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                _difficultyCard(verdict, analyzing),
+                const SizedBox(height: 10),
+                HrCard(
+                  padding: const EdgeInsets.fromLTRB(14, 4, 6, 4),
+                  radius: HrRadius.md,
+                  onTap: pickReminder,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.notifications_active_rounded,
+                        size: 20,
+                        color: reminderMinutes != null
+                            ? HrColors.gold
+                            : HrColors.text3,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          reminderMinutes == null
+                              ? 'No daily reminder'
+                              : 'Remind me at ${_fmtReminder(reminderMinutes!)}',
+                          style: HrText.bodyS.copyWith(
+                              color: HrColors.text, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: pickReminder,
+                        child: Text(reminderMinutes == null ? 'Set' : 'Change'),
+                      ),
+                      if (reminderMinutes != null)
+                        IconButton(
+                          tooltip: 'Remove reminder',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => setLocal(() => reminderMinutes = null),
+                          icon: const Icon(Icons.close_rounded,
+                              size: 18, color: HrColors.text3),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    if (existing != null) ...[
+                      Expanded(
+                        child: HrButton(
+                          label: 'Delete',
+                          icon: Icons.delete_outline_rounded,
+                          kind: HrButtonKind.danger,
+                          onPressed: () {
+                            appState.deleteHabit(existing);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      flex: 2,
+                      child: HrButton(
+                        label: existing == null ? 'Add habit' : 'Save',
+                        icon: existing == null
+                            ? Icons.add_rounded
+                            : Icons.check_rounded,
+                        kind: HrButtonKind.accent,
+                        onPressed: save,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -11812,14 +11781,11 @@ Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
   final color = HrColors.rarity[v.rarity] ?? HrColors.text3;
   return Container(
     padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: HrColors.surface2,
-      borderRadius: BorderRadius.circular(HrRadius.md),
-    ),
+    decoration: HrCard.decoration(radius: HrRadius.md),
     child: Row(
       children: [
-        Icon(Icons.auto_awesome_rounded, size: 18, color: color),
-        const SizedBox(width: 10),
+        HrIconTile(icon: Icons.auto_awesome_rounded, color: color, size: 40),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -11828,18 +11794,20 @@ Widget _difficultyCard(DifficultyVerdict v, bool analyzing) {
                 children: [
                   Flexible(
                     child: Text(
-                      '${v.label} · ×${v.multiplier} · ~${estimatedXp(v.rarity)} XP',
+                      '${v.label} · ×${v.multiplier}',
                       style: HrText.bodyS.copyWith(
                         color: color,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
+                  HrXpChip(estimatedXp(v.rarity), label: '~${estimatedXp(v.rarity)} XP'),
+                  const SizedBox(width: 6),
                   _ratingChip(v, analyzing),
                 ],
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 4),
               Text(
                 analyzing
                     ? 'Reading your habit…'
@@ -11911,7 +11879,7 @@ Future<void> showAddReflection(BuildContext context,
       decoration: BoxDecoration(
         color: HrColors.surface2,
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
+        border: Border.all(color: HrColors.cardEdge),
       ),
       child: Column(
         children: [
@@ -11981,7 +11949,7 @@ Future<void> showAddReflection(BuildContext context,
                           height: 36,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: selected ? color : const Color(0xFF39393C),
+                            color: selected ? color : const Color(0xFF1C1F33),
                             borderRadius: BorderRadius.circular(9),
                             border: Border.all(
                               color: selected
@@ -12034,17 +12002,7 @@ Future<void> showAddReflection(BuildContext context,
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: HrColors.surface3,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+              const SizedBox.shrink(),
               Text(existing == null ? 'Reflect on today' : 'Edit reflection',
                   style: HrText.title1),
               const SizedBox(height: 4),
@@ -12084,8 +12042,7 @@ Future<void> showAddReflection(BuildContext context,
                 decoration: BoxDecoration(
                   color: HrColors.surface2,
                   borderRadius: BorderRadius.circular(17),
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.055)),
+                  border: Border.all(color: HrColors.cardEdge),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

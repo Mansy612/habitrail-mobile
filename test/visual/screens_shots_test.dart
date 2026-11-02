@@ -189,5 +189,18 @@ void main() {
       _navKey.currentState!.pop();
       await tester.pump(const Duration(milliseconds: 600));
     }
+
+    // Sheets and dialogs, opened over Today.
+    final sheets = <String, void Function(BuildContext)>{
+      'sheet_habit': (c) => showHabitEditor(c),
+      'sheet_reflection': (c) => showAddReflection(c),
+    };
+    for (final e in sheets.entries) {
+      if (!_wanted(e.key)) continue;
+      e.value(_navKey.currentContext!);
+      await _shot(tester, e.key);
+      _navKey.currentState!.pop();
+      await tester.pump(const Duration(milliseconds: 600));
+    }
   }, skip: !_on);
 }

@@ -5299,25 +5299,11 @@ class _PartyChatScreenState extends State<PartyChatScreen> {
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-            child: Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _ctrl,
-                  style: HrText.body,
-                  minLines: 1,
-                  maxLines: 4,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
-                  decoration:
-                      _taskField('Message', 'Say something to your party'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _sending ? null : _send,
-                icon: Icon(Icons.send_rounded, color: HrColors.accent),
-              ),
-            ]),
+            child: _chatComposer(
+              controller: _ctrl,
+              hint: 'Say something to your party',
+              sending: _sending,
+              onSend: _send),
           ),
         ),
       ]),
@@ -5335,27 +5321,11 @@ class _PartyChatScreenState extends State<PartyChatScreen> {
       onLongPress: () => _moderateMessage(context, m, 'party', () {
         if (mounted) setState(() {});
       }),
-      child: Align(
-        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: EdgeInsets.only(
-              bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-              color: mine ? HrColors.accentSurface : HrColors.surface2,
-              borderRadius: BorderRadius.circular(HrRadius.md)),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (!mine) ...[
-              Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
-              const SizedBox(height: 2),
-            ],
-            Text(body,
-                style: HrText.bodyS
-                    .copyWith(color: mine ? HrColors.text : HrColors.text2)),
-          ]),
-        ),
-      ),
+      child: _chatBubble(
+          mine: mine,
+          author: author,
+          body: body,
+          time: m['created_at']?.toString()),
     );
   }
 }
@@ -5979,25 +5949,11 @@ class _GuildChatScreenState extends State<GuildChatScreen> {
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-            child: Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _ctrl,
-                  style: HrText.body,
-                  minLines: 1,
-                  maxLines: 4,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
-                  decoration:
-                      _taskField('Message', 'Say something to your guild'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _sending ? null : _send,
-                icon: Icon(Icons.send_rounded, color: HrColors.accent),
-              ),
-            ]),
+            child: _chatComposer(
+              controller: _ctrl,
+              hint: 'Say something to your guild',
+              sending: _sending,
+              onSend: _send),
           ),
         ),
       ]),
@@ -6015,27 +5971,11 @@ class _GuildChatScreenState extends State<GuildChatScreen> {
       onLongPress: () => _moderateMessage(context, m, 'guild', () {
         if (mounted) setState(() {});
       }),
-      child: Align(
-        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: EdgeInsets.only(
-              bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-              color: mine ? HrColors.accentSurface : HrColors.surface2,
-              borderRadius: BorderRadius.circular(HrRadius.md)),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (!mine) ...[
-              Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
-              const SizedBox(height: 2),
-            ],
-            Text(body,
-                style: HrText.bodyS
-                    .copyWith(color: mine ? HrColors.text : HrColors.text2)),
-          ]),
-        ),
-      ),
+      child: _chatBubble(
+          mine: mine,
+          author: author,
+          body: body,
+          time: m['created_at']?.toString()),
     );
   }
 }
@@ -6168,25 +6108,11 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
                 top: false,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-                  child: Row(children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _ctrl,
-                        style: HrText.body,
-                        minLines: 1,
-                        maxLines: 4,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _send(),
-                        decoration:
-                            _taskField('Message', 'Say something to everyone'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: _sending ? null : _send,
-                      icon: Icon(Icons.send_rounded, color: HrColors.accent),
-                    ),
-                  ]),
+                  child: _chatComposer(
+                    controller: _ctrl,
+                    hint: 'Say something to everyone',
+                    sending: _sending,
+                    onSend: _send),
                 ),
               ),
             ]),
@@ -6204,30 +6130,164 @@ class _GlobalChatScreenState extends State<GlobalChatScreen> {
       onLongPress: () => _moderateMessage(context, m, 'global', () {
         if (mounted) setState(() {});
       }),
-      child: Align(
-        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: EdgeInsets.only(
-              bottom: 8, left: mine ? 48 : 0, right: mine ? 0 : 48),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-              color: mine ? HrColors.accentSurface : HrColors.surface2,
-              borderRadius: BorderRadius.circular(HrRadius.md)),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (!mine) ...[
-              Text(author, style: HrText.micro.copyWith(color: HrColors.text3)),
-              const SizedBox(height: 2),
-            ],
-            Text(body,
-                style: HrText.bodyS
-                    .copyWith(color: mine ? HrColors.text : HrColors.text2)),
-          ]),
-        ),
-      ),
+      child: _chatBubble(
+          mine: mine,
+          author: author,
+          body: body,
+          time: m['created_at']?.toString()),
     );
   }
 }
+
+String _chatTime(String? iso) {
+  final d = iso == null ? null : DateTime.tryParse(iso)?.toLocal();
+  if (d == null) return '';
+  return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+}
+
+// One chat message: avatar + name + time over a navy bubble, or a violet
+// right-aligned bubble for your own messages.
+Widget _chatBubble({
+  required bool mine,
+  required String author,
+  required String body,
+  String? time,
+}) {
+  final t = _chatTime(time);
+  final bubble = Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    decoration: BoxDecoration(
+      gradient: mine
+          ? LinearGradient(colors: [
+              Color.lerp(HrColors.accent, Colors.white, 0.12)!,
+              HrColors.accent,
+            ])
+          : null,
+      color: mine ? null : HrColors.surface2,
+      border: mine ? null : Border.all(color: HrColors.cardEdge),
+      borderRadius: BorderRadius.only(
+        topLeft: Radius.circular(mine ? 16 : 4),
+        topRight: Radius.circular(mine ? 4 : 16),
+        bottomLeft: const Radius.circular(16),
+        bottomRight: const Radius.circular(16),
+      ),
+      boxShadow: mine
+          ? [BoxShadow(color: HrColors.accent.withValues(alpha: 0.35), blurRadius: 12)]
+          : null,
+    ),
+    child: Text(body,
+        style: HrText.bodyS.copyWith(color: HrColors.text, fontWeight: FontWeight.w600)),
+  );
+  final meta = Text.rich(TextSpan(children: [
+    TextSpan(
+      text: mine ? 'You' : author,
+      style: HrText.micro.copyWith(color: HrColors.text, fontWeight: FontWeight.w800),
+    ),
+    if (t.isNotEmpty)
+      TextSpan(text: '  $t', style: HrText.micro.copyWith(color: HrColors.text3)),
+  ]));
+  if (mine) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, left: 56),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        meta,
+        const SizedBox(height: 4),
+        bubble,
+      ]),
+    );
+  }
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12, right: 40),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(colors: [HrColors.accentBright, kBlue]),
+          border: Border.all(color: HrColors.cardEdge),
+        ),
+        child: Text(author.isEmpty ? '?' : author[0].toUpperCase(),
+            style: HrText.bodyS.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
+      ),
+      const SizedBox(width: 10),
+      Flexible(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          meta,
+          const SizedBox(height: 4),
+          bubble,
+        ]),
+      ),
+    ]),
+  );
+}
+
+// Pill message field with a violet send button.
+Widget _chatComposer({
+  required TextEditingController controller,
+  required String hint,
+  required bool sending,
+  required VoidCallback onSend,
+}) =>
+    Row(children: [
+      Expanded(
+        child: TextField(
+          controller: controller,
+          style: HrText.body,
+          minLines: 1,
+          maxLines: 4,
+          textInputAction: TextInputAction.send,
+          onSubmitted: (_) => onSend(),
+          decoration: InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: HrColors.surface,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(HrRadius.full),
+              borderSide: const BorderSide(color: HrColors.cardEdge),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(HrRadius.full),
+              borderSide: const BorderSide(color: HrColors.cardEdge),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(HrRadius.full),
+              borderSide: BorderSide(color: HrColors.accent, width: 1.5),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 10),
+      Semantics(
+        button: true,
+        label: 'Send',
+        child: HrPressable(
+          onTap: sending ? null : onSend,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(colors: [
+                Color.lerp(HrColors.accent, Colors.white, 0.15)!,
+                HrColors.accent,
+              ]),
+              boxShadow: [
+                BoxShadow(color: HrColors.accent.withValues(alpha: 0.5), blurRadius: 12),
+              ],
+            ),
+            child: sending
+                ? const Padding(
+                    padding: EdgeInsets.all(13),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+          ),
+        ),
+      ),
+    ]);
 
 // Report/block sheet for a chat message (App Store Guideline 1.2 — user-
 // generated content needs a way to report content and block users).

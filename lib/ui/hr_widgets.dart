@@ -919,12 +919,12 @@ class HrStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => HrCard(
     onTap: onTap,
-    padding: const EdgeInsets.fromLTRB(10, 12, 8, 12),
+    padding: const EdgeInsets.fromLTRB(9, 12, 6, 12),
     radius: HrRadius.md,
     child: Row(
       children: [
         leading ?? Icon(icon ?? Icons.star_rounded, size: 30, color: HrColors.gold),
-        const SizedBox(width: 8),
+        const SizedBox(width: 7),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -941,11 +941,14 @@ class HrStatTile extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: HrText.micro.copyWith(color: HrColors.text2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: HrText.micro.copyWith(color: HrColors.text2),
+                ),
               ),
             ],
           ),

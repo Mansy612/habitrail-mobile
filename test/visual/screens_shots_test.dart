@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:habitrail/core.dart';
+import 'package:habitrail/friends.dart';
 import 'package:habitrail/main.dart';
 import 'package:habitrail/ui/hr_theme.dart';
 import 'package:habitrail/ui/hr_widgets.dart';
@@ -67,6 +68,11 @@ Future<void> _seed() async {
   s.coins += 2480;
   s.setDisplayName('Alex');
   s.markBriefingSeen();
+  // Local demo directory → a filled leaderboard.
+  await friends.load();
+  for (final f in friends.suggestions().take(7).toList()) {
+    await friends.addByUsername(f.username);
+  }
 }
 
 Future<void> _settle(WidgetTester tester) async {

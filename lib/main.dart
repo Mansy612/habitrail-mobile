@@ -1788,14 +1788,13 @@ class _HomeShellState extends State<HomeShell> {
 // A circular profile picture (or the user's initial) wrapped in the selected
 // border. Used in the app bar and on the account/settings screens.
 class _Avatar extends StatelessWidget {
-  const _Avatar({this.size = 40, this.showBorder = true});
+  const _Avatar({this.size = 40});
   final double size;
-  final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
     final b = borderById(appState.selectedBorder);
-    final hasBorder = showBorder && b.id != 'none';
+    final hasBorder = b.id != 'none';
     // Thicker, glowing ring with a thin dark gap so the colour reads as a
     // distinct border against both the avatar and the cosmic background.
     final ringW = hasBorder
@@ -1804,10 +1803,8 @@ class _Avatar extends StatelessWidget {
     final gapW = hasBorder && b.frameAsset == null
         ? (size * 0.03).clamp(1.5, 3.0)
         : 0.0;
-    final frameAsset = showBorder ? b.frameAsset : null;
-    final inner = frameAsset != null
-        ? size * 0.72
-        : (showBorder ? size - (ringW + gapW) * 2 : size);
+    final frameAsset = b.frameAsset;
+    final inner = frameAsset != null ? size * 0.72 : size - (ringW + gapW) * 2;
     final name = appState.displayName;
     final Widget pic = appState.pfpBytes != null
         ? Image.memory(
@@ -1844,9 +1841,6 @@ class _Avatar extends StatelessWidget {
         padding: EdgeInsets.all(gapW),
         child: avatar,
       );
-    }
-    if (!showBorder) {
-      return SizedBox(width: size, height: size, child: avatar);
     }
     if (frameAsset != null) {
       return SizedBox(
@@ -2433,57 +2427,6 @@ String _prettyToday() {
   return '${_kWeekdays[d.weekday - 1]}, ${_kMonths[d.month - 1]} ${d.day}';
 }
 
-// Small tappable coins chip (opens the Shop) — replaces the old violet pill.
-Widget _coinChip(BuildContext context) => GestureDetector(
-  onTap: () =>
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const ShopScreen())),
-  child: Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-    decoration: BoxDecoration(
-      color: HrColors.surface2,
-      borderRadius: BorderRadius.circular(HrRadius.full),
-      border: Border.all(color: HrColors.gold.withValues(alpha: 0.3)),
-      boxShadow: [
-        BoxShadow(
-          color: HrColors.gold.withValues(alpha: 0.08),
-          blurRadius: 12,
-        ),
-      ],
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (appState.xpBoostActive) ...[
-          Text(
-            '2×',
-            style: HrText.caption.copyWith(
-              color: HrColors.gold,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(width: 6),
-        ],
-        Image.asset(
-          'assets/shop/coin_stack.png',
-          width: 19,
-          height: 19,
-          fit: BoxFit.contain,
-          semanticLabel: 'Coins',
-        ),
-        const SizedBox(width: 5),
-        Text(
-          '${appState.coins}',
-          style: HrText.caption.copyWith(
-            color: HrColors.text,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    ),
-  ),
-);
-
 /// "Level 9 · XP to next level 420 / 1,000" with the gold bar — shared by
 /// Today and Profile so both read the same.
 class _LevelPanel extends StatelessWidget {
@@ -2786,6 +2729,10 @@ class _FiveCardState extends State<_FiveCard> {
                     style: HrText.headline.copyWith(fontSize: 19),
                   ),
                 ),
+                if (appState.xpBoostActive) ...[
+                  const HrXpChip(0, label: '2× XP'),
+                  const SizedBox(width: 8),
+                ],
                 const Icon(Icons.auto_awesome,
                     size: 14, color: HrColors.gold),
                 const SizedBox(width: 5),
@@ -8662,102 +8609,35 @@ class _FriendsScreenState extends State<FriendsScreen> {
             ),
           ),
         ]..sort((a, b) => b.totalXp.compareTo(a.totalXp));
+        void push(Widget page) => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (_) => page));
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: SafeArea(
             bottom: false,
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    HrSpace.gutter,
-                    4,
-                    HrSpace.gutter,
-                    0,
-                  ),
-                  child: Row(
+                HrPageHeader(
+                  title: 'Friends',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Friends', style: HrText.display),
-                      const Spacer(),
-                      Tooltip(
-                        message: 'Global chat',
-                        child: Material(
-                          color: HrColors.surface2,
-                          shape: const CircleBorder(),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => const GlobalChatScreen())),
-                            child: const SizedBox(
-                              width: 38,
-                              height: 38,
-                              child: Icon(Icons.forum_rounded,
-                                  color: HrColors.text, size: 20),
-                            ),
-                          ),
-                        ),
+                      HrHeaderButton(
+                        icon: Icons.forum_rounded,
+                        tooltip: 'Global chat',
+                        onPressed: () => push(const GlobalChatScreen()),
                       ),
                       const SizedBox(width: 8),
-                      Tooltip(
-                        message: 'Guilds',
-                        child: Material(
-                          color: HrColors.surface2,
-                          shape: const CircleBorder(),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => const GuildsScreen())),
-                            child: const SizedBox(
-                              width: 38,
-                              height: 38,
-                              child: Icon(Icons.shield_rounded,
-                                  color: HrColors.text, size: 20),
-                            ),
-                          ),
-                        ),
+                      HrHeaderButton(
+                        icon: Icons.shield_rounded,
+                        tooltip: 'Guilds',
+                        onPressed: () => push(const GuildsScreen()),
                       ),
                       const SizedBox(width: 8),
-                      Tooltip(
-                        message: 'Party',
-                        child: Material(
-                          color: HrColors.surface2,
-                          shape: const CircleBorder(),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => const PartyScreen())),
-                            child: const SizedBox(
-                              width: 38,
-                              height: 38,
-                              child: Icon(Icons.groups_rounded,
-                                  color: HrColors.text, size: 20),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Tooltip(
-                        message: 'Add a friend',
-                        child: Material(
-                          color: HrColors.surface2,
-                          shape: const CircleBorder(),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: () => setState(() => _seg = 1),
-                            child: const SizedBox(
-                              width: 38,
-                              height: 38,
-                              child: Icon(
-                                Icons.person_add_alt_1_rounded,
-                                color: HrColors.text,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
+                      HrHeaderButton(
+                        icon: Icons.groups_rounded,
+                        tooltip: 'Party',
+                        onPressed: () => push(const PartyScreen()),
                       ),
                     ],
                   ),
@@ -8765,12 +8645,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     HrSpace.gutter,
-                    10,
+                    14,
                     HrSpace.gutter,
-                    10,
+                    4,
                   ),
                   child: HrSegmented(
-                    items: const ['Leaderboard', 'Friends'],
+                    items: const ['Leaderboard', 'Add Friends'],
                     index: _seg,
                     onChanged: (i) => setState(() => _seg = i),
                   ),
@@ -8799,22 +8679,45 @@ class _FriendsScreenState extends State<FriendsScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         HrSpace.gutter,
-        4,
+        0,
         HrSpace.gutter,
-        100,
+        28,
       ),
       children: [
         _podium(context, board),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
+        for (int i = 3; i < board.length; i++)
+          _leaderRow(context, i + 1, board[i]),
+        if (board.length < 4) ...[
+          HrCard(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Climb together', style: HrText.headline),
+                const SizedBox(height: 4),
+                Text(
+                  'Add friends to fill the board and race each other on XP and streaks.',
+                  style: HrText.bodyS,
+                ),
+                const SizedBox(height: 14),
+                HrButton(
+                  label: 'Invite friends',
+                  icon: Icons.person_add_alt_1_rounded,
+                  onPressed: () => setState(() => _seg = 1),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        const SizedBox(height: 4),
         _leaderboardStatusCard(
           rank: rank,
           myXp: myXp,
           opponent: opponent,
           isLeading: isLeading,
         ),
-        const SizedBox(height: 22),
-        for (int i = 0; i < board.length; i++)
-          _leaderRow(context, i + 1, board[i]),
       ],
     );
   }
@@ -8844,22 +8747,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 11),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1B1A2B), Color(0xFF10111A)],
-        ),
-        borderRadius: BorderRadius.circular(HrRadius.lg),
-        border: Border.all(color: HrColors.cardEdge, width: 0.8),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x44000000),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
+      decoration: HrCard.decoration(),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -9048,24 +8936,20 @@ class _FriendAvatar extends StatelessWidget {
     required this.name,
     required this.borderId,
     this.size = 44,
-    this.showBorder = true,
   });
   final String name;
   final String borderId;
   final double size;
-  final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
     final b = borderById(borderId);
-    final hasBorder = showBorder && b.id != 'none';
+    final hasBorder = b.id != 'none';
     final ringW = hasBorder
         ? (size * 0.1).clamp(3.0, 6.0)
         : (size * 0.06).clamp(2.0, 4.0);
-    final frameAsset = showBorder ? b.frameAsset : null;
-    final inner = frameAsset != null
-        ? size * 0.72
-        : (showBorder ? size - ringW * 2 : size);
+    final frameAsset = b.frameAsset;
+    final inner = frameAsset != null ? size * 0.72 : size - ringW * 2;
     final letter = name.isNotEmpty ? name[0].toUpperCase() : '?';
     final avatar = ClipOval(
       child: Container(
@@ -9083,9 +8967,6 @@ class _FriendAvatar extends StatelessWidget {
         ),
       ),
     );
-    if (!showBorder) {
-      return SizedBox(width: size, height: size, child: avatar);
-    }
     if (frameAsset != null) {
       return SizedBox(
         width: size,
@@ -9162,11 +9043,10 @@ Widget _premiumTag() => Container(
   ),
 );
 
-// Top-three leaderboard profiles, shown without a podium backdrop.
+// Top three on 3D podium blocks: avatar, rank medal, name and gold XP.
 Widget _podium(BuildContext context, List<_Ranked> board) {
   final top = board.take(3).toList();
   _Ranked? at(int r) => top.length >= r ? top[r - 1] : null;
-  const order = [2, 1, 3];
   void openProfile(_Ranked? entry) {
     if (entry?.friendId == null) return;
     Navigator.of(context).push(
@@ -9176,278 +9056,334 @@ Widget _podium(BuildContext context, List<_Ranked> board) {
     );
   }
 
-  Widget avatarFor(int rank, double size) {
-    final entry = at(rank);
-    if (entry == null) return SizedBox(width: size, height: size);
-    final avatar = entry.isMe
-        ? _Avatar(size: size, showBorder: false)
-        : _FriendAvatar(
-            name: entry.name,
-            borderId: entry.borderId,
-            size: size,
-            showBorder: false,
-          );
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => openProfile(entry),
-      child: avatar,
-    );
-  }
-
-  Color rankColor(int rank) => switch (rank) {
-    1 => HrColors.gold,
-    2 => HrColors.text2,
-    _ => const Color(0xFFD98A5A),
+  // (medal colours, block top, block bottom) per rank.
+  (List<Color>, Color, Color) palette(int rank) => switch (rank) {
+    1 => (
+      const [Color(0xFFFFE45C), Color(0xFFF2AE12)],
+      const Color(0xFF3B2F72),
+      const Color(0xFF1B173A),
+    ),
+    2 => (
+      const [Color(0xFFE6E8F5), Color(0xFF8E92AE)],
+      const Color(0xFF4A3E86),
+      const Color(0xFF221D44),
+    ),
+    _ => (
+      const [Color(0xFFFFB37A), Color(0xFFC0642C)],
+      const Color(0xFF6B4026),
+      const Color(0xFF2E1D17),
+    ),
   };
 
-  Widget rankSummary(int rank) {
+  Widget column(int rank, double blockH, double avatar) {
     final entry = at(rank);
-    if (entry == null) return const Expanded(child: SizedBox.shrink());
-    final label = switch (rank) {
-      1 => '1ST',
-      2 => '2ND',
-      _ => '3RD',
-    };
+    final (medal, blockTop, blockBottom) = palette(rank);
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => openProfile(entry),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: HrText.micro.copyWith(
-                  fontSize: 12,
-                  height: 16 / 12,
-                  color: rankColor(rank),
-                  fontWeight: FontWeight.w800,
-                ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            if (rank == 1)
+              const SizedBox(
+                width: 34,
+                height: 26,
+                child: CustomPaint(painter: _CrownPainter()),
               ),
-              const SizedBox(height: 2),
-              Text(
-                entry.isMe ? 'You' : entry.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: HrText.caption.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+            // Avatar on a soft violet glow.
+            Container(
+              width: avatar + 16,
+              height: avatar + 16,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  (rank == 1 ? HrColors.gold : HrColors.accent)
+                      .withValues(alpha: 0.35),
+                  Colors.transparent,
+                ]),
               ),
+              child: entry == null
+                  ? Container(
+                      width: avatar * 0.8,
+                      height: avatar * 0.8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: HrColors.surface2,
+                        border: Border.all(color: HrColors.cardEdge),
+                      ),
+                      child: const Icon(Icons.person_add_alt_1_rounded,
+                          color: HrColors.text3),
+                    )
+                  : entry.isMe
+                  ? _Avatar(size: avatar)
+                  : _FriendAvatar(
+                      name: entry.name,
+                      borderId: entry.borderId,
+                      size: avatar,
+                    ),
+            ),
+            const SizedBox(height: 4),
+            // The block: a lit top face over a deeper body.
+            SizedBox(
+              height: blockH,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.topCenter,
+                children: [
+                  Positioned.fill(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12)),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [blockTop, blockBottom],
+                        ),
+                        border: Border(
+                          top: BorderSide(
+                              color: Color.lerp(blockTop, Colors.white, 0.35)!,
+                              width: 2),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (rank == 1 ? HrColors.accent : blockTop)
+                                .withValues(alpha: 0.35),
+                            blurRadius: 18,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: -14,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: medal,
+                        ),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.5)),
+                        boxShadow: [
+                          BoxShadow(
+                              color: medal.last.withValues(alpha: 0.6),
+                              blurRadius: 10),
+                        ],
+                      ),
+                      child: Text(
+                        '$rank',
+                        style: HrText.headline.copyWith(
+                            color: const Color(0xFF1A1426),
+                            fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 6,
+                    right: 6,
+                    top: 22,
+                    child: Column(
+                      children: [
+                        Text(
+                          entry == null
+                              ? '—'
+                              : (entry.isMe ? 'You' : entry.name),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: HrText.body.copyWith(
+                              fontWeight: FontWeight.w800, fontSize: 15),
+                        ),
+                        if (entry != null)
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '${hrNum(entry.totalXp)} XP',
+                              style: HrText.body.copyWith(
+                                color: HrColors.gold,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                '${entry.totalXp} XP',
-                style: HrText.micro.copyWith(
-                  fontSize: 12,
-                  height: 16 / 12,
-                  color: HrColors.text2,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  return Column(
-    mainAxisSize: MainAxisSize.min,
+  return Stack(
     children: [
-      LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final height = width * 1024 / 1792;
-          // The transparent 16:9 asset lets the black app background show
-          // around the carved stands. Position avatar centers within each ring.
-          final d1 = width * 0.158;
-          final d2 = width * 0.148;
-          final d3 = width * 0.136;
-          return SizedBox(
-            width: width,
-            height: height,
-            child: Stack(
-              children: [
-                Image.asset(
-                  'assets/leaderboard/podium_stands_clean.png',
-                  width: width,
-                  height: height,
-                  fit: BoxFit.contain,
-                  semanticLabel: 'Three 3D leaderboard podium stands',
-                ),
-                Positioned(
-                  left: width * 0.488 - d1 / 2,
-                  top: height * 0.264 - d1 / 2,
-                  child: avatarFor(1, d1),
-                ),
-                Positioned(
-                  left: width * 0.180 - d2 / 2,
-                  top: height * 0.317 - d2 / 2,
-                  child: avatarFor(2, d2),
-                ),
-                Positioned(
-                  left: width * 0.818 - d3 / 2,
-                  top: height * 0.413 - d3 / 2,
-                  child: avatarFor(3, d3),
-                ),
-              ],
-            ),
-          );
-        },
+      const Positioned.fill(
+        child: IgnorePointer(child: CustomPaint(painter: _PodiumSparkles())),
       ),
-      const SizedBox(height: 4),
-      Row(children: [for (final rank in order) rankSummary(rank)]),
+      Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            column(2, 96, 70),
+            column(1, 120, 84),
+            column(3, 86, 66),
+          ],
+        ),
+      ),
     ],
   );
 }
 
+// A small gold crown for the leaderboard's first place.
+class _CrownPainter extends CustomPainter {
+  const _CrownPainter();
+  @override
+  void paint(Canvas canvas, Size s) {
+    final w = s.width, h = s.height;
+    final crown = Path()
+      ..moveTo(w * 0.08, h * 0.88)
+      ..lineTo(w * 0.02, h * 0.3)
+      ..lineTo(w * 0.3, h * 0.55)
+      ..lineTo(w * 0.5, h * 0.08)
+      ..lineTo(w * 0.7, h * 0.55)
+      ..lineTo(w * 0.98, h * 0.3)
+      ..lineTo(w * 0.92, h * 0.88)
+      ..close();
+    canvas.drawPath(
+      crown,
+      Paint()
+        ..color = HrColors.gold.withValues(alpha: 0.55)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+    canvas.drawPath(
+      crown,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [HrColors.goldBright, HrColors.goldDeep],
+        ).createShader(Offset.zero & s),
+    );
+    final gem = Paint()..color = const Color(0xFFFFF4C2);
+    for (final x in [0.02, 0.5, 0.98]) {
+      canvas.drawCircle(Offset(w * x, h * (x == 0.5 ? 0.08 : 0.3)), w * 0.06, gem);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CrownPainter oldDelegate) => false;
+}
+
+class _PodiumSparkles extends CustomPainter {
+  const _PodiumSparkles();
+  @override
+  void paint(Canvas canvas, Size s) {
+    hrDrawSparkle(canvas, Offset(s.width * 0.06, s.height * 0.2), 7, HrColors.gold);
+    hrDrawSparkle(canvas, Offset(s.width * 0.3, s.height * 0.08), 5, HrColors.goldBright);
+    hrDrawSparkle(canvas, Offset(s.width * 0.93, s.height * 0.12), 6, HrColors.gold);
+    hrDrawSparkle(canvas, Offset(s.width * 0.67, s.height * 0.32), 4, HrColors.gold);
+    final violet = Paint()..color = const Color(0xCC9B6BFF);
+    for (final (x, y) in [(0.2, 0.15), (0.74, 0.06), (0.86, 0.3), (0.12, 0.42)]) {
+      canvas.drawRect(
+          Rect.fromCenter(center: Offset(s.width * x, s.height * y), width: 5, height: 5),
+          violet);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PodiumSparkles oldDelegate) => false;
+}
+
 Widget _leaderRow(BuildContext context, int rank, _Ranked e) {
-  final ld = levelFromXp(e.totalXp);
-  final rankColor = switch (rank) {
-    1 => HrColors.gold,
-    2 => HrColors.text2,
-    3 => const Color(0xFFD98A5A),
-    _ => HrColors.text3,
-  };
-  final topThree = rank <= 3;
-  final row = Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: e.isMe
-            ? [HrColors.accentSurface, HrColors.surface]
-            : [HrColors.surface2, HrColors.surface],
-      ),
-      borderRadius: BorderRadius.circular(HrRadius.md),
-      border: Border.all(
-        color: e.isMe
-            ? HrColors.accent.withValues(alpha: 0.72)
-            : topThree
-            ? rankColor.withValues(alpha: rank == 1 ? 0.42 : 0.26)
-            : HrColors.cardEdge,
-        width: e.isMe ? 1.4 : 0.8,
-      ),
-      boxShadow: !e.isMe && rank == 1
-          ? [
-              BoxShadow(
-                color: rankColor.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ]
-          : null,
-    ),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 28,
-          height: 30,
-          child: topThree
-              ? Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(
-                      Icons.hexagon_rounded,
-                      size: 27,
-                      color: rankColor.withValues(alpha: 0.16),
-                    ),
-                    Icon(
-                      Icons.hexagon_outlined,
-                      size: 27,
-                      color: rankColor.withValues(alpha: 0.55),
-                    ),
-                    Text(
-                      '$rank',
-                      style: HrText.caption.copyWith(
-                        color: rankColor,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                )
-              : Center(
-          child: Text(
-            '$rank',
-            textAlign: TextAlign.center,
-                    style: HrText.body.copyWith(
-                      color: HrColors.text3,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        e.isMe
-            ? _Avatar(size: 40)
-            : _FriendAvatar(name: e.name, borderId: e.borderId, size: 40),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      e.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: HrText.body.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  if (e.isMe) ...[const SizedBox(width: 6), _youTag()],
-                  if (e.isMe && appState.isPremium) ...[
-                    const SizedBox(width: 6),
-                    _premiumTag(),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Lv ${ld.level} · ${levelTitle(ld.level)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: HrText.caption,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        if (e.streak > 0) ...[
-          StreakPill(count: e.streak, quiet: true, leaderboard: true),
-          const SizedBox(width: 10),
-        ],
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${e.totalXp}',
-              style: HrText.body.copyWith(
-                color: topThree ? rankColor : HrColors.text,
-                fontWeight: FontWeight.w800,
-              ),
+  final row = Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: HrCard(
+      highlight: e.isMe,
+      radius: HrRadius.md,
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 26,
+            child: Text(
+              '$rank',
+              style: HrText.headline.copyWith(
+                  color: HrColors.text2, fontWeight: FontWeight.w900),
             ),
-            Text('XP', style: HrText.micro),
-          ],
-        ),
-      ],
+          ),
+          const SizedBox(width: 6),
+          e.isMe
+              ? _Avatar(size: 42)
+              : _FriendAvatar(name: e.name, borderId: e.borderId, size: 42),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    e.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: HrText.body.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (e.isMe) ...[const SizedBox(width: 6), _youTag()],
+                if (e.isMe && appState.isPremium) ...[
+                  const SizedBox(width: 6),
+                  _premiumTag(),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${hrNum(e.totalXp)} XP',
+            style: HrText.bodyS.copyWith(
+                color: HrColors.gold, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(width: 14),
+          Image.asset('assets/streaks/enamel_flame.png', width: 20, height: 20),
+          const SizedBox(width: 4),
+          SizedBox(
+            width: 22,
+            child: Text(
+              '${e.streak}',
+              style: HrText.bodyS.copyWith(
+                  color: HrColors.text2, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
     ),
   );
-  return e.friendId == null
-      ? row
-      : GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => FriendProfileScreen(friendId: e.friendId!),
+  return Semantics(
+    label:
+        'Rank $rank, ${e.isMe ? 'you' : e.name}, ${e.totalXp} XP, ${e.streak} day streak',
+    button: e.friendId != null,
+    child: e.friendId == null
+        ? row
+        : GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => FriendProfileScreen(friendId: e.friendId!),
+              ),
             ),
+            child: row,
           ),
-          child: row,
-        );
+  );
 }
 
 Widget _friendCard(BuildContext context, Friend f) {
@@ -13305,137 +13241,24 @@ Widget _sectionLabel(String s) => Padding(
   child: Text(s.toUpperCase(), style: HrText.labelCaps),
 );
 
-// ── "You" hub rows (redesign) ────────────────────────────────────────────────
-class _YouRow {
-  const _YouRow(
-    this.icon,
-    this.title,
-    this.subtitle,
-    this.onTap, {
-    this.danger = false,
-  });
-  final IconData icon;
-  final String title, subtitle;
-  final VoidCallback? onTap;
-  final bool danger;
-}
+// ── PROFILE (tab) + app settings ─────────────────────────────────────────────
+void _go(BuildContext context, Widget page) =>
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
 
-Widget _youRowWidget(_YouRow r) => Material(
-  color: Colors.transparent,
-  child: InkWell(
-    onTap: r.onTap,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      child: Row(
-        children: [
-          Icon(
-            r.icon,
-            size: 20,
-            color: r.danger ? HrColors.dangerText : HrColors.text2,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  r.title,
-                  style: HrText.body.copyWith(
-                    color: r.danger ? HrColors.dangerText : HrColors.text,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (r.subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    r.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: HrText.caption,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (r.onTap != null && !r.danger)
-            const Icon(Icons.chevron_right_rounded, color: HrColors.text3),
-        ],
-      ),
+Widget _menuValue(String strong, [String rest = '']) => Text.rich(
+  TextSpan(children: [
+    TextSpan(
+      text: strong,
+      style: HrText.bodyS.copyWith(
+          color: HrColors.gold, fontWeight: FontWeight.w900),
     ),
-  ),
-);
-
-Widget _youGroup(List<_YouRow> rows) => HrCard(
-  padding: EdgeInsets.zero,
-  child: ClipRRect(
-    borderRadius: BorderRadius.circular(HrRadius.lg),
-    child: Column(
-      children: [
-        for (int i = 0; i < rows.length; i++) ...[
-          if (i > 0)
-            const Divider(
-              height: 1,
-              thickness: 1,
-              color: HrColors.hairline,
-              indent: 48,
-            ),
-          _youRowWidget(rows[i]),
-        ],
-      ],
-    ),
-  ),
-);
-
-Widget _youQuickCard({
-  required IconData icon,
-  required Color iconColor,
-  required String title,
-  required String subtitle,
-  required VoidCallback onTap,
-  String? imageAsset,
-  double imageSize = 44,
-}) => HrCard(
-  onTap: onTap,
-  padding: const EdgeInsets.all(14),
-  child: Row(
-    children: [
-      Container(
-        width: imageAsset == null ? 36 : 44,
-        height: imageAsset == null ? 36 : 44,
-        alignment: Alignment.center,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: iconColor),
-        child: imageAsset == null
-            ? Icon(icon, size: 18, color: HrColors.bg)
-            : Image.asset(
-                imageAsset,
-                width: imageSize,
-                height: imageSize,
-                fit: BoxFit.contain,
-              ),
+    if (rest.isNotEmpty)
+      TextSpan(
+        text: rest,
+        style: HrText.bodyS.copyWith(
+            color: HrColors.text2, fontWeight: FontWeight.w700),
       ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: HrText.body.copyWith(fontWeight: FontWeight.w700),
-            ),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: HrText.caption,
-            ),
-          ],
-        ),
-      ),
-    ],
-  ),
+  ]),
 );
 
 class SettingsScreen extends StatelessWidget {
@@ -13446,287 +13269,354 @@ class SettingsScreen extends StatelessWidget {
       listenable: Listenable.merge([appState, auth]),
       builder: (context, _) {
         final ld = levelFromXp(appState.totalXp);
-        final remainingXp = (ld.requiredXp - ld.currentXp).clamp(0, 1 << 30);
         final authed = auth.isAuthed;
         final u = auth.user;
-        final handle = (u != null && u.username.isNotEmpty)
-            ? '@${u.username} · '
-            : '';
-        final p = appState.bodyProfile;
+        final comp = companionByType(appState.activeCompanion);
         final n = appState.todayNutrition();
         final t = appState.targets();
-        final comp = companionByType(appState.activeCompanion);
-        final bodySub = p == null
-            ? 'Set weight, height & goal'
-            : '${p.weight.round()} kg · ${p.goal[0].toUpperCase()}${p.goal.substring(1)} · ${t.calories.round()} kcal';
+        final earned = kAchievements.where(appState.isAchievementEarned).length;
+        final questsDone =
+            appState.dailyDone.values.fold<int>(0, (a, b) => a + b);
+        final subtitle = [
+          if (u != null && u.username.isNotEmpty) '@${u.username}',
+          levelTitle(ld.level),
+        ].join(' · ');
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: SafeArea(
             bottom: false,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                HrSpace.gutter,
-                4,
-                HrSpace.gutter,
-                100,
-              ),
+              padding: const EdgeInsets.only(bottom: 28),
               children: [
-                Row(
-                  children: [
-                    Text('Profile', style: HrText.display),
-                    const Spacer(),
-                    _coinChip(context),
-                  ],
+                HrPageHeader(
+                  title: 'Profile',
+                  trailing: HrHeaderButton(
+                    icon: Icons.settings_rounded,
+                    tooltip: 'Settings',
+                    onPressed: () => _go(context, const AppSettingsScreen()),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                HrCard(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => authed
-                            ? const AccountScreen()
-                            : const LoginScreen(),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
+                const SizedBox(height: 14),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      HrCard(
+                        onTap: () => _go(
+                          context,
+                          authed ? const AccountScreen() : const LoginScreen(),
+                        ),
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            GestureDetector(
-                              onTap: () => _pickProfilePhoto(context),
-                              child: _Avatar(size: 52),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          appState.displayName,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: HrText.title2,
-                                        ),
+                            Row(
+                              children: [
+                                Semantics(
+                                  button: true,
+                                  label: 'Change profile photo',
+                                  child: GestureDetector(
+                                    onTap: () => _pickProfilePhoto(context),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: HrColors.accentBright,
+                                            width: 2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: HrColors.accent
+                                                .withValues(alpha: 0.55),
+                                            blurRadius: 18,
+                                          ),
+                                        ],
                                       ),
-                                      if (appState.isPremium) ...[
-                                        const SizedBox(width: 8),
-                                        _premiumTag(),
-                                      ],
+                                      child: _Avatar(size: 78),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              appState.displayName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: HrText.title1,
+                                            ),
+                                          ),
+                                          if (appState.isPremium) ...[
+                                            const SizedBox(width: 8),
+                                            _premiumTag(),
+                                          ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        subtitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: HrText.body.copyWith(
+                                            color: HrColors.lavender),
+                                      ),
                                     ],
                                   ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    '${handle}Level ${ld.level} · ${levelTitle(ld.level)}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: HrText.caption,
+                                ),
+                                Tooltip(
+                                  message: 'Edit name',
+                                  child: HrPressable(
+                                    onTap: () => _editName(context),
+                                    child: Container(
+                                      width: 38,
+                                      height: 38,
+                                      decoration: BoxDecoration(
+                                        color: HrColors.surface2,
+                                        borderRadius:
+                                            BorderRadius.circular(HrRadius.sm),
+                                        border: Border.all(
+                                            color: HrColors.cardEdge),
+                                      ),
+                                      child: const Icon(Icons.edit_rounded,
+                                          size: 18, color: HrColors.text),
+                                    ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            CompanionSticker(
-                              icon: comp.icon,
-                              color: comp.color,
-                              size: 58,
-                              semanticLabel: comp.name,
-                              imageAsset: comp.imageAsset,
-                            ),
-                            const SizedBox(width: 2),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.edit_rounded,
-                                color: HrColors.gold,
-                                size: 18,
-                              ),
-                              tooltip: 'Edit name',
-                              onPressed: () => _editName(context),
-                            ),
+                            const SizedBox(height: 14),
+                            const _LevelPanel(compact: true),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(HrRadius.full),
-                          child: LinearProgressIndicator(
-                            value: ld.progress.clamp(0.0, 1.0).toDouble(),
-                            minHeight: 9,
-                            backgroundColor: HrColors.surface3,
-                            valueColor: const AlwaysStoppedAnimation(
-                              HrColors.gold,
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: HrStatTile(
+                              value: hrNum(appState.coins),
+                              label: 'Coins',
+                              leading: Image.asset('assets/shop/coin_stack.png',
+                                  width: 34, height: 34),
+                              onTap: () => _go(context, const ShopScreen()),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Text(
-                              '$remainingXp XP to next level',
-                              style: HrText.micro.copyWith(color: HrColors.text2),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: HrStatTile(
+                              value: '${appState.bestStreak}',
+                              label: 'Day streak',
+                              leading: Image.asset(
+                                  'assets/streaks/enamel_flame.png',
+                                  width: 32,
+                                  height: 32),
+                              onTap: () => _go(context, const RecoveryScreen()),
                             ),
-                            const Spacer(),
-                            StreakPill(count: appState.bestStreak, quiet: true),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const _PremiumYouCard(),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _youQuickCard(
-                        icon: comp.icon,
-                        iconColor: comp.color,
-                        title: comp.name,
-                        subtitle: 'Companion',
-                        imageAsset: comp.imageAsset,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const CompanionsScreen(),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: HrStatTile(
+                              value: hrNum(questsDone),
+                              label: 'Quests done',
+                              leading: const HrIconTile(
+                                icon: Icons.track_changes_rounded,
+                                size: 34,
+                                color: Color(0xFFB07CFF),
+                              ),
+                              onTap: () => shellTab.value = 2,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _youQuickCard(
-                        icon: Icons.monetization_on_rounded,
-                        iconColor: Colors.transparent,
-                        title: 'Shop',
-                        subtitle: '${appState.coins} coins',
-                        imageAsset: 'assets/shop/coin_stack.png',
-                        imageSize: 44,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const ShopScreen()),
+                      const SizedBox(height: 12),
+                      const _PremiumYouCard(),
+                      const SizedBox(height: 12),
+                      HrMenuGroup(children: [
+                        HrMenuRow(
+                          icon: Icons.star_rounded,
+                          label: 'Achievements',
+                          value: _menuValue('$earned', ' / ${kAchievements.length}'),
+                          onTap: () => _go(context, const AwardsScreen()),
                         ),
+                        HrMenuRow(
+                          icon: Icons.bar_chart_rounded,
+                          label: 'Statistics',
+                          onTap: () => _go(context, const StatsScreen()),
+                        ),
+                        HrMenuRow(
+                          icon: Icons.group_rounded,
+                          label: 'Friends',
+                          onTap: () => shellTab.value = 3,
+                        ),
+                      ]),
+                      const SizedBox(height: 12),
+                      HrMenuGroup(children: [
+                        HrMenuRow(
+                          icon: Icons.pets_rounded,
+                          label: 'Companions',
+                          subtitle: comp.name,
+                          onTap: () => _go(context, const CompanionsScreen()),
+                        ),
+                        HrMenuRow(
+                          icon: Icons.storefront_rounded,
+                          label: 'Shop',
+                          value: _menuValue(hrNum(appState.coins), ' coins'),
+                          onTap: () => _go(context, const ShopScreen()),
+                        ),
+                        HrMenuRow(
+                          icon: Icons.checklist_rounded,
+                          label: 'Tasks',
+                          subtitle: appState.openTasksToday > 0
+                              ? '${appState.openTasksToday} open today'
+                              : 'Dailies & to-dos',
+                          onTap: () => _go(context, const TasksScreen()),
+                        ),
+                        HrMenuRow(
+                          icon: Icons.flag_rounded,
+                          label: 'Challenges',
+                          subtitle: appState.activeChallenge?.title ??
+                              '7 & 30-day programs',
+                          onTap: () => _go(context, const ChallengesScreen()),
+                        ),
+                        HrMenuRow(
+                          icon: Icons.health_and_safety_rounded,
+                          label: 'Recovery',
+                          subtitle: appState.isPremium
+                              ? '${appState.premiumStreakSavesLeft} saves left this month'
+                              : 'Streak-saves & rest days',
+                          onTap: () => _go(context, const RecoveryScreen()),
+                        ),
+                        HrMenuRow(
+                          icon: Icons.restaurant_rounded,
+                          label: 'Nutrition',
+                          subtitle:
+                              '${n.calories.round()} / ${t.calories.round()} kcal today',
+                          onTap: () => _go(context, const NutritionScreen()),
+                        ),
+                      ]),
+                      const SizedBox(height: 12),
+                      HrMenuGroup(children: [
+                        HrMenuRow(
+                          icon: Icons.palette_rounded,
+                          label: 'Appearance',
+                          onTap: () => _go(context, const AppearanceScreen()),
+                        ),
+                        HrMenuRow(
+                          icon: Icons.settings_rounded,
+                          label: 'Settings',
+                          onTap: () => _go(context, const AppSettingsScreen()),
+                        ),
+                      ]),
+                      const SizedBox(height: 22),
+                      Center(
+                        child:
+                            Text('Habitrail · v1.0.0', style: HrText.caption),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 18),
-                const HrLabel('Account'),
-                _youGroup([
-                  _YouRow(
-                    authed ? Icons.person_rounded : Icons.login_rounded,
-                    authed ? 'Account' : 'Sign in or create account',
-                    authed
-                        ? (u?.email ?? 'Manage your account')
-                        : 'Back up progress & sync devices',
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => authed
-                            ? const AccountScreen()
-                            : const LoginScreen(),
-                      ),
-                    ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Account, body profile, sharing and data controls (Profile → gear).
+class AppSettingsScreen extends StatelessWidget {
+  const AppSettingsScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([appState, auth]),
+      builder: (context, _) {
+        final authed = auth.isAuthed;
+        final u = auth.user;
+        final p = appState.bodyProfile;
+        final t = appState.targets();
+        final bodySub = p == null
+            ? 'Set weight, height & goal'
+            : '${p.weight.round()} kg · ${p.goal[0].toUpperCase()}${p.goal.substring(1)} · ${t.calories.round()} kcal';
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(title: const HrAppBarTitle('Settings')),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter, 8, HrSpace.gutter, 28),
+            children: [
+              HrMenuGroup(title: 'Account', children: [
+                HrMenuRow(
+                  icon: authed ? Icons.person_rounded : Icons.login_rounded,
+                  label: authed ? 'Account' : 'Sign in or create account',
+                  subtitle: authed
+                      ? (u?.email ?? 'Manage your account')
+                      : 'Back up progress & sync devices',
+                  onTap: () => _go(
+                    context,
+                    authed ? const AccountScreen() : const LoginScreen(),
                   ),
-                  _YouRow(
-                    Icons.ios_share_rounded,
-                    'Share progress',
-                    'Level · streak · score',
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ShareCardScreen(),
-                      ),
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 18),
-                const HrLabel('Preferences'),
-                _youGroup([
-                  _YouRow(
-                    Icons.palette_rounded,
-                    'Appearance',
-                    'Rings, checks & progress colour',
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AppearanceScreen(),
-                      ),
-                    ),
-                  ),
-                  _YouRow(
-                    Icons.checklist_rounded,
-                    'Tasks',
-                    appState.openTasksToday > 0
-                        ? '${appState.openTasksToday} open today'
-                        : 'Dailies & to-dos',
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const TasksScreen()),
-                    ),
-                  ),
-                  _YouRow(
-                    Icons.flag_rounded,
-                    'Guided challenges',
-                    appState.activeChallenge?.title ?? '7 & 30-day programs',
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ChallengesScreen(),
-                      ),
-                    ),
-                  ),
-                  _YouRow(
-                    Icons.health_and_safety_rounded,
-                    'Streak protection',
-                    appState.isPremium
-                        ? '${appState.premiumStreakSavesLeft} saves left this month'
-                        : 'Streak-saves & rest days',
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const RecoveryScreen(),
-                      ),
-                    ),
-                  ),
-                  _YouRow(
-                    Icons.monitor_heart_rounded,
-                    'Body profile',
-                    bodySub,
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const BodyProfileScreen(),
-                      ),
-                    ),
-                  ),
-                  _YouRow(
-                    Icons.restaurant_rounded,
-                    'Nutrition',
-                    '${n.calories.round()} / ${t.calories.round()} kcal today',
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const NutritionScreen(),
-                      ),
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 18),
-                const HrLabel('Data'),
-                _youGroup([
-                  _YouRow(
-                    Icons.refresh_rounded,
-                    'Reset all progress',
-                    'Wipe habits, XP & history',
-                    () => _confirmReset(context),
-                    danger: true,
-                  ),
-                  if (authed)
-                    _YouRow(Icons.logout_rounded, 'Log out', '', () async {
+                ),
+                HrMenuRow(
+                  icon: Icons.ios_share_rounded,
+                  label: 'Share progress',
+                  subtitle: 'Level · streak · score',
+                  onTap: () => _go(context, const ShareCardScreen()),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              HrMenuGroup(title: 'You', children: [
+                HrMenuRow(
+                  icon: Icons.monitor_heart_rounded,
+                  label: 'Body profile',
+                  subtitle: bodySub,
+                  onTap: () => _go(context, const BodyProfileScreen()),
+                ),
+                HrMenuRow(
+                  icon: Icons.palette_rounded,
+                  label: 'Appearance',
+                  subtitle: 'Theme & accent colour',
+                  onTap: () => _go(context, const AppearanceScreen()),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              HrMenuGroup(title: 'Data', children: [
+                HrMenuRow(
+                  icon: Icons.refresh_rounded,
+                  label: 'Reset all progress',
+                  subtitle: 'Wipe habits, XP & history',
+                  iconColor: HrColors.dangerText,
+                  labelColor: HrColors.dangerText,
+                  chevron: false,
+                  onTap: () => _confirmReset(context),
+                ),
+                if (authed)
+                  HrMenuRow(
+                    icon: Icons.logout_rounded,
+                    label: 'Log out',
+                    iconColor: HrColors.dangerText,
+                    labelColor: HrColors.dangerText,
+                    chevron: false,
+                    onTap: () async {
                       await auth.signOut();
                       if (context.mounted) {
                         Navigator.of(context).popUntil((r) => r.isFirst);
                       }
-                    }, danger: true),
-                ]),
-                const SizedBox(height: 22),
-                Center(
-                  child: Text('Habitrail · v1.0.0', style: HrText.caption),
-                ),
-              ],
-            ),
+                    },
+                  ),
+              ]),
+              const SizedBox(height: 22),
+              Center(child: Text('Habitrail · v1.0.0', style: HrText.caption)),
+            ],
           ),
         );
       },

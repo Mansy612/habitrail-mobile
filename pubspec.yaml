@@ -38,9 +38,6 @@ dependencies:
   # Saves your habits on the device so they persist between runs.
   shared_preferences: ^2.3.2
 
-  # Matches the web app's fonts (Space Grotesk + Plus Jakarta Sans).
-  google_fonts: ^6.2.1
-
   # Desktop preview: size the window like a phone screen.
   window_manager: ^0.4.0
 
@@ -88,6 +85,23 @@ flutter:
     - assets/onboarding/
     - assets/leaderboard/
     - assets/mascot/
+
+  # The app's single type family, bundled so it renders offline from first launch
+  # (SIL Open Font License — see assets/fonts/OFL.txt).
+  fonts:
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito-Regular.ttf
+        - asset: assets/fonts/Nunito-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Nunito-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Nunito-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Nunito-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Nunito-Black.ttf
+          weight: 900
 
   # To add assets to your application, add an assets section, like this:
   # assets:

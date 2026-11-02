@@ -11,7 +11,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart'
     show HapticFeedback, Clipboard, ClipboardData;
 import 'package:share_plus/share_plus.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
@@ -118,7 +117,7 @@ class HabitrailApp extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           const HrAmbientBackdrop(),
-          if (child != null) child,
+          ?child,
         ],
       ),
       home: const AuthGate(),
@@ -1827,7 +1826,7 @@ class _Avatar extends StatelessWidget {
             ),
             child: Text(
               name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: GoogleFonts.spaceGrotesk(
+              style: TextStyle(fontFamily: kHrFont,
                 color: Colors.white,
                 fontSize: inner * 0.42,
                 fontWeight: FontWeight.w800,
@@ -8820,7 +8819,7 @@ class _FriendAvatar extends StatelessWidget {
         ),
         child: Text(
           letter,
-          style: GoogleFonts.spaceGrotesk(
+          style: TextStyle(fontFamily: kHrFont,
             color: Colors.white,
             fontSize: inner * 0.42,
             fontWeight: FontWeight.w800,
@@ -10488,7 +10487,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.spaceGrotesk(
+              style: TextStyle(fontFamily: kHrFont,
                 color: kTextPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -13461,8 +13460,9 @@ class SettingsScreen extends StatelessWidget {
                   if (authed)
                     _YouRow(Icons.logout_rounded, 'Log out', '', () async {
                       await auth.signOut();
-                      if (context.mounted)
+                      if (context.mounted) {
                         Navigator.of(context).popUntil((r) => r.isFirst);
+                      }
                     }, danger: true),
                 ]),
                 const SizedBox(height: 22),
@@ -14318,7 +14318,7 @@ Widget _briefPanel(String tag, String title, Widget body) => Padding(
       Text(
         title,
         textAlign: TextAlign.center,
-        style: GoogleFonts.spaceGrotesk(
+        style: TextStyle(fontFamily: kHrFont,
           color: Colors.white,
           fontSize: 26,
           fontWeight: FontWeight.w800,
@@ -14463,7 +14463,7 @@ class _DailyBriefingState extends State<_DailyBriefing> {
               ),
               child: Text(
                 '${ld.level}',
-                style: GoogleFonts.spaceGrotesk(
+                style: TextStyle(fontFamily: kHrFont,
                   color: Colors.white,
                   fontSize: 30,
                   fontWeight: FontWeight.w800,
@@ -14509,7 +14509,7 @@ class _DailyBriefingState extends State<_DailyBriefing> {
                   ),
                   Text(
                     '${v.score}',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: TextStyle(fontFamily: kHrFont,
                       color: Colors.white,
                       fontSize: 28,
                       fontWeight: FontWeight.w800,

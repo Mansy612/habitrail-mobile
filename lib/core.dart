@@ -6,17 +6,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'ui/hr_tokens.dart';
 
 // ── Habitrail night-sky palette shared by core and the mobile theme ──────────
-const kBase = Color(0xFF070811);
-const kElevated = Color(0xE9181929); // deep indigo secondary surface
-const kCard = Color(0xE0121320); // dark card surface
-const kSurfacePrimary = Color(0xFF0B0C16);
-const kBorder = Color(0x665B4A83); // restrained violet edge
+const kBase = Color(0xFF0A0B12);
+const kElevated = Color(0xEE181C2E); // raised navy surface
+const kCard = Color(0xEE121624); // navy glass card surface
+const kSurfacePrimary = Color(0xFF0D1018);
+const kBorder = Color(0xFF22263F); // quiet navy-lavender edge
 // Accent trio — mutable so appearance themes can swap them at runtime.
-Color kPlasma = const Color(0xFF974DFF);
-Color kPlasmaBright = const Color(0xFFB47AFF);
-Color kPlasmaGlow = const Color(0xFFD0B2FF);
+Color kPlasma = const Color(0xFF8D4BFF);
+Color kPlasmaBright = const Color(0xFFB07CFF);
+Color kPlasmaGlow = const Color(0xFFD2B3FF);
 const kCyan = Color(0xFF62D5FF);
-const kGold = Color(0xFFFFC82F);
+const kGold = Color(0xFFFFD43B);
 const kBlue = Color(0xFF4F7CFF);
 const kGreen = Color(0xFF34D399);
 const kRed = Color(0xFFFB7185);
@@ -35,8 +35,8 @@ class AppThemeDef {
 }
 
 const List<AppThemeDef> kThemes = [
-  AppThemeDef('violet', 'Habitrail Violet', Color(0xFF8B5CF6), Color(0xFFA78BFA),
-      Color(0xFFC4B5FD)),
+  AppThemeDef('violet', 'Habitrail Violet', Color(0xFF8D4BFF), Color(0xFFB07CFF),
+      Color(0xFFD2B3FF)),
   AppThemeDef('tokyo', 'Neon Tokyo', Color(0xFFF472B6), Color(0xFFF9A8D4),
       Color(0xFFFBCFE8)),
   AppThemeDef('matrix', 'Matrix', Color(0xFF34D399), Color(0xFF6EE7B7),

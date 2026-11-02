@@ -325,6 +325,17 @@ class _HrAmbientBackdropPainter extends CustomPainter {
   bool shouldRepaint(covariant _HrAmbientBackdropPainter oldDelegate) => false;
 }
 
+/// 1234 → "1,234".
+String hrNum(num n) {
+  final s = n.round().abs().toString();
+  final b = StringBuffer(n < 0 ? '-' : '');
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) b.write(',');
+    b.write(s[i]);
+  }
+  return b.toString();
+}
+
 /// A four-point sparkle (the gold "✦" in the references).
 void hrDrawSparkle(Canvas canvas, Offset c, double r, Color color, {bool glow = true}) {
   final p = Path()
@@ -496,9 +507,8 @@ class _HrButtonState extends State<HrButton> {
                 boxShadow: glow
                     ? [
                         BoxShadow(
-                          color: bg.withValues(alpha: 0.42),
+                          color: bg.withValues(alpha: 0.4),
                           blurRadius: 18,
-                          offset: const Offset(0, 4),
                         ),
                       ]
                     : null,

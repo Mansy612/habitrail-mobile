@@ -42,6 +42,49 @@ void main() {
       expect(comboMultiplier(3), 1.5);
       expect(comboMultiplier(10), 3.0);
     });
+    test('projectedXp previews exactly what toggling awards', () {
+      final s = AppState()..addHabit('Read 10 pages', 'rare');
+      final h = s.habits.last;
+      final preview = s.projectedXp(h);
+      expect(preview, greaterThan(0));
+      s.toggle(h);
+      expect(h.todayAwardXp, preview);
+      expect(s.projectedXp(h), preview); // done → the awarded amount
+    });
+  });
+
+  group('daily activity log', () {
+    test('habit toggles add and undo today\'s XP and quest count', () {
+      final s = AppState()..addHabit('Read 10 pages', 'rare');
+      final h = s.habits.last;
+      final today = dateKey(DateTime.now());
+      s.toggle(h);
+      expect(s.dailyXp[today], h.todayAwardXp);
+      expect(s.dailyDone[today], 1);
+      s.toggle(h); // undo
+      expect(s.dailyXp[today], isNull);
+      expect(s.dailyDone[today], isNull);
+    });
+    test('focus sessions log minutes and XP; sumDays totals a range', () {
+      final s = AppState();
+      final gain = s.completeFocus(25);
+      final today = DateTime.now();
+      final k = dateKey(today);
+      expect(s.dailyFocus[k], 25);
+      expect(s.dailyXp[k], greaterThanOrEqualTo(gain));
+      final tomorrow = today.add(const Duration(days: 1));
+      expect(s.sumDays(s.dailyFocus, today, tomorrow), 25);
+      expect(s.sumDays(s.dailyFocus, tomorrow, tomorrow), 0);
+    });
+    test('activity survives a save/load round trip', () async {
+      final s = AppState();
+      await s.load();
+      s.completeFocus(30);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final again = AppState();
+      await again.load();
+      expect(again.dailyFocus[dateKey(DateTime.now())], 30);
+    });
   });
 
   group('auto difficulty', () {

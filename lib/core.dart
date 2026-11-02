@@ -667,6 +667,10 @@ class AppState extends ChangeNotifier {
   String lastBriefingDate = '';
   String themeId = 'violet';
   final Map<String, int> dailyScore = {}; // dateKey -> victory score
+  // Per-day activity behind the Progress charts (dateKey -> amount).
+  final Map<String, int> dailyXp = {};
+  final Map<String, int> dailyFocus = {}; // focus minutes
+  final Map<String, int> dailyDone = {}; // habits + tasks completed
   int streakShields = 0;
   String? xpBoostDate; // 2x XP active while this == today
   // AI difficulty rating (local Ollama) — see lib/ai.dart.
@@ -715,6 +719,21 @@ class AppState extends ChangeNotifier {
   bool get xpBoostActive => xpBoostDate == dateKey(DateTime.now());
   bool doneToday(Habit h) => h.lastCompletedDate == dateKey(DateTime.now());
   int get doneTodayCount => habits.where(doneToday).length;
+
+  /// XP a habit awards if checked off now (shown on its quest chip); the
+  /// awarded amount once it's done. Mirrors toggle()'s formula, minus the
+  /// rare rest-day/shield streak bridge.
+  int projectedXp(Habit h) {
+    if (doneToday(h)) return h.todayAwardXp;
+    final yesterday = dateKey(DateTime.now().subtract(const Duration(days: 1)));
+    final nextStreak = h.lastCompletedDate == yesterday ? h.streak + 1 : 1;
+    var gain = calculateXpGain(
+        h.baseXp, h.rarity, nextStreak, comboMultiplier(doneTodayCount));
+    gain = (gain * (1 + 0.05 * prestige)).round();
+    if (xpBoostActive) gain *= 2;
+    return gain;
+  }
+
   int get bestStreak =>
       habits.isEmpty ? 0 : habits.map((h) => h.streak).reduce(max);
   int get totalPerfectDays => perfectDays.length;
@@ -1226,9 +1245,11 @@ class AppState extends ChangeNotifier {
     if (wasDone) {
       totalXp = (totalXp - xp).clamp(0, 1 << 30).toInt();
       coins = (coins - c).clamp(0, 1 << 30).toInt();
+      _logDay(xp: -xp, done: -1);
     } else {
       totalXp += xp;
       coins += c;
+      _logDay(xp: xp, done: 1);
     }
     if (level > highestLevel) highestLevel = level;
     notifyListeners();
@@ -1357,6 +1378,9 @@ class AppState extends ChangeNotifier {
   void startFreshForAccount(String name) {
     resetAll();
     dailyScore.clear();
+    dailyXp.clear();
+    dailyFocus.clear();
+    dailyDone.clear();
     streakShields = 0;
     xpBoostDate = null;
     // Mark today's briefing as seen so a new account doesn't get the morning
@@ -1509,11 +1533,15 @@ class AppState extends ChangeNotifier {
       lastBackupAt = (m['lastBackupAt'] as String?) ?? '';
       lastBriefingDate = (m['lastBriefingDate'] as String?) ?? '';
       themeId = (m['themeId'] as String?) ?? 'violet';
-      final ds = m['dailyScore'];
-      if (ds is Map) {
-        dailyScore.clear();
-        ds.forEach((k, v) => dailyScore[k as String] = (v as num).toInt());
+      void readDays(Object? src, Map<String, int> into) {
+        if (src is! Map) return;
+        into.clear();
+        src.forEach((k, v) => into[k as String] = (v as num).toInt());
       }
+      readDays(m['dailyScore'], dailyScore);
+      readDays(m['dailyXp'], dailyXp);
+      readDays(m['dailyFocus'], dailyFocus);
+      readDays(m['dailyDone'], dailyDone);
       streakShields = (m['streakShields'] as int?) ?? 0;
       xpBoostDate = m['xpBoostDate'] as String?;
       aiEnabled = (m['aiEnabled'] as bool?) ?? true;
@@ -1643,6 +1671,9 @@ class AppState extends ChangeNotifier {
           'lastBriefingDate': lastBriefingDate,
           'themeId': themeId,
           'dailyScore': dailyScore,
+          'dailyXp': dailyXp,
+          'dailyFocus': dailyFocus,
+          'dailyDone': dailyDone,
           'streakShields': streakShields,
           'xpBoostDate': xpBoostDate,
           'aiEnabled': aiEnabled,
@@ -1696,6 +1727,38 @@ class AppState extends ChangeNotifier {
     _save();
   }
 
+  /// Adds to today's activity totals (negative to undo); keeps ~2 years.
+  void _logDay({int xp = 0, int focus = 0, int done = 0}) {
+    final k = dateKey(DateTime.now());
+    void bump(Map<String, int> m, int d) {
+      if (d == 0) return;
+      final v = max(0, (m[k] ?? 0) + d);
+      if (v == 0) {
+        m.remove(k);
+      } else {
+        m[k] = v;
+      }
+    }
+
+    bump(dailyXp, xp);
+    bump(dailyFocus, focus);
+    bump(dailyDone, done);
+    final cutoff = dateKey(DateTime.now().subtract(const Duration(days: 760)));
+    for (final m in [dailyXp, dailyFocus, dailyDone]) {
+      if (m.length > 780) m.removeWhere((key, _) => key.compareTo(cutoff) < 0);
+    }
+  }
+
+  /// Sum of a per-day map over [from, to) (dates compared by day).
+  int sumDays(Map<String, int> m, DateTime from, DateTime to) {
+    final a = dateKey(from), b = dateKey(to);
+    var s = 0;
+    m.forEach((k, v) {
+      if (k.compareTo(a) >= 0 && k.compareTo(b) < 0) s += v;
+    });
+    return s;
+  }
+
   void _logMilestone(String type, String description, {int xp = 0}) {
     milestoneLog.insert(
         0,
@@ -1718,6 +1781,7 @@ class AppState extends ChangeNotifier {
       if (!questClaimedIds.contains(q.id) && q.done(this)) {
         questClaimedIds.add(q.id);
         totalXp += q.xp;
+        _logDay(xp: q.xp);
         coins += q.xp ~/ 5;
       }
     }
@@ -1754,6 +1818,7 @@ class AppState extends ChangeNotifier {
     final count = perfectDaysThisWeek();
     if (count >= kBossGoal && !bossRewarded) {
       totalXp += kBossXp;
+      _logDay(xp: kBossXp);
       coins += kBossCoins;
       bossRewarded = true;
       pendingBossDefeat = true;
@@ -1836,6 +1901,7 @@ class AppState extends ChangeNotifier {
     if (h.lastCompletedDate == today) {
       totalXp = (totalXp - h.todayAwardXp).clamp(0, 1 << 30).toInt();
       coins = (coins - (h.todayAwardXp ~/ 5)).clamp(0, 1 << 30).toInt();
+      _logDay(xp: -h.todayAwardXp, done: -1);
       h.todayAwardXp = 0;
       h.streak = h.streak > 0 ? h.streak - 1 : 0;
       h.lastCompletedDate = h.streak > 0 ? yesterday : null;
@@ -1856,6 +1922,7 @@ class AppState extends ChangeNotifier {
       h.todayAwardXp = gain;
       totalXp += gain;
       coins += gain ~/ 5;
+      _logDay(xp: gain, done: 1);
     }
     if (habits.isNotEmpty && doneTodayCount == habits.length) {
       perfectDays.add(today);
@@ -1936,6 +2003,7 @@ class AppState extends ChangeNotifier {
         ));
     totalXp += 20;
     coins += 4;
+    _logDay(xp: 20);
     _afterAction();
   }
 
@@ -2015,6 +2083,7 @@ class AppState extends ChangeNotifier {
     final gain = minutes * 2;
     totalXp += gain;
     coins += gain ~/ 5;
+    _logDay(xp: gain, focus: minutes);
     _afterAction();
     return gain;
   }

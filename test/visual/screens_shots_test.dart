@@ -50,6 +50,19 @@ Future<void> _seed() async {
     s.addHabit('🧘 Meditate', 'common');
   }
   s.toggle(s.habits.first);
+  // A month of sample activity for the Progress charts (deterministic).
+  final now = DateTime.now();
+  for (var d = 1; d < now.day; d++) {
+    final k = dateKey(DateTime(now.year, now.month, d));
+    s.dailyXp[k] = 60 + (d * 37) % 240;
+    s.dailyFocus[k] = 15 + (d * 13) % 50;
+    s.dailyDone[k] = 1 + d % 4;
+  }
+  for (var d = 1; d <= 28; d++) {
+    final k = dateKey(DateTime(now.year, now.month - 1, d));
+    s.dailyFocus[k] = 10 + (d * 7) % 40;
+    s.dailyDone[k] = 1 + d % 3;
+  }
   s.totalXp += 8420;
   s.coins += 2480;
   s.setDisplayName('Alex');
@@ -116,6 +129,14 @@ void main() {
       shellTab.value = i;
       await _shot(tester, '0${i + 1}_${tabs[i]}');
     }
+    // Tall captures show whole scrolling pages.
+    tester.view.physicalSize = const Size(390 * 2, 1700 * 2);
+    for (var i = 0; i < tabs.length; i++) {
+      if (!_wanted(tabs[i])) continue;
+      shellTab.value = i;
+      await _shot(tester, 'tall_0${i + 1}_${tabs[i]}');
+    }
+    tester.view.physicalSize = const Size(390 * 2, 844 * 2);
     shellTab.value = 0;
 
     final routes = <String, Widget Function()>{

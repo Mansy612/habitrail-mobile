@@ -2309,44 +2309,41 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(0, 6, 0, 24),
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 28),
           children: [
             _todayHeader(context),
-            const SizedBox(height: 16),
+            const SizedBox(height: 22),
             if (appState.habits.isEmpty)
               _todayEmpty(context)
             else
               _FiveCard(onToggle: onToggle),
-            const SizedBox(height: 18),
+            const SizedBox(height: 4),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
               child: HrCard(
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => const DashboardScreen())),
+                padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
                 child: Row(children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                        color: HrColors.accentSurface,
-                        borderRadius: BorderRadius.circular(HrRadius.md)),
-                    child: Icon(Icons.dashboard_rounded,
-                        color: HrColors.accent, size: 22),
+                  HrHeroArt(
+                    width: 92,
+                    height: 70,
+                    child: Image.asset('assets/achievements/first.png',
+                        width: 60, height: 60),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Dashboard', style: HrText.headline),
                           const SizedBox(height: 2),
-                          Text('Companion, coach, quests & more',
-                              style: HrText.caption),
+                          Text('Small steps drive big progress.',
+                              style: HrText.bodyS),
                         ]),
                   ),
                   const Icon(Icons.chevron_right_rounded,
-                      color: HrColors.text3),
+                      color: HrColors.text2, size: 28),
                 ]),
               ),
             ),
@@ -2487,204 +2484,174 @@ Widget _coinChip(BuildContext context) => GestureDetector(
   ),
 );
 
-// Today header: coins and add action, companion level card, and streak meter.
+/// "Level 9 · XP to next level 420 / 1,000" with the gold bar — shared by
+/// Today and Profile so both read the same.
+class _LevelPanel extends StatelessWidget {
+  const _LevelPanel({this.compact = false});
+  final bool compact;
+  @override
+  Widget build(BuildContext context) {
+    final ld = levelFromXp(appState.totalXp);
+    return HrCard(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      radius: HrRadius.md + 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text.rich(TextSpan(children: [
+                TextSpan(
+                  text: 'Level ',
+                  style: HrText.title2.copyWith(color: HrColors.lavender),
+                ),
+                TextSpan(
+                  text: '${ld.level}',
+                  style: HrText.title1.copyWith(
+                    fontSize: compact ? 26 : 28,
+                    color: HrColors.accentBright,
+                    shadows: [
+                      Shadow(
+                        color: HrColors.accent.withValues(alpha: 0.7),
+                        blurRadius: 12,
+                      ),
+                    ],
+                  ),
+                ),
+              ])),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('XP to next level',
+                          style: HrText.micro.copyWith(color: HrColors.text2)),
+                      Text.rich(TextSpan(children: [
+                        TextSpan(
+                          text: hrNum(ld.currentXp),
+                          style: HrText.bodyS.copyWith(
+                              color: HrColors.gold, fontWeight: FontWeight.w900),
+                        ),
+                        TextSpan(
+                          text: ' / ${hrNum(ld.requiredXp)}',
+                          style: HrText.bodyS.copyWith(
+                              color: HrColors.text, fontWeight: FontWeight.w800),
+                        ),
+                      ])),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          HrXpBar(value: ld.progress, height: 11),
+        ],
+      ),
+    );
+  }
+}
+
+// Today header: big title with the mascot, the level panel and streak meter.
 Widget _todayHeader(BuildContext context) {
-  final ld = levelFromXp(appState.totalXp);
-  final done = appState.doneTodayCount;
-  final total = appState.habits.length;
-  final companion = companionByType(appState.activeCompanion);
   final streak = appState.bestStreak;
   final streakMarks = streak == 0 ? 0 : (streak % 7 == 0 ? 6 : streak % 7);
   return Padding(
-    padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 8, HrSpace.gutter, 0),
+    padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 0),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Text(_prettyToday().toUpperCase(), style: HrText.labelCaps),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _coinChip(context),
-                const SizedBox(width: 8),
-                Tooltip(
-                  message: 'Add habit',
-                  child: Material(
-                    color: HrColors.surface2,
-                    shape: CircleBorder(
-                      side: BorderSide(color: HrColors.cardEdge),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => showHabitEditor(context),
-                      child: const SizedBox(
-                        width: 38,
-                        height: 38,
-                        child: Icon(
-                          Icons.add_rounded,
-                          color: HrColors.gold,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Container(
-          height: 166,
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(HrRadius.lg),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF171524), Color(0xFF0D0E17)],
-            ),
-            border: Border.all(color: HrColors.cardEdge),
-            boxShadow: [
-              BoxShadow(
-                color: HrColors.accent.withValues(alpha: 0.12),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
+        SizedBox(
+          height: 168,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Positioned(
-                right: -5,
-                bottom: -7,
-                child: IgnorePointer(
-                  child: CompanionSticker(
-                    icon: companion.icon,
-                    color: companion.color,
-                    size: 122,
-                    semanticLabel: companion.name,
-                    imageAsset: companion.imageAsset,
-                  ),
-                ),
+              const Positioned(
+                right: -14,
+                top: -4,
+                child: HrHeroArt(width: 168, height: 178),
               ),
               Positioned(
-                top: 10,
-                right: 112,
-                child: Icon(
-                  Icons.add_rounded,
-                  size: 16,
-                  color: HrColors.gold,
+                left: 0,
+                top: 16,
+                child: Semantics(
+                  header: true,
+                  label: 'Today, ${_prettyToday()}',
+                  child: Text('Today',
+                      style: HrText.display.copyWith(fontSize: 40)),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Row(
-                      children: [
-                        Text('Today', style: HrText.display),
-                        if (total > 0) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            '$done/$total',
-                            style: HrText.caption.copyWith(
-                              color: HrColors.text2,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('Level ${ld.level}', style: HrText.headline),
-                        const Spacer(),
-                        Text(
-                          levelTitle(ld.level),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: HrText.micro.copyWith(color: HrColors.text2),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 7),
-                    GlowBar(value: ld.progress, height: 10),
-                    const SizedBox(height: 5),
-                    Text(
-                      '${ld.currentXp} / ${ld.requiredXp} XP',
-                      style: HrText.micro.copyWith(color: HrColors.text2),
-                    ),
-                  ],
-                ),
+              const Positioned(
+                left: 0,
+                right: 128,
+                bottom: 0,
+                child: _LevelPanel(),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         HrCard(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RecoveryScreen())),
+          padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+          radius: HrRadius.md + 2,
           child: Row(
             children: [
               Image.asset(
                 'assets/streaks/enamel_flame.png',
-                width: 32,
-                height: 32,
+                width: 36,
+                height: 36,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Text(
                 '$streak',
-                style: HrText.stat.copyWith(color: HrColors.gold, fontSize: 30),
+                style: HrText.display.copyWith(
+                    fontSize: 32, height: 1, color: HrColors.gold),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'day streak',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: HrText.bodyS.copyWith(color: HrColors.text),
+                  style: HrText.body.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
-              for (var i = 0; i < 6; i++) ...[
-                if (i > 0) const SizedBox(width: 4),
-                Container(
-                  width: 11,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: i < streakMarks ? HrColors.gold : HrColors.surface3,
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(
-                      color: i < streakMarks
-                          ? HrColors.gold.withValues(alpha: 0.5)
-                          : HrColors.hairline,
-                    ),
-                    boxShadow: i < streakMarks
-                        ? [
-                            BoxShadow(
-                              color: HrColors.gold.withValues(alpha: 0.28),
-                              blurRadius: 7,
-                            ),
-                          ]
-                        : null,
-                  ),
-                ),
-              ],
+              HrStreakSquares(total: 6, filled: streakMarks, size: 14),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right_rounded,
+                  color: HrColors.text2, size: 28),
             ],
           ),
         ),
       ],
     ),
   );
+}
+
+// Colourful glow behind each quest's 3D icon, stable per habit.
+const _kQuestTints = [
+  Color(0xFF4FA3FF),
+  Color(0xFFA06BFF),
+  Color(0xFFFF6EB4),
+  Color(0xFF34D399),
+  Color(0xFFFF9F43),
+  Color(0xFF62D5FF),
+];
+Color _questTint(Habit h) =>
+    _kQuestTints[h.name.codeUnits.fold<int>(0, (a, c) => a + c) %
+        _kQuestTints.length];
+
+Widget _questIcon(Habit h, {double size = 56}) {
+  final icon = h.icon.trim();
+  return icon == '💰'
+      ? HrIconTile(asset: 'assets/shop/coin_stack.png', size: size)
+      : HrIconTile(emoji: icon, size: size, color: _questTint(h));
 }
 
 
@@ -2700,197 +2667,165 @@ class _FiveCard extends StatefulWidget {
 class _FiveCardState extends State<_FiveCard> {
   bool _reorder = false;
 
-  bool _showCompleted = false;
-
   Widget _questTile(BuildContext context, Habit h) {
     final isDone = appState.doneToday(h);
-    final label = h.icon.trim();
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(HrRadius.md),
-      child: InkWell(
-        onTap: () {
-          if (!isDone) HapticFeedback.selectionClick();
-          widget.onToggle(h);
-        },
-        onLongPress: () => _showHabitMenu(context, h),
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 5),
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDone
-                  ? const [Color(0xFF211C2C), Color(0xFF171721)]
-                  : const [Color(0xFF1B1B2B), Color(0xFF13141F)],
-            ),
-            borderRadius: BorderRadius.circular(HrRadius.md),
-            border: Border.all(
-              color: isDone
-                  ? HrColors.gold.withValues(alpha: 0.48)
-                  : HrColors.cardEdge.withValues(alpha: 0.9),
-            ),
-            boxShadow: isDone
-                ? [
-                    BoxShadow(
-                      color: HrColors.gold.withValues(alpha: 0.08),
-                      blurRadius: 14,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [HrColors.accentSurface, HrColors.surface],
-                  ),
-                  borderRadius: BorderRadius.circular(HrRadius.sm),
-                  border: Border.all(color: HrColors.accent.withValues(alpha: 0.3)),
-                ),
-                child: label == '💰'
-                    ? Image.asset(
-                        'assets/shop/coin_stack.png',
-                        width: 34,
-                        height: 34,
-                        fit: BoxFit.contain,
-                      )
-                    : Text(
-                        label.isEmpty ? '✦' : label,
-                        maxLines: 1,
-                        style: const TextStyle(fontSize: 25, height: 1),
-                      ),
+    final meta = [
+      if (h.streak > 0) '🔥 ${h.streak}',
+      if (h.reminderMinutes != null) _fmtReminder(h.reminderMinutes!),
+    ].join('  ·  ');
+    return HrQuestRow(
+      title: h.name,
+      done: isDone,
+      leading: _questIcon(h),
+      subtitle: Row(
+        children: [
+          HrXpChip(appState.projectedXp(h)),
+          if (meta.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                meta,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: HrText.micro.copyWith(color: HrColors.text2),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      h.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: HrText.body.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: isDone ? HrColors.text2 : HrColors.text,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xCC090A12),
-                        borderRadius: BorderRadius.circular(HrRadius.sm),
-                        border: Border.all(color: HrColors.gold.withValues(alpha: 0.28)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.auto_awesome_rounded, size: 13, color: HrColors.gold),
-                          const SizedBox(width: 4),
-                          Text(
-                            '+${h.todayAwardXp} XP',
-                            style: HrText.micro.copyWith(
-                              color: HrColors.gold,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (h.streak > 0 || h.reminderMinutes != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        [
-                          if (h.streak > 0) '${h.streak} day streak',
-                          if (h.reminderMinutes != null)
-                            _fmtReminder(h.reminderMinutes!),
-                        ].join(' · '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: HrText.micro,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              HrCheck(done: isDone, size: 34),
-            ],
-          ),
-        ),
+            ),
+          ],
+        ],
       ),
+      onTap: () {
+        if (!isDone) HapticFeedback.selectionClick();
+        widget.onToggle(h);
+      },
+      onLongPress: () => _showHabitMenu(context, h),
     );
   }
 
-  Widget _habitRow(BuildContext context, Habit h) => Dismissible(
-    key: ValueKey('five-${h.id}'),
-    direction: DismissDirection.endToStart,
-    onDismissed: (_) {
-      appState.deleteHabit(h);
-      hrToast(context, 'Habit removed', icon: Icons.delete_outline_rounded);
-    },
-    background: Container(
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.only(right: 20),
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      decoration: BoxDecoration(
-        color: HrColors.dangerSurface,
-        borderRadius: BorderRadius.circular(HrRadius.sm),
+  Widget _habitRow(BuildContext context, Habit h) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Dismissible(
+      key: ValueKey('five-${h.id}'),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) {
+        appState.deleteHabit(h);
+        hrToast(context, 'Habit removed', icon: Icons.delete_outline_rounded);
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 22),
+        decoration: BoxDecoration(
+          color: HrColors.dangerSurface,
+          borderRadius: BorderRadius.circular(HrRadius.md + 2),
+        ),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: HrColors.dangerText,
+        ),
       ),
-      child: const Icon(
-        Icons.delete_outline_rounded,
-        color: HrColors.dangerText,
-      ),
+      child: _questTile(context, h),
     ),
-    child: _questTile(context, h),
   );
+
+  Widget _roundAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+    bool filled = false,
+  }) =>
+      Tooltip(
+        message: tooltip,
+        child: HrPressable(
+          onTap: onTap,
+          scale: 0.9,
+          child: Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: filled ? HrColors.accent : HrColors.surface,
+              border: Border.all(
+                color: filled
+                    ? HrColors.accentBright.withValues(alpha: 0.6)
+                    : HrColors.cardEdge,
+              ),
+              boxShadow: filled
+                  ? [
+                      BoxShadow(
+                        color: HrColors.accent.withValues(alpha: 0.5),
+                        blurRadius: 12,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Icon(icon,
+                size: 20, color: filled ? HrColors.text : HrColors.text2),
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
     final habits = appState.habits;
-    final todo = habits.where((h) => !appState.doneToday(h)).toList();
-    final completed = habits.where(appState.doneToday).toList();
-    final allDone = todo.isEmpty && completed.isNotEmpty;
+    final done = habits.where(appState.doneToday).length;
+    final allDone = done == habits.length && habits.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
-      child: HrCard(
-        padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            HrLabel(
-              "Today's quests",
-              trailing: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _reorder = !_reorder),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _reorder ? Icons.check_rounded : Icons.swap_vert_rounded,
-                      size: 16,
-                      color: _reorder ? HrColors.accent : HrColors.text3,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _reorder ? 'DONE' : 'REORDER',
-                      style: HrText.labelCaps.copyWith(
-                        color: _reorder ? HrColors.accent : HrColors.text3,
-                      ),
-                    ),
-                  ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(2, 0, 0, 12),
+            child: Row(
+              children: [
+                const Text('⚔️', style: TextStyle(fontSize: 20, height: 1)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Today's quests",
+                    style: HrText.headline.copyWith(fontSize: 19),
+                  ),
                 ),
-              ),
+                const Icon(Icons.auto_awesome,
+                    size: 14, color: HrColors.gold),
+                const SizedBox(width: 5),
+                Text.rich(
+                  TextSpan(children: [
+                    TextSpan(
+                      text: '$done',
+                      style: HrText.headline.copyWith(
+                          fontSize: 17, color: const Color(0xFF8FD3FF)),
+                    ),
+                    TextSpan(
+                      text: ' / ${habits.length}',
+                      style: HrText.headline.copyWith(
+                          fontSize: 17, color: HrColors.text2),
+                    ),
+                  ]),
+                  semanticsLabel: '$done of ${habits.length} quests done',
+                ),
+                const SizedBox(width: 12),
+                _roundAction(
+                  icon: _reorder
+                      ? Icons.check_rounded
+                      : Icons.swap_vert_rounded,
+                  tooltip: _reorder ? 'Done reordering' : 'Reorder quests',
+                  onTap: () => setState(() => _reorder = !_reorder),
+                ),
+                const SizedBox(width: 8),
+                _roundAction(
+                  icon: Icons.add_rounded,
+                  tooltip: 'Add habit',
+                  filled: true,
+                  onTap: () => showHabitEditor(context),
+                ),
+              ],
             ),
-            if (_reorder)
-              ReorderableListView.builder(
+          ),
+          if (_reorder)
+            HrCard(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: ReorderableListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 buildDefaultDragHandles: false,
@@ -2900,201 +2835,86 @@ class _FiveCardState extends State<_FiveCard> {
                   final h = habits[i];
                   return Padding(
                     key: ValueKey('reorder-${h.id}'),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
                       children: [
+                        _questIcon(h, size: 40),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            h.icon.isEmpty ? h.name : '${h.icon}  ${h.name}',
+                            h.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: HrText.body,
+                            style: HrText.body
+                                .copyWith(fontWeight: FontWeight.w800),
                           ),
                         ),
                         ReorderableDragStartListener(
                           index: i,
-                          child: const Icon(
-                            Icons.drag_handle_rounded,
-                            color: HrColors.text3,
+                          child: const Padding(
+                            padding: EdgeInsets.all(6),
+                            child: Icon(
+                              Icons.drag_handle_rounded,
+                              color: HrColors.text2,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   );
                 },
-              )
-            else if (allDone) ...[
-              Container(
-                margin: const EdgeInsets.fromLTRB(4, 4, 4, 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: HrColors.surface2,
-                  borderRadius: BorderRadius.circular(HrRadius.md),
-                  border: Border.all(color: HrColors.hairline),
-                ),
-                child: Row(
-                  children: [
-                    const HrCheck(done: true, size: 42),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('All done for today', style: HrText.headline),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${completed.length} ${completed.length == 1 ? 'habit' : 'habits'} checked off',
-                            style: HrText.bodyS,
-                          ),
-                        ],
+              ),
+            )
+          else ...[
+            if (allDone)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: HrCard(
+                  highlight: true,
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      const HrCheck(done: true, size: 40),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('All quests complete',
+                                style: HrText.headline),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$done ${done == 1 ? 'habit' : 'habits'} checked off today',
+                              style: HrText.bodyS,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-              const HrLabel('Completed'),
-              for (final h in (_showCompleted ? completed : completed.take(2)))
-                _habitRow(context, h),
-              if (completed.length > 2) ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  child: Divider(),
-                ),
-                Semantics(
-                  button: true,
-                  expanded: _showCompleted,
-                  label: _showCompleted
-                      ? 'Show fewer completed habits'
-                      : 'Show all ${completed.length} completed habits',
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(HrRadius.sm),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(HrRadius.sm),
-                      onTap: () => setState(
-                        () => _showCompleted = !_showCompleted,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _showCompleted
-                                    ? 'Show less'
-                                    : 'Show all ${completed.length}',
-                                style: HrText.bodyS.copyWith(
-                                  color: HrColors.accent,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              _showCompleted
-                                  ? Icons.keyboard_arrow_up_rounded
-                                  : Icons.chevron_right_rounded,
-                              color: HrColors.accent,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ]
-            else ...[
-              if (todo.isNotEmpty) ...[
-                HrLabel(
-                  'To do',
-                  trailing: Text(
-                    '${todo.length}',
-                    style: HrText.labelCaps.copyWith(color: HrColors.text2),
-                  ),
-                ),
-                for (final h in todo) _habitRow(context, h),
-              ],
-              if (completed.isNotEmpty) ...[
-                if (todo.isNotEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                    child: Divider(),
-                  ),
-                Semantics(
-                  button: true,
-                  expanded: _showCompleted,
-                  label: _showCompleted
-                      ? 'Hide ${completed.length} completed habits'
-                      : 'Show ${completed.length} completed habits',
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(HrRadius.sm),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(HrRadius.sm),
-                      onTap: () => setState(
-                        () => _showCompleted = !_showCompleted,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          children: [
-                            const HrCheck(done: true, size: 24),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'COMPLETED · ${completed.length}',
-                                style: HrText.labelCaps.copyWith(
-                                  color: HrColors.text2,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              _showCompleted
-                                  ? Icons.keyboard_arrow_up_rounded
-                                  : Icons.chevron_right_rounded,
-                              color: HrColors.text3,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                if (_showCompleted)
-                  for (final h in completed) _habitRow(context, h),
-              ],
-            ],
+            for (final h in habits) _habitRow(context, h),
           ],
-        ),
+        ],
       ),
     );
   }
 }
 
-// Zero-habits prompt shown in place of the five-card.
+// Zero-habits prompt shown in place of the quest list.
 Widget _todayEmpty(BuildContext context) => Padding(
   padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
   child: HrCard(
-    padding: const EdgeInsets.all(24),
+    padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
     child: Column(
       children: [
-        const Text('🌱', style: TextStyle(fontSize: 40)),
-        const SizedBox(height: 12),
-        Text('No habits yet', style: HrText.title2),
+        const HrHeroArt(width: 130, height: 130),
+        const SizedBox(height: 8),
+        Text('No quests yet', style: HrText.title2),
         const SizedBox(height: 6),
         Text(
-          'Add your first habit to start your rail.',
+          'Add your first habit to start your trail.',
           textAlign: TextAlign.center,
           style: HrText.bodyS,
         ),
@@ -3102,7 +2922,7 @@ Widget _todayEmpty(BuildContext context) => Padding(
         HrButton(
           label: 'Add habit',
           icon: Icons.add_rounded,
-          expand: false,
+          kind: HrButtonKind.accent,
           onPressed: () => showHabitEditor(context),
         ),
       ],
@@ -6394,8 +6214,24 @@ class FocusScreen extends StatefulWidget {
 }
 
 class _FocusScreenState extends State<FocusScreen> {
-  static const _durations = [15, 25, 45, 60];
+  // Preset session lengths (Custom picks anything else).
+  static const _presets = <(String, String, IconData, int)>[
+    ('Pomodoro', '25 min', Icons.timer_outlined, 25),
+    ('Short', '5 min', Icons.eco_rounded, 5),
+    ('Long', '50 min', Icons.hourglass_bottom_rounded, 50),
+  ];
+  static const _customChoices = [10, 15, 20, 30, 45, 60, 90, 120];
+  static const _modes = <(String, String)>[
+    ('Deep Work', '🌿'),
+    ('Study', '📚'),
+    ('Reading', '📖'),
+    ('Creative', '🎨'),
+    ('Workout', '💪'),
+    ('Mindful', '🧘'),
+  ];
   int _minutes = 25;
+  bool _custom = false;
+  int _mode = 0;
   int _remaining = 25 * 60;
   bool _running = false;
   bool _started = false;
@@ -6409,10 +6245,11 @@ class _FocusScreenState extends State<FocusScreen> {
     super.dispose();
   }
 
-  void _setMinutes(int m) {
+  void _setMinutes(int m, {bool custom = false}) {
     if (_started) return;
     setState(() {
       _minutes = m;
+      _custom = custom;
       _remaining = m * 60;
     });
   }
@@ -6464,180 +6301,220 @@ class _FocusScreenState extends State<FocusScreen> {
     shellTab.value = 0; // jump the bottom-nav back to Today
   }
 
+  Future<void> _pickMode() async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Focus mode', style: HrText.title2),
+              const SizedBox(height: 4),
+              Text('Name what this session is for.', style: HrText.bodyS),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (var i = 0; i < _modes.length; i++)
+                    HrPressable(
+                      onTap: () => Navigator.pop(ctx, i),
+                      child: _modeChip(_modes[i], selected: i == _mode),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked != null && mounted) setState(() => _mode = picked);
+  }
+
+  Future<void> _pickCustom() async {
+    if (_started) return;
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Custom length', style: HrText.title2),
+              const SizedBox(height: 4),
+              Text('Every minute of focus earns 2 XP.', style: HrText.bodyS),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final m in _customChoices)
+                    HrPressable(
+                      onTap: () => Navigator.pop(ctx, m),
+                      child: Container(
+                        width: 72,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: m == _minutes && _custom
+                              ? HrColors.accent
+                              : HrColors.surface2,
+                          borderRadius: BorderRadius.circular(HrRadius.md),
+                          border: Border.all(color: HrColors.cardEdge),
+                        ),
+                        child: Text('$m min',
+                            style: HrText.body
+                                .copyWith(fontWeight: FontWeight.w800)),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked != null) _setMinutes(picked, custom: true);
+  }
+
+  Widget _modeChip((String, String) mode, {bool selected = false, bool arrow = false}) =>
+      Container(
+        padding: const EdgeInsets.fromLTRB(12, 7, 10, 7),
+        decoration: BoxDecoration(
+          color: selected ? HrColors.accentSurface : const Color(0xCC0D1018),
+          borderRadius: BorderRadius.circular(HrRadius.full),
+          border: Border.all(
+            color: selected ? HrColors.accent : HrColors.cardEdge,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(mode.$2, style: const TextStyle(fontSize: 15, height: 1)),
+            const SizedBox(width: 7),
+            Text(mode.$1,
+                style: HrText.bodyS.copyWith(
+                    color: HrColors.text, fontWeight: FontWeight.w700)),
+            if (arrow) ...[
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded,
+                  size: 18, color: HrColors.text2),
+            ],
+          ],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                HrSpace.gutter,
-                4,
-                HrSpace.gutter,
-                0,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Focus', style: HrText.display),
-                      Text(
-                        'Turn focus into a stronger you.',
-                        style: HrText.caption,
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  _coinChip(context),
-                ],
-              ),
-            ),
-            Expanded(
-              child: _complete ? _completeView(context) : _timerView(context),
-            ),
-          ],
-        ),
+        child: _complete ? _completeView(context) : _timerView(context),
       ),
     );
   }
 
+  Widget _header() => HrPageHeader(
+    title: 'Focus',
+    subtitle: 'Turn focus into a stronger you.',
+    trailing: HrHeaderButton(
+      icon: Icons.settings_rounded,
+      tooltip: 'Focus mode',
+      onPressed: _pickMode,
+    ),
+  );
+
   Widget _timerView(BuildContext context) {
-    final companion = companionByType(appState.activeCompanion);
     final mm = (_remaining ~/ 60).toString().padLeft(2, '0');
     final ss = (_remaining % 60).toString().padLeft(2, '0');
-    // The dial stays quiet while idle, then fills clockwise as focus time passes.
-    final frac = _started ? 1 - _remaining / (_minutes * 60) : 0.0;
-    final sub = !_started
-        ? '$_minutes MIN SESSION'
+    // The ring is full when a session is ready and drains as time passes.
+    final frac = _remaining / (_minutes * 60);
+    final label = !_started
+        ? 'Focus time'
         : _running
-        ? 'DEEP WORK · $_minutes MIN'
-        : 'PAUSED · $_minutes MIN';
-    return Column(
+        ? 'Stay with it'
+        : 'Paused';
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 20),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            HrSpace.gutter,
-            14,
-            HrSpace.gutter,
-            0,
-          ),
-          child: HrCard(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                CompanionSticker(
-                  icon: companion.icon,
-                  color: companion.color,
-                  size: 48,
-                  semanticLabel: companion.name,
-                  imageAsset: companion.imageAsset,
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        _header(),
+        SizedBox(
+          height: 372,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: 14,
+                child: _FocusTimerDial(
+                  size: 248,
+                  value: frac,
+                  color: HrColors.accent,
+                  center: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Focus with ${companion.name}', style: HrText.body),
+                      Text(label,
+                          style: HrText.body.copyWith(color: HrColors.text2)),
                       const SizedBox(height: 2),
                       Text(
-                        'Stay present · +${_minutes * 2} XP',
-                        style: HrText.caption.copyWith(color: HrColors.gold),
+                        '$mm:$ss',
+                        style: HrText.numeralXl.copyWith(fontSize: 58),
+                      ),
+                      const SizedBox(height: 8),
+                      Semantics(
+                        button: true,
+                        label: 'Focus mode: ${_modes[_mode].$1}',
+                        child: HrPressable(
+                          onTap: _pickMode,
+                          child: _modeChip(_modes[_mode], arrow: true),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.auto_awesome_rounded, color: HrColors.gold, size: 19),
-              ],
-            ),
+              ),
+              const Positioned(
+                bottom: -6,
+                child: HrHeroArt(width: 190, height: 168),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: Stack(
-            clipBehavior: Clip.none,
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+          child: Row(
             children: [
-              Positioned(
-                right: 8,
-                bottom: 18,
-                child: const HrMascotArtwork(
-                  width: 166,
-                  height: 198,
-                ),
-              ),
-              Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 18),
-                  child: _FocusTimerDial(
-                    size: 238,
-                    value: frac,
-                    color: HrColors.accent,
-                    center: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: mm,
-                                style: HrText.numeralXl.copyWith(
-                                  fontSize: 58,
-                                  letterSpacing: -1.8,
-                                ),
-                              ),
-                              TextSpan(
-                                text: ':',
-                                style: HrText.numeralXl.copyWith(
-                                  color: HrColors.accent,
-                                  fontSize: 52,
-                                  letterSpacing: -1,
-                                ),
-                              ),
-                              TextSpan(
-                                text: ss,
-                                style: HrText.numeralXl.copyWith(
-                                  color: HrColors.text2,
-                                  fontSize: 58,
-                                  letterSpacing: -1.8,
-                                ),
-                              ),
-                            ],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          sub,
-                          style: HrText.micro.copyWith(
-                            color: HrColors.text2,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ],
-                    ),
+              for (final p in _presets) ...[
+                Expanded(
+                  child: _presetTile(
+                    p.$1,
+                    p.$2,
+                    p.$3,
+                    selected: !_custom && _minutes == p.$4,
+                    onTap: () => _setMinutes(p.$4),
                   ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: _presetTile(
+                  'Custom',
+                  _custom ? '$_minutes min' : null,
+                  Icons.tune_rounded,
+                  selected: _custom,
+                  onTap: _pickCustom,
                 ),
               ),
             ],
           ),
         ),
-        if (!_started)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
-            child: HrSegmented(
-              items: _durations.map((m) => '$m').toList(),
-              index: _durations
-                  .indexOf(_minutes)
-                  .clamp(0, _durations.length - 1),
-              onChanged: (i) => _setMinutes(_durations[i]),
-            ),
-          ),
         const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
@@ -6659,7 +6536,7 @@ class _FocusScreenState extends State<FocusScreen> {
                           ? HrButton(
                               label: 'Pause',
                               icon: Icons.pause_rounded,
-                              kind: HrButtonKind.primary,
+                              kind: HrButtonKind.accent,
                               onPressed: _pause,
                             )
                           : HrButton(
@@ -6675,101 +6552,171 @@ class _FocusScreenState extends State<FocusScreen> {
         const SizedBox(height: 10),
         Text(
           !_started
-              ? 'Finish a session to earn XP · today ${appState.focusMinutesToday} min'
+              ? '+${_minutes * 2} XP when you finish · ${appState.focusMinutesToday} min today'
               : _running
-              ? 'Session in progress · +${_minutes * 2} XP at the end'
+              ? '${_modes[_mode].$1} · +${_minutes * 2} XP at the end'
               : 'Session paused',
           style: HrText.caption,
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 24),
       ],
     );
   }
 
+  Widget _presetTile(
+    String title,
+    String? sub,
+    IconData icon, {
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final enabled = !_started;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: sub == null ? title : '$title, $sub',
+      child: HrPressable(
+        onTap: enabled ? onTap : null,
+        child: AnimatedContainer(
+          duration: HrMotion.of(context, HrMotion.base),
+          height: 86,
+          decoration: BoxDecoration(
+            gradient: selected
+                ? LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color.lerp(HrColors.accentSurface, HrColors.accent, 0.18)!,
+                      HrColors.accentSurface,
+                    ],
+                  )
+                : const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [HrColors.cardTop, HrColors.cardBottom],
+                  ),
+            borderRadius: BorderRadius.circular(HrRadius.md),
+            border: Border.all(
+              color: selected ? HrColors.accentBright : HrColors.cardEdge,
+              width: selected ? 1.5 : 1,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: HrColors.accent.withValues(alpha: 0.45),
+                      blurRadius: 16,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Opacity(
+            opacity: enabled || selected ? 1 : 0.5,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 28,
+                  color: selected
+                      ? HrColors.accentBright
+                      : (title == 'Short'
+                          ? HrColors.success
+                          : const Color(0xFFC9C3F0)),
+                ),
+                const SizedBox(height: 6),
+                Text(title,
+                    style: HrText.bodyS.copyWith(
+                        color: HrColors.text, fontWeight: FontWeight.w800)),
+                if (sub != null)
+                  Text(sub, style: HrText.micro.copyWith(color: HrColors.text2)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _completeView(BuildContext context) {
-    final comp = companionByType(appState.activeCompanion);
     final questDone = kQuests.firstWhere((q) => q.id == 'q2').done(appState);
-    return Column(
+    final comp = companionByType(appState.activeCompanion);
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
       children: [
-        const Spacer(),
-        SegmentedRing(
-          size: 260,
-          segments: 1,
-          value: 1,
-          stroke: 10,
-          color: HrColors.accent,
-          center: CompanionSticker(
-            icon: comp.icon,
-            color: comp.color,
-            size: 96,
-            semanticLabel: comp.name,
-            imageAsset: comp.imageAsset,
+        _header(),
+        const SizedBox(height: 12),
+        Center(
+          child: SegmentedRing(
+            size: 250,
+            segments: 1,
+            value: 1,
+            stroke: 10,
+            color: HrColors.accent,
+            center: const HrHeroArt(width: 170, height: 170),
           ),
         ),
         const SizedBox(height: 16),
-        const SpeechBubble('Session complete. Output logged.', maxWidth: 260),
-        const Spacer(),
+        Center(
+          child: Text('Session complete', style: HrText.title1),
+        ),
+        const SizedBox(height: 6),
+        Center(
+          child: SpeechBubble(
+            'Session complete. Output logged.',
+            speaker: comp.name,
+            maxWidth: 280,
+          ),
+        ),
+        const SizedBox(height: 22),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
           child: Row(
             children: [
               Expanded(
-                child: _rewardTile('+$_lastGain', 'XP', HrColors.streak),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _rewardTile(
-                  '${appState.focusMinutesToday}',
-                  'Min today',
-                  HrColors.text,
+                child: HrStatTile(
+                  value: '+$_lastGain',
+                  label: 'XP earned',
+                  icon: Icons.auto_awesome,
+                  valueColor: HrColors.gold,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
-                child: _rewardTile(
-                  questDone ? '1/1' : '0/1',
-                  'Quest',
-                  questDone ? HrColors.accent : HrColors.text3,
+                child: HrStatTile(
+                  value: '${appState.focusMinutesToday}',
+                  label: 'Min today',
+                  icon: Icons.timer_rounded,
+                  leading: Icon(Icons.timer_rounded,
+                      size: 28, color: HrColors.accentBright),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: HrStatTile(
+                  value: questDone ? '1/1' : '0/1',
+                  label: 'Quest',
+                  leading: Icon(Icons.flag_rounded,
+                      size: 28,
+                      color: questDone ? HrColors.success : HrColors.text3),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
-          child: HrButton(label: 'Back to Today', onPressed: _backToToday),
+          child: HrButton(
+            label: 'Back to Today',
+            kind: HrButtonKind.accent,
+            onPressed: _backToToday,
+          ),
         ),
-        const SizedBox(height: 24),
       ],
     );
   }
-
-  Widget _rewardTile(String value, String label, Color color) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-    decoration: BoxDecoration(
-      color: HrColors.surface,
-      borderRadius: BorderRadius.circular(HrRadius.md),
-      border: const Border(top: BorderSide(color: HrColors.hairline)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: HrText.title2.copyWith(color: color),
-        ),
-        const SizedBox(height: 2),
-        Text(label, style: HrText.caption),
-      ],
-    ),
-  );
 }
 
-// ── STATS ───────────────────────────────────────────────────────────────────
 class _FocusStartButton extends StatelessWidget {
   const _FocusStartButton({required this.onPressed, required this.minutes});
 
@@ -6780,108 +6727,39 @@ class _FocusStartButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Start focus',
-      child: Container(
-        height: 68,
-        decoration: BoxDecoration(
-          color: HrColors.surface,
-          borderRadius: BorderRadius.circular(HrRadius.lg),
-          border: Border.all(color: HrColors.accent.withValues(alpha: 0.42)),
-          boxShadow: [
-            BoxShadow(
-              color: HrColors.accent.withValues(alpha: 0.16),
-              blurRadius: 16,
-              offset: const Offset(0, 3),
+      label: 'Start focus, $minutes minutes',
+      excludeSemantics: true,
+      child: HrPressable(
+        onTap: onPressed,
+        child: Container(
+          height: 58,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color.lerp(HrColors.accent, Colors.white, 0.14)!,
+                HrColors.accent,
+                Color.lerp(HrColors.accent, Colors.white, 0.1)!,
+              ],
             ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(HrRadius.lg),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(HrRadius.lg),
-            onTap: onPressed,
-            child: Ink(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [HrColors.accentSurface, HrColors.surface],
-                ),
-                borderRadius: BorderRadius.circular(HrRadius.lg),
+            borderRadius: BorderRadius.circular(HrRadius.full),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            boxShadow: [
+              BoxShadow(
+                color: HrColors.accent.withValues(alpha: 0.5),
+                blurRadius: 22,
               ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 1,
-                    left: 20,
-                    right: 20,
-                    child: Container(
-                      height: 1,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: HrColors.accentSurface,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: HrColors.accent.withValues(alpha: 0.55),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: HrColors.accent.withValues(alpha: 0.16),
-                                blurRadius: 9,
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.play_arrow_rounded,
-                            size: 25,
-                            color: HrColors.accent,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Start focus',
-                                style: HrText.body.copyWith(
-                                  color: HrColors.text,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              Text(
-                                '$minutes min · +${minutes * 2} XP',
-                                style: HrText.micro.copyWith(
-                                  color: HrColors.text2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 18,
-                          color: HrColors.accent.withValues(alpha: 0.86),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.play_arrow_rounded, size: 32, color: HrColors.text),
+              const SizedBox(width: 8),
+              Text(
+                'Start Focus',
+                style: HrText.title2.copyWith(fontSize: 19),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -6917,6 +6795,8 @@ class _FocusTimerDial extends StatelessWidget {
   );
 }
 
+// Glowing violet ring like the reference: a soft halo, a faint track and a
+// bright arc (with a cyan tail) showing the time left in the session.
 class _FocusDialPainter extends CustomPainter {
   const _FocusDialPainter(this.value, this.color);
 
@@ -6926,150 +6806,73 @@ class _FocusDialPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final radius = size.width / 2 - 18;
+    final radius = size.width / 2 - 10;
     final ringRect = Rect.fromCircle(center: center, radius: radius);
-    final ringPath = Path()..addOval(ringRect);
 
-    canvas.drawShadow(ringPath, const Color(0xB8000000), 14, true);
+    // Dark disc so the numerals sit on calm ground.
     canvas.drawCircle(
       center,
-      radius,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 17
-        ..color = HrColors.accent.withValues(alpha: 0.15)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-    );
-    canvas.drawCircle(
-      center,
-      radius + 8,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 17
-        ..color = const Color(0xFF1D1927),
-    );
-    canvas.drawCircle(
-      center,
-      radius + 15,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = HrColors.accent.withValues(alpha: 0.32),
-    );
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 12
-        ..color = const Color(0xFF382A52),
-    );
-    canvas.drawCircle(
-      center,
-      radius - 9,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..color = const Color(0x22FFFFFF),
-    );
-    canvas.drawCircle(
-      center,
-      radius - 17,
+      radius - 8,
       Paint()
         ..shader = const RadialGradient(
-          colors: [Color(0xFF1C1830), Color(0xFF080912)],
-        ).createShader(Rect.fromCircle(center: center, radius: radius - 17)),
+          colors: [Color(0xE6141529), Color(0xCC0A0B14)],
+        ).createShader(Rect.fromCircle(center: center, radius: radius - 8)),
     );
-
-    for (var i = 0; i < 12; i++) {
-      final angle = -pi / 2 + i * (2 * pi / 12);
-      final outer = radius - 19;
-      final inner = radius - (i % 3 == 0 ? 27 : 24);
-      final tickPaint = Paint()
-        ..color = i % 3 == 0
-            ? HrColors.gold.withValues(alpha: 0.72)
-            : HrColors.accent.withValues(alpha: 0.34)
-        ..strokeWidth = i % 3 == 0 ? 1.5 : 1
-        ..strokeCap = StrokeCap.round;
-      canvas.drawLine(
-        center + Offset(cos(angle) * inner, sin(angle) * inner),
-        center + Offset(cos(angle) * outer, sin(angle) * outer),
-        tickPaint,
-      );
-    }
-
-    final sweep = 2 * pi * value.clamp(0.0, 1.0).toDouble();
-    if (sweep > 0) {
-      final glowPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 13
-        ..strokeCap = StrokeCap.round
-        ..shader = SweepGradient(
-          startAngle: -pi / 2,
-          endAngle: 3 * pi / 2,
-          colors: [
-            color,
-            HrColors.gold,
-            HrColors.accent,
-            color,
-          ],
-        ).createShader(ringRect)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-      canvas.drawArc(ringRect, -pi / 2, sweep, false, glowPaint);
-
-      final arcPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 10
-        ..strokeCap = StrokeCap.round
-        ..shader = SweepGradient(
-          startAngle: -pi / 2,
-          endAngle: 3 * pi / 2,
-          colors: [
-            color,
-            HrColors.gold,
-            HrColors.accent,
-            color,
-          ],
-        ).createShader(ringRect);
-      canvas.drawArc(ringRect, -pi / 2, sweep, false, arcPaint);
-    }
-
-    final markerAngle = -pi / 2 + sweep;
-    final markerCenter = center +
-        Offset(cos(markerAngle) * radius, sin(markerAngle) * radius);
-    final gem = Path()
-      ..moveTo(markerCenter.dx, markerCenter.dy - 10)
-      ..lineTo(markerCenter.dx + 7, markerCenter.dy)
-      ..lineTo(markerCenter.dx, markerCenter.dy + 10)
-      ..lineTo(markerCenter.dx - 7, markerCenter.dy)
-      ..close();
-    canvas.drawShadow(
-      gem,
-      HrColors.accent.withValues(alpha: 0.72),
-      value > 0 ? 9 : 3,
-      true,
-    );
-    canvas.drawPath(
-      gem,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF1B8), HrColors.gold, Color(0xFFB77BFF)],
-        ).createShader(Rect.fromCircle(center: markerCenter, radius: 11)),
-    );
-    final facet = Path()
-      ..moveTo(markerCenter.dx, markerCenter.dy - 8)
-      ..lineTo(markerCenter.dx, markerCenter.dy + 1)
-      ..lineTo(markerCenter.dx - 5, markerCenter.dy)
-      ..close();
-    canvas.drawPath(facet, Paint()..color = const Color(0x99FFFFFF));
-    canvas.drawPath(
-      gem,
+    // Outer halo.
+    canvas.drawCircle(
+      center,
+      radius,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.8
-        ..color = Color(0xFFFFF1B8),
+        ..strokeWidth = 22
+        ..color = color.withValues(alpha: 0.16)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+    );
+    // Track.
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 9
+        ..color = color.withValues(alpha: 0.22),
+    );
+
+    final v = value.clamp(0.0, 1.0).toDouble();
+    if (v <= 0) return;
+    // A small gap at 12 o'clock, like the reference ring.
+    const gap = 0.06;
+    final start = -pi / 2 + gap;
+    final sweep = (2 * pi - gap * 2) * v;
+    // t = 0 at 12 o'clock (rotated), with a cyan glint on the upper right.
+    final light = Color.lerp(color, Colors.white, 0.3)!;
+    final shader = SweepGradient(
+      transform: const GradientRotation(-pi / 2),
+      colors: [light, const Color(0xFF5FD4FF), color, color, light],
+      stops: const [0.02, 0.2, 0.36, 0.85, 1],
+    ).createShader(ringRect);
+    canvas.drawArc(
+      ringRect,
+      start,
+      sweep,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 14
+        ..strokeCap = StrokeCap.round
+        ..shader = shader
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+    );
+    canvas.drawArc(
+      ringRect,
+      start,
+      sweep,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 9
+        ..strokeCap = StrokeCap.round
+        ..shader = shader,
     );
   }
 
@@ -7087,31 +6890,46 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
-  int _seg = 0;
+  int _period = 0; // 0 = Month, 1 = Year, 2 = All time
 
-  // Compact entry to a game system (Prestige / Leaderboard).
-  Widget _progLink(BuildContext context, IconData icon, String label,
-      Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: HrColors.surface,
-          borderRadius: BorderRadius.circular(HrRadius.md),
-          border: Border.all(color: HrColors.hairline),
-        ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 6),
-          Text(label,
-              style: HrText.caption.copyWith(fontWeight: FontWeight.w600),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-        ]),
-      ),
-    );
+  static const _kDayInitials = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static const _kMonthInitials = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+
+  // The current period and the same stretch of the one before it.
+  ({DateTime from, DateTime to, DateTime? prevFrom, DateTime? prevTo}) _range() {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    switch (_period) {
+      case 0:
+        return (
+          from: DateTime(now.year, now.month, 1),
+          to: tomorrow,
+          prevFrom: DateTime(now.year, now.month - 1, 1),
+          prevTo: DateTime(now.year, now.month - 1, now.day + 1),
+        );
+      case 1:
+        return (
+          from: DateTime(now.year, 1, 1),
+          to: tomorrow,
+          prevFrom: DateTime(now.year - 1, 1, 1),
+          prevTo: DateTime(now.year - 1, now.month, now.day + 1),
+        );
+      default:
+        return (from: DateTime(2000), to: tomorrow, prevFrom: null, prevTo: null);
+    }
   }
+
+  static String _fmtMinutes(int m) {
+    if (m < 60) return '${m}m';
+    final h = m ~/ 60, r = m % 60;
+    return r == 0 ? '${h}h' : '${h}h ${r}m';
+  }
+
+  bool _activeOn(String k) =>
+      (appState.dailyDone[k] ?? 0) > 0 ||
+      (appState.dailyFocus[k] ?? 0) > 0 ||
+      appState.perfectDays.contains(k) ||
+      (appState.dailyScore[k] ?? 0) > 0;
 
   @override
   Widget build(BuildContext context) {
@@ -7119,95 +6937,533 @@ class _ProgressScreenState extends State<ProgressScreen> {
       backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: ListenableBuilder(
+          listenable: appState,
+          builder: (context, _) => ListView(
+            padding: const EdgeInsets.only(bottom: 28),
+            children: [
+              HrPageHeader(
+                title: 'Progress',
+                trailing: HrHeaderButton(
+                  icon: Icons.ios_share_rounded,
+                  tooltip: 'Share progress',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ShareCardScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _pad(HrSegmented(
+                items: const ['Month', 'Year', 'All time'],
+                index: _period,
+                onChanged: (i) => setState(() => _period = i),
+              )),
+              const SizedBox(height: 14),
+              _pad(_totalsCard()),
+              const SizedBox(height: 12),
+              _pad(_streakCard()),
+              const SizedBox(height: 12),
+              _pad(_xpChartCard()),
+              const SizedBox(height: 22),
+              _pad(HrLabel(
+                'Recent achievements',
+                trailing: HrLink('See all',
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const AwardsScreen()))),
+              )),
+              _pad(_recentAchievements()),
+              const SizedBox(height: 22),
+              _pad(const HrLabel('Your journey')),
+              _pad(_journeyGrid()),
+              const SizedBox(height: 14),
+              const _CompanionCard(),
+              const SizedBox(height: 4),
+              _pad(HrMenuGroup(children: [
+                HrMenuRow(
+                  icon: Icons.auto_awesome_rounded,
+                  iconColor: HrColors.gold,
+                  label: 'Prestige',
+                  subtitle: appState.canPrestige
+                      ? 'Ready — rebirth with a new star'
+                      : 'Unlocks at Level $kPrestigeMinLevel',
+                  value: appState.prestige > 0
+                      ? Text('★ ${appState.prestige}',
+                          style: HrText.bodyS.copyWith(
+                              color: HrColors.gold,
+                              fontWeight: FontWeight.w900))
+                      : null,
+                  onTap: () {
+                    // Ask to prestige right away if eligible; else explain why.
+                    if (appState.canPrestige) {
+                      _confirmPrestige(context);
+                    } else {
+                      hrToast(context,
+                          'Prestige unlocks at Level $kPrestigeMinLevel',
+                          icon: Icons.auto_awesome_rounded);
+                    }
+                  },
+                ),
+                HrMenuRow(
+                  icon: Icons.leaderboard_rounded,
+                  label: 'Leaderboard',
+                  subtitle: 'See how your friends are doing',
+                  onTap: () => shellTab.value = 3,
+                ),
+                HrMenuRow(
+                  icon: Icons.workspace_premium_rounded,
+                  label: 'Legacy',
+                  subtitle: 'Career bests and milestones',
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const LegacyScreen())),
+                ),
+              ])),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pad(Widget child) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: HrSpace.gutter),
+    child: child,
+  );
+
+  Widget _totalsCard() {
+    final r = _range();
+    final focus = appState.sumDays(appState.dailyFocus, r.from, r.to);
+    final done = appState.sumDays(appState.dailyDone, r.from, r.to);
+    int? delta(Map<String, int> m, int cur) {
+      if (r.prevFrom == null) return null;
+      final prev = appState.sumDays(m, r.prevFrom!, r.prevTo!);
+      if (prev == 0) return null;
+      return ((cur - prev) / prev * 100).round();
+    }
+
+    return HrCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      child: IntrinsicHeight(
+        child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                HrSpace.gutter,
-                4,
-                HrSpace.gutter,
-                0,
-              ),
-              child: Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Progress', style: HrText.display),
-                      Text('Every small win adds up.', style: HrText.caption),
-                    ],
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ShareCardScreen(),
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.ios_share_rounded,
-                      color: HrColors.text2,
-                    ),
-                    tooltip: 'Share progress',
-                  ),
-                ],
-              ),
-            ),
-            if (_seg != 3) const _CompanionCard(),
-            if (_seg != 3)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    HrSpace.gutter, 0, HrSpace.gutter, 10),
-                child: Row(children: [
-                  Expanded(
-                    child: _progLink(
-                        context, Icons.auto_awesome_rounded, 'Prestige',
-                        HrColors.gold, () {
-                      // Ask to prestige right away if eligible; else explain why.
-                      if (appState.canPrestige) {
-                        _confirmPrestige(context);
-                      } else {
-                        hrToast(context,
-                            'Prestige unlocks at Level $kPrestigeMinLevel',
-                            icon: Icons.auto_awesome_rounded);
-                      }
-                    }),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _progLink(context, Icons.leaderboard_rounded,
-                        'Leaderboard', HrColors.accent, () => shellTab.value = 3),
-                  ),
-                ]),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                HrSpace.gutter,
-                8,
-                HrSpace.gutter,
-                10,
-              ),
-              child: HrSegmented(
-                items: const ['Calendar', 'Stats', 'Awards', 'Journal'],
-                index: _seg,
-                onChanged: (i) => setState(() => _seg = i),
-              ),
-            ),
             Expanded(
-              // ignore: prefer_const_constructors, prefer_const_literals_to_create_immutables
-              child: IndexedStack(
-                index: _seg,
-                children: <Widget>[
-                  CalendarScreen(embedded: true),
-                  StatsScreen(embedded: true),
-                  AwardsScreen(embedded: true),
-                  JournalScreen(embedded: true),
-                ],
+              child: _totalStat(
+                icon: Icons.schedule_rounded,
+                colors: [HrColors.accentBright, HrColors.accent],
+                label: 'Total focus time',
+                value: _fmtMinutes(focus),
+                change: delta(appState.dailyFocus, focus),
+              ),
+            ),
+            const VerticalDivider(width: 20, color: HrColors.cardEdge),
+            Expanded(
+              child: _totalStat(
+                icon: Icons.check_rounded,
+                colors: const [Color(0xFF5BE3A6), Color(0xFF1FA971)],
+                label: 'Quests completed',
+                value: hrNum(done),
+                change: delta(appState.dailyDone, done),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _totalStat({
+    required IconData icon,
+    required List<Color> colors,
+    required String label,
+    required String value,
+    int? change,
+  }) {
+    final up = (change ?? 0) >= 0;
+    return Row(
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: colors,
+            ),
+            boxShadow: [
+              BoxShadow(color: colors.last.withValues(alpha: 0.45), blurRadius: 12),
+            ],
+          ),
+          child: Icon(icon, color: Colors.white, size: 24),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: HrText.micro.copyWith(color: HrColors.text2)),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(value,
+                    style: HrText.title2.copyWith(fontWeight: FontWeight.w900)),
+              ),
+              if (change != null)
+                Row(
+                  children: [
+                    Icon(
+                      up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                      size: 13,
+                      color: up ? HrColors.success : HrColors.dangerText,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${up ? '+' : ''}$change%',
+                      style: HrText.micro.copyWith(
+                        color: up ? HrColors.success : HrColors.dangerText,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _streakCard() {
+    final streak = appState.bestStreak;
+    final now = DateTime.now();
+    final monday = DateTime(now.year, now.month, now.day - (now.weekday - 1));
+    return HrCard(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Image.asset('assets/streaks/enamel_flame.png', width: 40, height: 40),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Day streak',
+                      style: HrText.caption.copyWith(color: HrColors.text2)),
+                  Text.rich(TextSpan(children: [
+                    TextSpan(
+                      text: '$streak',
+                      style: HrText.title1.copyWith(color: HrColors.gold),
+                    ),
+                    TextSpan(
+                      text: streak == 1 ? ' day' : ' days',
+                      style: HrText.title2,
+                    ),
+                  ])),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (var i = 0; i < 7; i++)
+                Builder(builder: (context) {
+                  final d = monday.add(Duration(days: i));
+                  final k = dateKey(d);
+                  final on = _activeOn(k);
+                  final isToday = dateKey(now) == k;
+                  return Semantics(
+                    label: '${_kDayInitials[i]}${on ? ', active' : ''}',
+                    excludeSemantics: true,
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: on
+                                ? const LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [HrColors.goldBright, HrColors.goldDeep],
+                                  )
+                                : null,
+                            border: on
+                                ? null
+                                : Border.all(color: HrColors.controlBorder, width: 1.5),
+                            boxShadow: on
+                                ? [
+                                    BoxShadow(
+                                      color: HrColors.gold.withValues(alpha: 0.5),
+                                      blurRadius: 9,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _kDayInitials[i],
+                          style: HrText.micro.copyWith(
+                            color: isToday ? HrColors.text : HrColors.text2,
+                            fontWeight: isToday ? FontWeight.w900 : FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Bars for the chart: daily for Month, monthly for Year / All time.
+  ({List<int> values, List<String> labels, String title}) _xpSeries() {
+    final now = DateTime.now();
+    final xp = appState.dailyXp;
+    if (_period == 0) {
+      final days = DateTime(now.year, now.month + 1, 0).day;
+      final values = [
+        for (var d = 1; d <= days; d++) xp[dateKey(DateTime(now.year, now.month, d))] ?? 0,
+      ];
+      final labels = [
+        for (var d = 1; d <= days; d++)
+          (d == 1 || d % 5 == 0) ? '$d' : '',
+      ];
+      return (values: values, labels: labels, title: 'XP this month');
+    }
+    // 12 monthly buckets: this year (Year) or the last 12 months (All time).
+    final start = _period == 1
+        ? DateTime(now.year, 1, 1)
+        : DateTime(now.year, now.month - 11, 1);
+    final values = <int>[];
+    final labels = <String>[];
+    for (var i = 0; i < 12; i++) {
+      final a = DateTime(start.year, start.month + i, 1);
+      final b = DateTime(start.year, start.month + i + 1, 1);
+      values.add(appState.sumDays(xp, a, b));
+      labels.add(_kMonthInitials[a.month - 1]);
+    }
+    return (
+      values: values,
+      labels: labels,
+      title: _period == 1 ? 'XP this year' : 'XP all time',
+    );
+  }
+
+  Widget _xpChartCard() {
+    final s = _xpSeries();
+    final total = _period == 2
+        ? appState.dailyXp.values.fold<int>(0, (a, b) => a + b)
+        : s.values.fold<int>(0, (a, b) => a + b);
+    final maxV = s.values.fold<int>(0, max);
+    final peak = maxV == 0 ? -1 : s.values.indexOf(maxV);
+    return HrCard(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(s.title, style: HrText.headline)),
+              Text('${hrNum(total)} XP',
+                  style: HrText.headline.copyWith(
+                      color: HrColors.gold, fontWeight: FontWeight.w900)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 128,
+            child: LayoutBuilder(builder: (context, c) {
+              final n = s.values.length;
+              final slot = c.maxWidth / n;
+              final barW = max(3.0, min(slot * 0.62, 18.0));
+              const chartTop = 26.0, chartH = 128.0 - chartTop;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Faint guide lines.
+                  for (var g = 0; g < 3; g++)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: chartTop + chartH * g / 3,
+                      child: Container(height: 1, color: const Color(0x14FFFFFF)),
+                    ),
+                  for (var i = 0; i < n; i++)
+                    Positioned(
+                      left: slot * i + (slot - barW) / 2,
+                      bottom: 0,
+                      width: barW,
+                      height: maxV == 0
+                          ? 5
+                          : max(4.0, chartH * s.values[i] / maxV),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(barW / 2),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: maxV > 0 && s.values[i] >= maxV * 0.7
+                                ? [HrColors.goldBright, HrColors.gold, HrColors.accent]
+                                : [HrColors.accentBright, HrColors.accent],
+                            stops: maxV > 0 && s.values[i] >= maxV * 0.7
+                                ? const [0, 0.35, 1]
+                                : null,
+                          ),
+                          boxShadow: s.values[i] > 0
+                              ? [
+                                  BoxShadow(
+                                    color: HrColors.accent.withValues(alpha: 0.35),
+                                    blurRadius: 6,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                      ),
+                    ),
+                  if (peak >= 0)
+                    Positioned(
+                      left: (slot * peak + slot / 2 - 34).clamp(0.0, c.maxWidth - 68),
+                      top: 0, // just above the tallest bar
+                      width: 68,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: HrColors.surface2,
+                            borderRadius: BorderRadius.circular(HrRadius.xs),
+                            border: Border.all(color: HrColors.accentBright),
+                          ),
+                          child: Text('${hrNum(maxV)} XP',
+                              style: HrText.micro.copyWith(color: HrColors.text)),
+                        ),
+                      ),
+                    ),
+                  if (maxV == 0)
+                    Positioned.fill(
+                      child: Center(
+                        child: Text(
+                          'Complete quests to fill this chart',
+                          style: HrText.caption,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            }),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              for (final l in s.labels)
+                Expanded(
+                  child: Text(
+                    l,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.visible,
+                    softWrap: false,
+                    style: HrText.micro.copyWith(color: HrColors.text2),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _recentAchievements() {
+    final earned = kAchievements.where(appState.isAchievementEarned).toList();
+    final show = earned.isNotEmpty
+        ? earned.reversed.take(3).toList()
+        : kAchievements.take(3).toList();
+    return Row(
+      children: [
+        for (var i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: i < show.length
+                ? _achievementMini(show[i], appState.isAchievementEarned(show[i]))
+                : const SizedBox(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _achievementMini(Achievement a, bool earned) => HrCard(
+    onTap: () => Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const AwardsScreen())),
+    padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+    radius: HrRadius.md,
+    child: Column(
+      children: [
+        Opacity(
+          opacity: earned ? 1 : 0.4,
+          child: Image.asset(a.imageAsset, width: 60, height: 60),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          a.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: HrText.bodyS.copyWith(
+              color: HrColors.text, fontWeight: FontWeight.w800, fontSize: 13),
+        ),
+        Text(
+          earned ? a.description : 'Locked',
+          maxLines: 2,
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          style: HrText.micro.copyWith(color: HrColors.text2),
+        ),
+      ],
+    ),
+  );
+
+  Widget _journeyGrid() {
+    final items = <(String, IconData, Color, Widget Function())>[
+      ('Calendar', Icons.calendar_month_rounded, const Color(0xFF62D5FF), () => const CalendarScreen()),
+      ('Stats', Icons.insights_rounded, HrColors.accentBright, () => const StatsScreen()),
+      ('Awards', Icons.emoji_events_rounded, HrColors.gold, () => const AwardsScreen()),
+      ('Journal', Icons.menu_book_rounded, const Color(0xFFFF6EB4), () => const JournalScreen()),
+    ];
+    return Row(
+      children: [
+        for (var i = 0; i < items.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: HrCard(
+              onTap: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => items[i].$4())),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              radius: HrRadius.md,
+              child: Column(
+                children: [
+                  HrIconTile(icon: items[i].$2, color: items[i].$3, size: 44),
+                  const SizedBox(height: 8),
+                  Text(items[i].$1,
+                      style: HrText.caption.copyWith(
+                          color: HrColors.text, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

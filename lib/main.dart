@@ -8001,14 +8001,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   .push(MaterialPageRoute(builder: (_) => items[i].$4())),
               padding: const EdgeInsets.symmetric(vertical: 12),
               radius: HrRadius.md,
-              child: Column(
-                children: [
-                  HrIconTile(icon: items[i].$2, color: items[i].$3, size: 44),
-                  const SizedBox(height: 8),
-                  Text(items[i].$1,
-                      style: HrText.caption.copyWith(
-                          color: HrColors.text, fontWeight: FontWeight.w800)),
-                ],
+              child: SizedBox(
+                width: double.infinity, // full width, so the column centers
+                child: Column(
+                  children: [
+                    HrIconTile(icon: items[i].$2, color: items[i].$3, size: 44),
+                    const SizedBox(height: 8),
+                    Text(items[i].$1,
+                        textAlign: TextAlign.center,
+                        style: HrText.caption.copyWith(
+                            color: HrColors.text, fontWeight: FontWeight.w800)),
+                  ],
+                ),
               ),
             ),
           ),

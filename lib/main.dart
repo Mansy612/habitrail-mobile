@@ -33,6 +33,7 @@ import 'ai.dart';
 import 'auth.dart';
 import 'backend.dart';
 import 'friends.dart';
+import 'profanity.dart';
 import 'purchases.dart';
 import 'ui/hr_tokens.dart';
 import 'ui/hr_theme.dart';

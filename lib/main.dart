@@ -7451,7 +7451,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
               _pad(_xpChartCard()),
               const SizedBox(height: 22),
               _pad(HrLabel(
-                'Recent achievements',
+                appState.recentAchievements.isEmpty
+                    ? 'Next achievements'
+                    : 'Recent achievements',
                 trailing: HrLink('See all',
                     onTap: () => Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => const AwardsScreen()))),
@@ -7934,52 +7936,63 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   Widget _recentAchievements() {
-    final earned = kAchievements.where(appState.isAchievementEarned).toList();
-    final show = earned.isNotEmpty
-        ? earned.reversed.take(3).toList()
-        : kAchievements.take(3).toList();
-    return Row(
-      children: [
-        for (var i = 0; i < 3; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          Expanded(
-            child: i < show.length
-                ? _achievementMini(show[i], appState.isAchievementEarned(show[i]))
-                : const SizedBox(),
-          ),
+    // The three most recently earned; any free slots go to the next ones to
+    // unlock, which say how to earn them.
+    final show = [
+      ...appState.recentAchievements,
+      ...kAchievements.where((a) => !appState.isAchievementEarned(a)),
+    ].take(3).toList();
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < show.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(
+              child: _achievementMini(
+                  show[i], appState.isAchievementEarned(show[i])),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
-  Widget _achievementMini(Achievement a, bool earned) => HrCard(
-    onTap: () => Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const AwardsScreen())),
-    padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
-    radius: HrRadius.md,
-    child: Column(
-      children: [
-        Opacity(
-          opacity: earned ? 1 : 0.4,
-          child: Image.asset(a.imageAsset, width: 60, height: 60),
+  Widget _achievementMini(Achievement a, bool earned) => Semantics(
+    button: true,
+    label: '${a.title}, ${earned ? 'earned' : 'locked'}. ${a.description}',
+    excludeSemantics: true,
+    child: HrCard(
+      onTap: () => _showAchievementDetails(context, a),
+      padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+      radius: HrRadius.md,
+      child: SizedBox(
+        width: double.infinity, // full width, so the column centers
+        child: Column(
+          children: [
+            _AchievementBadge(a, earned: earned, size: 60),
+            const SizedBox(height: 8),
+            Text(
+              a.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: HrText.bodyS.copyWith(
+                  color: earned ? HrColors.text : HrColors.text2,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  height: 1.2),
+            ),
+            Text(
+              a.description,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.micro.copyWith(color: HrColors.text2),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          a.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: HrText.bodyS.copyWith(
-              color: HrColors.text, fontWeight: FontWeight.w800, fontSize: 13),
-        ),
-        Text(
-          earned ? a.description : 'Locked',
-          maxLines: 2,
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: HrText.micro.copyWith(color: HrColors.text2),
-        ),
-      ],
+      ),
     ),
   );
 
@@ -10628,10 +10641,9 @@ class _AwardsScreenState extends State<AwardsScreen> {
       );
 
   Widget _liveBuild(BuildContext context) {
-    final earnedList = kAchievements.where(appState.isAchievementEarned).toList();
+    final earnedList = appState.recentAchievements;
     final total = kAchievements.length;
-    // The hardest earned award stands in for "latest" (no timestamps stored).
-    final latest = earnedList.isEmpty ? null : earnedList.last;
+    final latest = earnedList.isEmpty ? null : earnedList.first;
     final next = kAchievements.firstWhere(
       (a) => !appState.isAchievementEarned(a),
       orElse: () => kAchievements.last,
@@ -10725,50 +10737,92 @@ class _AwardsScreenState extends State<AwardsScreen> {
   }
 }
 
+// An award's details: badge, how to earn it, rarity and whether it's earned.
+void _showAchievementDetails(BuildContext context, Achievement a) {
+  final on = appState.isAchievementEarned(a);
+  final color = HrColors.rarity[a.rarity] ?? HrColors.text3;
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Full width, or the sheet shrinks to a narrow card.
+            const SizedBox(width: double.infinity),
+            Opacity(
+              opacity: on ? 1 : 0.45,
+              child: Image.asset(a.imageAsset, width: 110, height: 110),
+            ),
+            const SizedBox(height: 12),
+            Text(a.title, style: HrText.title1),
+            const SizedBox(height: 6),
+            Text(a.description, textAlign: TextAlign.center, style: HrText.body),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(HrRadius.xs),
+              ),
+              child: Text(
+                '${a.rarity.toUpperCase()} · ${on ? 'EARNED' : 'LOCKED'}',
+                style: HrText.micro.copyWith(
+                    color: color, fontWeight: FontWeight.w900, letterSpacing: 0.8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// An award badge, dimmed with a small lock while it's still locked.
+class _AchievementBadge extends StatelessWidget {
+  const _AchievementBadge(this.a, {required this.earned, this.size = 62});
+  final Achievement a;
+  final bool earned;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: Opacity(
+                opacity: earned ? 1 : 0.4,
+                child: Image.asset(a.imageAsset, fit: BoxFit.contain),
+              ),
+            ),
+            if (!earned)
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: HrColors.surface2,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: HrColors.cardEdge),
+                  ),
+                  child: const Icon(Icons.lock_rounded,
+                      size: 12, color: HrColors.text2),
+                ),
+              ),
+          ],
+        ),
+      );
+}
+
 class _AchievementCard extends StatelessWidget {
   const _AchievementCard(this.a, {this.highlight = false});
   final Achievement a;
   final bool highlight;
-
-  void _details(BuildContext context, bool on) {
-    final color = HrColors.rarity[a.rarity] ?? HrColors.text3;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Full width, or the sheet shrinks to a narrow card.
-              const SizedBox(width: double.infinity),
-              Opacity(
-                opacity: on ? 1 : 0.45,
-                child: Image.asset(a.imageAsset, width: 110, height: 110),
-              ),
-              const SizedBox(height: 12),
-              Text(a.title, style: HrText.title1),
-              const SizedBox(height: 6),
-              Text(a.description, textAlign: TextAlign.center, style: HrText.body),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(HrRadius.xs),
-                ),
-                child: Text(
-                  '${a.rarity.toUpperCase()} · ${on ? 'EARNED' : 'LOCKED'}',
-                  style: HrText.micro.copyWith(
-                      color: color, fontWeight: FontWeight.w900, letterSpacing: 0.8),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -10783,7 +10837,7 @@ class _AchievementCard extends StatelessWidget {
       label: '${a.title}, ${on ? 'earned' : 'locked'}',
       excludeSemantics: true,
       child: HrCard(
-        onTap: () => _details(context, on),
+        onTap: () => _showAchievementDetails(context, a),
         highlight: highlight,
         radius: HrRadius.md,
         padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
@@ -10791,36 +10845,7 @@ class _AchievementCard extends StatelessWidget {
           child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(
-              width: 62,
-              height: 62,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: on ? 1 : 0.4,
-                      child: Image.asset(a.imageAsset, fit: BoxFit.contain),
-                    ),
-                  ),
-                  if (!on)
-                    Positioned(
-                      right: -2,
-                      bottom: -2,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: HrColors.surface2,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: HrColors.cardEdge),
-                        ),
-                        child: const Icon(Icons.lock_rounded,
-                            size: 12, color: HrColors.text2),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+            _AchievementBadge(a, earned: on),
             const SizedBox(height: 10),
             Text(
               a.title,

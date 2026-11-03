@@ -288,6 +288,34 @@ void main() {
       expect(find.text('2 active months · avg 75 XP'), findsOneWidget);
     });
 
+    testWidgets('achievements: next ones first, then most recent first', (t) async {
+      await _app(t);
+      // A fresh account's 9 starter habits already earn Collector; start
+      // from zero progress instead.
+      for (final h in appState.habits.toList()) {
+        appState.deleteHabit(h);
+      }
+      appState.earnedAchievements.clear(); // earned awards are kept for good
+      await _tab(t, 2);
+      // Nothing earned yet: say what's next and how to earn it.
+      expect(appState.recentAchievements, isEmpty);
+      expect(find.text('Next achievements'), findsOneWidget);
+      expect(find.text('Complete your first habit'), findsOneWidget);
+      expect(find.text('Locked'), findsNothing);
+      // Earned in this order: Getting Started, then First Step.
+      appState.earnedAchievements
+        ..add('xp100')
+        ..add('first');
+      appState.notifyListeners();
+      await _settle(t);
+      expect(find.text('Recent achievements'), findsOneWidget);
+      expect(appState.recentAchievements.map((a) => a.id).take(2),
+          ['first', 'xp100']);
+      // Tapping a tile opens that award's details.
+      await _tap(t, find.text('First Step'));
+      expect(find.text('COMMON · EARNED'), findsOneWidget);
+    });
+
     test('XP chart scale keeps one day from filling the chart', () {
       final one = [0, 120, 0, 0];
       expect(120 / xpChartScale(one), closeTo(0.5, 0.01));

@@ -1805,6 +1805,20 @@ class AppState extends ChangeNotifier {
   bool isAchievementEarned(Achievement a) =>
       earnedAchievements.contains(a.id) || a.unlocked(this);
 
+  /// Earned achievements, most recent first. The earned set keeps unlock
+  /// order; anything unlocked but not recorded yet counts as newest.
+  List<Achievement> get recentAchievements {
+    final byId = {for (final a in kAchievements) a.id: a};
+    final recorded = [
+      for (final id in earnedAchievements)
+        if (byId[id] != null) byId[id]!,
+    ];
+    final pending = kAchievements
+        .where((a) => !earnedAchievements.contains(a.id) && a.unlocked(this))
+        .toList();
+    return [...pending.reversed, ...recorded.reversed];
+  }
+
   // Returns the achievements earned since the last call, then clears the queue
   // so each unlock is only celebrated once.
   List<Achievement> consumeNewAchievements() {

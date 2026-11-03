@@ -5839,7 +5839,7 @@ class _GuildDetailScreenState extends State<GuildDetailScreen> {
   void _invite() {
     SharePlus.instance.share(ShareParams(
       text: 'Join my guild "${widget.name}" on Habitrail — '
-          'search for it in Friends → Guilds and build better habits with us.',
+          'search for it in Social → Guilds and build better habits with us.',
     ));
   }
 
@@ -9340,7 +9340,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
             child: Column(
               children: [
                 HrPageHeader(
-                  title: 'Friends',
+                  title: 'Social',
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -14163,7 +14163,7 @@ class SettingsScreen extends StatelessWidget {
                         ),
                         HrMenuRow(
                           icon: Icons.group_rounded,
-                          label: 'Friends',
+                          label: 'Social',
                           onTap: () => shellTab.value = 3,
                         ),
                       ]),

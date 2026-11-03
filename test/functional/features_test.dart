@@ -340,7 +340,7 @@ void main() {
       await _tap(t, find.text('Save'));
       expect(appState.displayName, 'Renamed');
       expect(find.text('Renamed'), findsWidgets);
-      await _tap(t, find.text('Friends'));
+      await _tap(t, find.text('Social'));
       expect(shellTab.value, 3);
     });
 

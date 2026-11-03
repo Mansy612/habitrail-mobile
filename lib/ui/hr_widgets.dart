@@ -1773,7 +1773,7 @@ const hrTabs = [
   HrTabItem(Icons.home_rounded, Icons.home_rounded, 'Today'),
   HrTabItem(Icons.timer_outlined, Icons.timer_rounded, 'Focus'),
   HrTabItem(Icons.bar_chart_rounded, Icons.bar_chart_rounded, 'Progress'),
-  HrTabItem(Icons.group_rounded, Icons.group_rounded, 'Friends'),
+  HrTabItem(Icons.group_rounded, Icons.group_rounded, 'Social'),
   HrTabItem(Icons.person_rounded, Icons.person_rounded, 'Profile'),
 ];
 

@@ -6621,9 +6621,10 @@ class FocusScreen extends StatefulWidget {
 
 class _FocusScreenState extends State<FocusScreen> {
   // Preset session lengths (Custom picks anything else).
+  // Shortest to longest; Custom follows.
   static const _presets = <(String, String, IconData, int)>[
-    ('Pomodoro', '25 min', Icons.timer_outlined, 25),
     ('Short', '5 min', Icons.eco_rounded, 5),
+    ('Pomodoro', '25 min', Icons.timer_outlined, 25),
     ('Long', '50 min', Icons.hourglass_bottom_rounded, 50),
   ];
   static const _customChoices = [10, 15, 20, 30, 45, 60, 90, 120];

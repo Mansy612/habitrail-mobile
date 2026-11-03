@@ -133,6 +133,44 @@ Run `supabase/migrations/20261029070000_content_reports.sql`: it creates
 only; no read policy — review reports via the dashboard / service role). Until
 it's run, reporting silently no-ops; blocking still works.
 
+## 2j. Admin console (coins, Premium, bans) — optional
+
+Lets admin accounts give or take coins, grant or revoke Premium, and ban or
+unban any account from **Settings → Admin console** (the row only appears for
+admins). Run `supabase/migrations/20261103000000_admin_console.sql` after all
+the migrations above (it re-creates the party, guild and chat write RPCs with
+a ban check, so it must come last).
+
+It creates, all with RLS on and no client policies:
+- `admins` — who is an admin. Admin status is server-side only.
+- `coin_grants` — a ledger of coin adjustments. Coins live on each device, so
+  the target's app applies each row once on its next launch / sign-in and
+  acknowledges it (`ack_coin_grants`), which stamps `applied_at`.
+- `premium_overrides` — `grant` / `revoke`, which the app's entitlement check
+  respects over the device's own purchase. No row = the device decides.
+- `user_bans` — banned accounts are refused at sign-in and can't write chat,
+  party, guild or friend rows (RPC checks + restrictive RLS policies).
+  `admin_set_ban` also sets `auth.users.banned_until` so Supabase Auth itself
+  refuses the account; if the database role can't write `auth.users`, the
+  app's own sign-in check and the RLS/RPC blocks still apply.
+- `account_snapshots` — the coin balance and Premium state each app last
+  reported, so the console can show them. Display only.
+- `admin_actions` — an audit log of every admin action.
+
+Every `admin_*` function checks the caller is in `admins` and is not callable
+by `anon`. The migration makes nobody an admin. Seed the first one in the SQL
+editor with the email that account signs in with:
+
+```sql
+insert into public.admins (user_id)
+select id from auth.users where lower(email) = lower('you@example.com')
+on conflict do nothing;
+```
+
+Sign out and back in (or relaunch) and the Admin console row appears. Until
+the migration is deployed the app behaves exactly as before: the status check
+reads as "not an admin, not banned, no override".
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

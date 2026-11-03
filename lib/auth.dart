@@ -68,6 +68,9 @@ String? validateCredentials(String email, String password) {
   return null;
 }
 
+/// Shown when a banned account tries to sign in (see lib/admin.dart).
+const kSuspendedMessage = 'This account has been suspended.';
+
 /// The seam the real Supabase backend will implement later.
 abstract class AuthService {
   /// true once a real cloud backend is wired (so the UI can hide the

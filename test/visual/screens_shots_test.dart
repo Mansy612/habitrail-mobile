@@ -16,11 +16,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:habitrail/admin.dart';
 import 'package:habitrail/core.dart';
 import 'package:habitrail/friends.dart';
 import 'package:habitrail/main.dart';
 import 'package:habitrail/ui/hr_theme.dart';
 import 'package:habitrail/ui/hr_widgets.dart';
+
+import '../support/fake_admin.dart';
 
 const _on = bool.fromEnvironment('SHOTS');
 const _out = String.fromEnvironment('SHOTS_DIR', defaultValue: 'build/shots');
@@ -78,6 +81,8 @@ Future<void> _seed() async {
   s.coins += 2480;
   s.setDisplayName('Alex');
   s.markBriefingSeen();
+  // Admin console against an in-memory server.
+  adminApi = FakeAdminApi();
   // Local demo directory → a filled leaderboard.
   await friends.load();
   for (final f in friends.suggestions().take(7).toList()) {
@@ -184,6 +189,9 @@ void main() {
       'login': () => const LoginScreen(),
       'app_settings': () => const AppSettingsScreen(),
       'friend_profile': () => FriendProfileScreen(friendId: friends.friends.first.id),
+      'admin': () => const AdminScreen(),
+      'admin_user': () => AdminUserScreen(user: sampleAdminUsers()[2]),
+      'admin_user_banned': () => AdminUserScreen(user: sampleAdminUsers()[1]),
     };
     if (_tall) tester.view.physicalSize = Size(_w * 2, 1700 * 2);
     for (final e in routes.entries) {
@@ -192,6 +200,17 @@ void main() {
       await _shot(tester, e.key);
       _navKey.currentState!.pop();
       await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    // Settings as an admin sees it (with the Admin console row).
+    if (_wanted('app_settings_admin')) {
+      adminAccess.value = true;
+      _navKey.currentState!
+          .push(MaterialPageRoute<void>(builder: (_) => const AppSettingsScreen()));
+      await _shot(tester, 'app_settings_admin');
+      _navKey.currentState!.pop();
+      await tester.pump(const Duration(milliseconds: 600));
+      adminAccess.value = false;
     }
 
     // Sheets and dialogs, opened over Today.

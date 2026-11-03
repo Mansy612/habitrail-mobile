@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:habitrail/admin.dart';
 import 'package:habitrail/core.dart';
 import 'package:habitrail/friends.dart';
 import 'package:habitrail/main.dart';
@@ -13,6 +14,7 @@ import 'package:habitrail/ui/hr_theme.dart';
 import 'package:habitrail/ui/hr_widgets.dart';
 
 import '../support/app_fonts.dart';
+import '../support/fake_admin.dart';
 
 final _nav = GlobalKey<NavigatorState>();
 
@@ -67,6 +69,9 @@ Future<void> _seed() async {
   for (final f in friends.suggestions().take(4).toList()) {
     await friends.addByUsername(f.username);
   }
+  // Admin console against an in-memory server; the Settings row shows too.
+  adminApi = FakeAdminApi();
+  adminAccess.value = true;
   shellTab.value = 0;
 }
 
@@ -205,6 +210,9 @@ void main() {
     (name: 'personalize', build: () => const OnboardingQuizScreen(), tab: 0),
     (name: 'signup', build: () => const SignUpScreen(), tab: 0),
     (name: 'login', build: () => const LoginScreen(), tab: 0),
+    (name: 'admin', build: () => const AdminScreen(), tab: 0),
+    for (final u in sampleAdminUsers())
+      (name: 'admin_user_${u.username}', build: () => AdminUserScreen(user: u), tab: 0),
     (name: 'friend_profile',
         build: () => FriendProfileScreen(friendId: friends.friends.first.id), tab: 0),
   ];

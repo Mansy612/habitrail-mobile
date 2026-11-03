@@ -681,9 +681,18 @@ class AppState extends ChangeNotifier {
   bool aiEnabled = true;
   String aiBaseUrl = kDefaultAiBaseUrl;
   String aiModel = kDefaultAiModel;
-  // Premium + AI-coach quota (freemium). isPremium is a stub flag until the
-  // Premium Pass ships; coach usage counts against a weekly allowance.
-  bool isPremium = false;
+  // Premium + AI-coach quota (freemium). ownPremium is this device's own
+  // entitlement (store purchase / scaffold); coach usage counts against a
+  // weekly allowance.
+  bool ownPremium = false;
+  // Admin Premium override from the server (lib/admin.dart): 'grant' / 'revoke'
+  // win over ownPremium; '' = no override. Belongs to the signed-in account.
+  String premiumOverride = '';
+  bool get isPremium =>
+      premiumOverride == 'grant' || (premiumOverride != 'revoke' && ownPremium);
+  // Server coin-adjustment ids applied here but not yet acknowledged, so a
+  // failed acknowledgement can never apply the same adjustment twice.
+  final Set<String> appliedCoinGrants = {};
   int coachUsesThisWeek = 0;
   String coachWeekKey = ''; // Monday dateKey the current count belongs to
   // Premium entitlement. isPremium is the gate; plan/since drive the manage
@@ -980,7 +989,7 @@ class AppState extends ChangeNotifier {
   /// itself is handled by the caller's PurchaseController; this records the
   /// entitlement. Real IAP will call this on a verified purchase/restore.
   void activatePremium(String plan) {
-    isPremium = true;
+    ownPremium = true;
     premiumPlan = plan;
     if (premiumSince.isEmpty) premiumSince = dateKey(DateTime.now());
     notifyListeners();
@@ -990,14 +999,55 @@ class AppState extends ChangeNotifier {
   /// Drop the Premium entitlement (cancel / lapse). Falls back off the exclusive
   /// premium theme if it was active so the UI never shows a locked accent.
   void cancelPremium() {
-    isPremium = false;
+    ownPremium = false;
     premiumPlan = 'none';
     premiumSince = '';
-    if (themeId == kPremiumThemeId) {
+    _dropLockedTheme();
+    notifyListeners();
+    _save();
+  }
+
+  void _dropLockedTheme() {
+    if (!isPremium && themeId == kPremiumThemeId) {
       themeId = ownedThemes.contains('violet') ? 'violet' : ownedThemes.first;
       applyThemeColors(themeId);
     }
+  }
+
+  /// Apply the server's Premium override: 'grant', 'revoke', or anything else
+  /// for none (the device's own entitlement decides).
+  void setPremiumOverride(String state) {
+    final s = (state == 'grant' || state == 'revoke') ? state : '';
+    if (s == premiumOverride) return;
+    premiumOverride = s;
+    _dropLockedTheme();
     notifyListeners();
+    _save();
+  }
+
+  /// Apply admin coin adjustments, each id once (the balance never goes below
+  /// zero). Saved before returning, so the server can then be told they're
+  /// done. Returns the net change applied.
+  Future<int> applyCoinGrants(
+      Iterable<({String id, int amount})> grants) async {
+    var net = 0;
+    var fresh = false;
+    for (final g in grants) {
+      if (!appliedCoinGrants.add(g.id)) continue; // already applied here
+      fresh = true;
+      net += g.amount;
+    }
+    if (!fresh) return 0;
+    final before = coins;
+    coins = max(0, coins + net);
+    notifyListeners();
+    await _save();
+    return coins - before;
+  }
+
+  /// The server acknowledged these adjustments; stop remembering them.
+  void forgetCoinGrants(Iterable<String> ids) {
+    appliedCoinGrants.removeAll(ids);
     _save();
   }
 
@@ -1387,6 +1437,7 @@ class AppState extends ChangeNotifier {
     dailyDone.clear();
     streakShields = 0;
     xpBoostDate = null;
+    premiumOverride = ''; // the previous account's; the new one syncs its own
     // Mark today's briefing as seen so a new account doesn't get the morning
     // briefing immediately after the onboarding flow (double welcome). The first
     // real briefing then appears the next day.
@@ -1557,10 +1608,15 @@ class AppState extends ChangeNotifier {
       aiEnabled = (m['aiEnabled'] as bool?) ?? true;
       aiBaseUrl = (m['aiBaseUrl'] as String?) ?? kDefaultAiBaseUrl;
       aiModel = (m['aiModel'] as String?) ?? kDefaultAiModel;
-      isPremium = (m['isPremium'] as bool?) ?? false;
+      ownPremium = (m['isPremium'] as bool?) ?? false;
+      premiumOverride = (m['premiumOverride'] as String?) ?? '';
+      appliedCoinGrants
+        ..clear()
+        ..addAll(((m['appliedCoinGrants'] as List?) ?? const [])
+            .map((e) => e as String));
       coachUsesThisWeek = (m['coachUsesThisWeek'] as int?) ?? 0;
       coachWeekKey = (m['coachWeekKey'] as String?) ?? '';
-      premiumPlan = (m['premiumPlan'] as String?) ?? (isPremium ? 'annual' : 'none');
+      premiumPlan = (m['premiumPlan'] as String?) ?? (ownPremium ? 'annual' : 'none');
       premiumSince = (m['premiumSince'] as String?) ?? '';
       weeklyReportText = (m['weeklyReportText'] as String?) ?? '';
       weeklyReportWeekKey = (m['weeklyReportWeekKey'] as String?) ?? '';
@@ -1689,7 +1745,9 @@ class AppState extends ChangeNotifier {
           'aiEnabled': aiEnabled,
           'aiBaseUrl': aiBaseUrl,
           'aiModel': aiModel,
-          'isPremium': isPremium,
+          'isPremium': ownPremium,
+          'premiumOverride': premiumOverride,
+          'appliedCoinGrants': appliedCoinGrants.toList(),
           'coachUsesThisWeek': coachUsesThisWeek,
           'coachWeekKey': coachWeekKey,
           'premiumPlan': premiumPlan,

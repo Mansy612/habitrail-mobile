@@ -140,11 +140,20 @@ class SupabaseAuthService implements AuthService {
           .signInWithPassword(email: email.trim(), password: password);
       final u = res.user;
       if (u == null) return const AuthResult.fail('Incorrect email or password.');
+      // A ban normally stops sign-in in Supabase Auth itself; this catches a
+      // ban that only reached the database (see the admin console migration).
+      if (await _isBanned()) {
+        await signOut();
+        return const AuthResult.fail(kSuspendedMessage);
+      }
       final profile = await _profile(u.id);
       return AuthResult.ok(_toAuthUser(u,
           username: profile?['username'] as String?,
           name: profile?['name'] as String?));
     } on AuthException catch (e) {
+      if (e.code == 'user_banned' || e.message.toLowerCase().contains('banned')) {
+        return const AuthResult.fail(kSuspendedMessage);
+      }
       return AuthResult.fail(e.message);
     } catch (_) {
       return const AuthResult.fail('Could not sign in. Try again.');
@@ -162,11 +171,19 @@ class SupabaseAuthService implements AuthService {
   Future<AuthUser?> currentUser() async {
     final u = _sb.auth.currentUser;
     if (u == null) return null;
+    if (await _isBanned()) {
+      await signOut(); // banned since the last launch
+      return null;
+    }
     final profile = await _profile(u.id);
     return _toAuthUser(u,
         username: profile?['username'] as String?,
         name: profile?['name'] as String?);
   }
+
+  /// Offline, or the migration not deployed, reads as not banned.
+  Future<bool> _isBanned() async =>
+      (await fetchAccountStatus())?['banned'] == true;
 
   @override
   Future<void> updateName(String name) async {
@@ -729,5 +746,104 @@ Future<void> syncAfterSignIn() async {
     await appState.importSave((data['save'] as Map).cast<String, dynamic>());
   } else {
     await backupNow();
+  }
+}
+
+// ── Account status + admin console ────────────────────────────────────────────
+// Moderation is enforced server-side (supabase/migrations/..._admin_console.sql):
+// every admin_* RPC refuses non-admins, and banned accounts can't write chat,
+// party or guild rows. lib/admin.dart builds the app side on these calls.
+
+/// The signed-in user's own status: admin flag, ban, Premium override and
+/// coin adjustments not yet applied. Null when signed out, offline, or the
+/// migration isn't deployed.
+Future<Map<String, dynamic>?> fetchAccountStatus() async {
+  if (!backendEnabled || _uid == null) return null;
+  try {
+    final r = await _sb.rpc('my_account_status');
+    return r is Map ? r.cast<String, dynamic>() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Marks coin adjustments as applied on this device. False if it didn't land.
+Future<bool> ackCoinGrants(List<String> ids) async {
+  if (!backendEnabled || _uid == null || ids.isEmpty) return false;
+  try {
+    await _sb.rpc('ack_coin_grants', params: {'p_ids': ids});
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Reports this device's coin balance and own Premium state, so the admin
+/// console can show them (coins live on-device). Display only.
+Future<void> reportAccountSnapshot(
+    {required int coins, required bool premium}) async {
+  if (!backendEnabled || _uid == null) return;
+  try {
+    await _sb.rpc('report_account_snapshot',
+        params: {'p_coins': coins, 'p_premium': premium});
+  } catch (_) {}
+}
+
+const _adminSignedOut = 'Sign in to use the admin console.';
+const _adminOffline = 'Could not reach the server. Try again.';
+
+/// Accounts matching [query] (username, name or email; blank = recently
+/// active), or the server's error.
+Future<(List<Map<String, dynamic>>, String?)> adminSearchUsers(
+    String query) async {
+  if (!backendEnabled || _uid == null) {
+    return (const <Map<String, dynamic>>[], _adminSignedOut);
+  }
+  try {
+    final r = await _sb.rpc('admin_search_users', params: {'p_query': query});
+    return ((r as List).cast<Map<String, dynamic>>(), null);
+  } on PostgrestException catch (e) {
+    return (const <Map<String, dynamic>>[], e.message);
+  } catch (_) {
+    return (const <Map<String, dynamic>>[], _adminOffline);
+  }
+}
+
+/// Runs an admin RPC; null on success, otherwise the error to show.
+Future<String?> _adminCall(String fn, Map<String, dynamic> params) async {
+  if (!backendEnabled || _uid == null) return _adminSignedOut;
+  try {
+    await _sb.rpc(fn, params: params);
+    return null;
+  } on PostgrestException catch (e) {
+    return e.message;
+  } catch (_) {
+    return _adminOffline;
+  }
+}
+
+Future<String?> adminAdjustCoins(String userId, int amount, String note) =>
+    _adminCall('admin_adjust_coins',
+        {'p_user': userId, 'p_amount': amount, 'p_note': note});
+
+/// [state] is 'grant', 'revoke' or 'none' (back to the device's own state).
+Future<String?> adminSetPremium(String userId, String state) =>
+    _adminCall('admin_set_premium', {'p_user': userId, 'p_state': state});
+
+/// Bans or unbans. authBlocked is true when Supabase Auth itself now refuses
+/// the account's sign-in (not only the app and RLS).
+Future<({String? error, bool authBlocked})> adminSetBan(
+    String userId, bool banned, String reason) async {
+  if (!backendEnabled || _uid == null) {
+    return (error: _adminSignedOut, authBlocked: false);
+  }
+  try {
+    final r = await _sb.rpc('admin_set_ban',
+        params: {'p_user': userId, 'p_banned': banned, 'p_reason': reason});
+    return (error: null, authBlocked: r == true);
+  } on PostgrestException catch (e) {
+    return (error: e.message, authBlocked: false);
+  } catch (_) {
+    return (error: _adminOffline, authBlocked: false);
   }
 }

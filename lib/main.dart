@@ -16,13 +16,19 @@ import 'package:flutter/cupertino.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart'
-    show HapticFeedback, Clipboard, ClipboardData;
+    show
+        HapticFeedback,
+        Clipboard,
+        ClipboardData,
+        FilteringTextInputFormatter,
+        LengthLimitingTextInputFormatter;
 import 'package:share_plus/share_plus.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
 import 'core.dart';
+import 'admin.dart';
 import 'ai.dart';
 import 'auth.dart';
 import 'backend.dart';
@@ -74,13 +80,18 @@ void main() async {
 // When the backend is on, keep the user's public profile stats fresh (debounced)
 // and reload friends after a sign-in so the leaderboard reflects real data.
 void _startBackendSync() {
-  void push() => pushProfileStats(
-    totalXp: appState.totalXp,
-    streak: appState.bestStreak,
-    prestige: appState.prestige,
-    borderId: appState.selectedBorder,
-    name: appState.displayName,
-  );
+  void push() {
+    pushProfileStats(
+      totalXp: appState.totalXp,
+      streak: appState.bestStreak,
+      prestige: appState.prestige,
+      borderId: appState.selectedBorder,
+      name: appState.displayName,
+    );
+    // Coins live on-device; the admin console shows the last reported balance.
+    reportAccountSnapshot(coins: appState.coins, premium: appState.ownPremium);
+  }
+
   push();
   Timer? debounce;
   Timer? backupDebounce;
@@ -96,6 +107,8 @@ void _startBackendSync() {
     if (auth.isAuthed) {
       push();
       friends.refresh();
+    } else if (auth.status == AuthStatus.signedOut) {
+      clearAccountStatus(); // admin access + Premium override were that account's
     }
   });
 }
@@ -172,7 +185,10 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
-    auth.init();
+    // Then pick up anything an admin changed on this account since last time.
+    auth.init().then((_) {
+      if (auth.isAuthed) syncAccountStatus();
+    });
   }
 
   @override
@@ -403,6 +419,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // New account → wipe any guest/previous progress and start at Level 1,
       // then introduce the app with the onboarding flow.
       appState.startFreshForAccount(auth.user?.name ?? '');
+      syncAccountStatus();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const OnboardingQuizScreen()),
       );
@@ -491,6 +508,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     if (err == null) {
       await syncAfterSignIn(); // restore a cloud backup onto a fresh device
+      await syncAccountStatus(); // after the restore, so admin coins aren't lost
       if (!mounted) return;
       final u = auth.user;
       if (u != null) appState.setDisplayName(u.name);
@@ -3682,11 +3700,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           const HrCheck(done: true, size: 22),
                           const SizedBox(width: 10),
                           Text(
-                              appState.premiumPlan == 'annual'
-                                  ? 'Annual plan'
-                                  : appState.premiumPlan == 'monthly'
-                                      ? 'Monthly plan'
-                                      : 'Premium',
+                              appState.premiumOverride == 'grant'
+                                  ? 'Premium (gifted)'
+                                  : appState.premiumPlan == 'annual'
+                                      ? 'Annual plan'
+                                      : appState.premiumPlan == 'monthly'
+                                          ? 'Monthly plan'
+                                          : 'Premium',
                               style: HrText.headline),
                         ]),
                         if (appState.premiumSince.isNotEmpty) ...[
@@ -14323,7 +14343,7 @@ class AppSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([appState, auth]),
+      listenable: Listenable.merge([appState, auth, adminAccess]),
       builder: (context, _) {
         final authed = auth.isAuthed;
         final u = auth.user;
@@ -14357,6 +14377,15 @@ class AppSettingsScreen extends StatelessWidget {
                   subtitle: 'Level · streak · score',
                   onTap: () => _go(context, const ShareCardScreen()),
                 ),
+                // Shown to admins only; the server checks every admin action.
+                if (adminAccess.value)
+                  HrMenuRow(
+                    icon: Icons.admin_panel_settings_rounded,
+                    iconColor: HrColors.gold,
+                    label: 'Admin console',
+                    subtitle: 'Coins, Premium & bans for any account',
+                    onTap: () => _go(context, const AdminScreen()),
+                  ),
               ]),
               const SizedBox(height: 12),
               HrMenuGroup(title: 'You', children: [
@@ -14405,6 +14434,585 @@ class AppSettingsScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// ── Admin console (Settings → Admin console, admins only) ───────────────────
+// The row only shows for admins, but that's convenience: every action here is
+// an admin_* RPC the server refuses for anyone else (lib/admin.dart).
+
+/// Small tinted pill for a user's state (coins, plan, banned, admin).
+Widget _adminPill(String label, Color color, {IconData? icon, Widget? leading}) =>
+    Container(
+      padding: const EdgeInsets.fromLTRB(7, 3, 9, 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(HrRadius.full),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          leading ?? Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: HrText.micro.copyWith(color: color, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+
+/// Search any account and see its coins, Premium and ban state.
+class AdminScreen extends StatefulWidget {
+  const AdminScreen({super.key});
+  @override
+  State<AdminScreen> createState() => _AdminScreenState();
+}
+
+class _AdminScreenState extends State<AdminScreen> {
+  final _searchCtrl = TextEditingController();
+  List<AdminUser> _users = const [];
+  String? _error;
+  bool _loading = true;
+  int _seq = 0; // drops a slow search that a newer one overtook
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final seq = ++_seq;
+    if (mounted) setState(() => _loading = true);
+    final (users, err) = await adminApi.searchUsers(_searchCtrl.text.trim());
+    if (!mounted || seq != _seq) return;
+    setState(() {
+      _users = users;
+      _error = err;
+      _loading = false;
+    });
+  }
+
+  Future<void> _open(AdminUser u) async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => AdminUserScreen(user: u)));
+    if (mounted) await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _searchCtrl.text.trim();
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const HrAppBarTitle('Admin console',
+            subtitle: 'Coins, Premium and bans for any account'),
+      ),
+      body: ListView(
+        padding:
+            const EdgeInsets.fromLTRB(HrSpace.gutter, 6, HrSpace.gutter, 28),
+        children: [
+          TextField(
+            controller: _searchCtrl,
+            style: HrText.body,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => _load(),
+            decoration: InputDecoration(
+              hintText: 'Username, name or email…',
+              prefixIcon:
+                  const Icon(Icons.search_rounded, color: HrColors.text2),
+              suffixIcon: IconButton(
+                tooltip: 'Search',
+                onPressed: _load,
+                icon: const Icon(Icons.arrow_forward_rounded,
+                    color: HrColors.text2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.only(top: 48),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (_error != null)
+            HrCard(
+              padding: const EdgeInsets.all(18),
+              child: Row(children: [
+                const Icon(Icons.lock_rounded, color: HrColors.dangerText),
+                const SizedBox(width: 12),
+                Expanded(child: Text(_error!, style: HrText.bodyS)),
+              ]),
+            )
+          else if (_users.isEmpty)
+            HrCard(
+              padding: const EdgeInsets.all(18),
+              child: Text(
+                  q.isEmpty ? 'No accounts yet.' : 'No accounts match "$q".',
+                  style: HrText.bodyS),
+            )
+          else ...[
+            HrLabel(q.isEmpty
+                ? 'Recently active'
+                : '${_users.length} result${_users.length == 1 ? '' : 's'}'),
+            ..._users.map(_userCard),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _userCard(AdminUser u) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: HrCard(
+          onTap: () => _open(u),
+          padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+          child: Row(children: [
+            _FriendAvatar(name: u.displayName, borderId: 'none', size: 46),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Flexible(
+                      child: Text(u.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: HrText.headline),
+                    ),
+                    if (u.id == adminApi.currentUserId) ...[
+                      const SizedBox(width: 6),
+                      _youTag(),
+                    ],
+                  ]),
+                  Text('@${u.username}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: HrText.caption),
+                  const SizedBox(height: 7),
+                  Wrap(spacing: 6, runSpacing: 6, children: [
+                    _adminPill(
+                      u.coins == null ? '—' : hrNum(u.coins!),
+                      HrColors.gold,
+                      leading: Image.asset('assets/shop/coin_stack.png',
+                          width: 14, height: 14),
+                    ),
+                    u.premium
+                        ? _adminPill('Premium', HrColors.gold,
+                            icon: Icons.workspace_premium_rounded)
+                        : _adminPill('Free', HrColors.text2,
+                            icon: Icons.person_rounded),
+                    if (u.banned)
+                      _adminPill('Banned', HrColors.dangerText,
+                          icon: Icons.block_rounded),
+                    if (u.isAdmin)
+                      _adminPill('Admin', HrColors.accentBright,
+                          icon: Icons.admin_panel_settings_rounded),
+                  ]),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: HrColors.text2, size: 26),
+          ]),
+        ),
+      );
+}
+
+/// One account: give or take coins, override Premium, ban or unban.
+class AdminUserScreen extends StatefulWidget {
+  const AdminUserScreen({required this.user, super.key});
+  final AdminUser user;
+  @override
+  State<AdminUserScreen> createState() => _AdminUserScreenState();
+}
+
+class _AdminUserScreenState extends State<AdminUserScreen> {
+  late AdminUser _u = widget.user;
+  final _amountCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
+  final _reasonCtrl = TextEditingController();
+  bool _busy = false;
+
+  static const _premiumStates = ['none', 'grant', 'revoke'];
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _noteCtrl.dispose();
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  bool get _isSelf => _u.id == adminApi.currentUserId;
+
+  /// Runs one admin action; on success re-reads the account from the server
+  /// (falling back to [expected] if that read fails). Returns whether it worked.
+  Future<bool> _run(Future<String?> Function() action, String Function() done,
+      AdminUser expected) async {
+    if (_busy) return false;
+    setState(() => _busy = true);
+    final err = await action();
+    if (!mounted) return false;
+    if (err != null) {
+      setState(() => _busy = false);
+      hrToast(context, err, icon: Icons.error_outline_rounded, error: true);
+      return false;
+    }
+    hrToast(context, done(),
+        icon: Icons.check_circle_rounded, iconColor: HrColors.success);
+    final (users, _) = await adminApi.searchUsers(_u.username);
+    if (!mounted) return true;
+    setState(() {
+      _u = users.where((x) => x.id == _u.id).firstOrNull ?? expected;
+      _busy = false;
+    });
+    if (_isSelf) syncAccountStatus(); // your own account updates right away
+    return true;
+  }
+
+  Future<void> _coins(int sign) async {
+    final n = int.tryParse(_amountCtrl.text.trim()) ?? 0;
+    if (n <= 0) {
+      hrToast(context, 'Enter how many coins first.',
+          icon: Icons.info_outline_rounded);
+      return;
+    }
+    final amount = sign * n;
+    final ok = await _run(
+      () => adminApi.adjustCoins(_u.id, amount, _noteCtrl.text.trim()),
+      () => sign > 0
+          ? 'Gave ${hrNum(n)} coins to @${_u.username}'
+          : 'Took ${hrNum(n)} coins from @${_u.username}',
+      _u.copyWith(pendingCoins: _u.pendingCoins + amount),
+    );
+    if (ok && mounted) {
+      _amountCtrl.clear();
+      _noteCtrl.clear();
+    }
+  }
+
+  Future<void> _premium(int i) async {
+    final state = _premiumStates[i];
+    if ((state == 'none' ? '' : state) == _u.premiumOverride) return;
+    await _run(
+      () => adminApi.setPremium(_u.id, state),
+      () => switch (state) {
+        'grant' => 'Premium granted to @${_u.username}',
+        'revoke' => 'Premium revoked for @${_u.username}',
+        _ => "@${_u.username}'s Premium follows their purchase again",
+      },
+      _u.copyWith(premiumOverride: state == 'none' ? '' : state),
+    );
+  }
+
+  Future<void> _ban(bool ban) async {
+    if (ban) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: HrColors.surface,
+          title: Text('Ban @${_u.username}?', style: HrText.title2),
+          content: Text(
+            "They'll be signed out, can't sign back in, and can't post in "
+            'chat, parties or guilds until you unban them.',
+            style: HrText.bodyS,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: HrColors.danger,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Ban account'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+    final reason = _reasonCtrl.text.trim();
+    var authBlocked = false;
+    final ok = await _run(
+      () async {
+        final r = await adminApi.setBan(_u.id, ban, reason);
+        authBlocked = r.authBlocked;
+        return r.error;
+      },
+      () => !ban
+          ? 'Unbanned @${_u.username}'
+          : authBlocked
+              ? 'Banned @${_u.username}'
+              : 'Banned @${_u.username} (sign-in blocked by the app only)',
+      _u.copyWith(banned: ban, banReason: ban ? reason : ''),
+    );
+    if (ok && mounted) _reasonCtrl.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final u = _u;
+    final overrideIndex = max(
+        0,
+        _premiumStates
+            .indexOf(u.premiumOverride.isEmpty ? 'none' : u.premiumOverride));
+    final cantBan = _isSelf
+        ? "You can't ban your own account."
+        : u.isAdmin
+            ? "Admins can't be banned. Remove their admin access first."
+            : null;
+    final pending = u.pendingCoins;
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: HrAppBarTitle(u.displayName, subtitle: '@${u.username}'),
+      ),
+      body: ListView(
+        padding:
+            const EdgeInsets.fromLTRB(HrSpace.gutter, 6, HrSpace.gutter, 28),
+        children: [
+          HrCard(
+            padding: const EdgeInsets.all(14),
+            child: Row(children: [
+              _FriendAvatar(name: u.displayName, borderId: 'none', size: 56),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Flexible(
+                        child: Text(u.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: HrText.title2),
+                      ),
+                      if (_isSelf) ...[const SizedBox(width: 8), _youTag()],
+                    ]),
+                    Text('@${u.username}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: HrText.body.copyWith(color: HrColors.lavender)),
+                    if (u.email.isNotEmpty)
+                      Text(u.email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: HrText.caption),
+                    if (u.isAdmin) ...[
+                      const SizedBox(height: 6),
+                      _adminPill('Admin', HrColors.accentBright,
+                          icon: Icons.admin_panel_settings_rounded),
+                    ],
+                  ],
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: HrStatTile(
+                value: u.coins == null ? '—' : hrNum(u.coins!),
+                label: 'Coins',
+                leading: Image.asset('assets/shop/coin_stack.png',
+                    width: 30, height: 30),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: HrStatTile(
+                value: u.premium ? 'Premium' : 'Free',
+                label: 'Plan',
+                valueColor: u.premium ? HrColors.gold : null,
+                leading: Icon(Icons.workspace_premium_rounded,
+                    size: 28,
+                    color: u.premium ? HrColors.gold : HrColors.text3),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: HrStatTile(
+                value: u.banned ? 'Banned' : 'Active',
+                label: 'Account',
+                valueColor: u.banned ? HrColors.dangerText : HrColors.success,
+                leading: Icon(
+                    u.banned ? Icons.block_rounded : Icons.verified_user_rounded,
+                    size: 28,
+                    color: u.banned ? HrColors.dangerText : HrColors.success),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Text(
+            u.seenAt == null
+                ? "Their app hasn't reported a coin balance yet."
+                : 'Coins as their app last reported '
+                    '(${_fmtDate(u.seenAt!.toIso8601String())}).',
+            textAlign: TextAlign.center,
+            style: HrText.caption,
+          ),
+          const SizedBox(height: 18),
+          const HrLabel('Coins'),
+          HrCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (pending != 0) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _adminPill(
+                      '${pending > 0 ? '+' : '−'}${hrNum(pending.abs())} '
+                      'waiting to apply',
+                      pending > 0 ? HrColors.gold : HrColors.dangerText,
+                      icon: Icons.schedule_rounded,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                Text('Applies once, the next time their app opens or signs in.',
+                    style: HrText.bodyS),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _amountCtrl,
+                  style: HrText.body,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(7),
+                  ],
+                  decoration: _taskField('Amount', 'e.g. 500'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _noteCtrl,
+                  style: HrText.body,
+                  maxLength: 200,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration:
+                      _taskField('Note (optional)', 'Kept in the audit log'),
+                ),
+                const SizedBox(height: 14),
+                Row(children: [
+                  Expanded(
+                    child: HrButton(
+                      label: 'Take',
+                      icon: Icons.remove_rounded,
+                      kind: HrButtonKind.secondary,
+                      onPressed: _busy ? null : () => _coins(-1),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: HrButton(
+                      label: 'Give',
+                      icon: Icons.add_rounded,
+                      kind: HrButtonKind.accent,
+                      onPressed: _busy ? null : () => _coins(1),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const HrLabel('Premium'),
+          HrCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                HrSegmented(
+                  items: const ['Device', 'Granted', 'Revoked'],
+                  index: overrideIndex,
+                  onChanged: _busy ? null : _premium,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  switch (overrideIndex) {
+                    1 => "Premium is on for them, whatever they've bought.",
+                    2 => "Premium is off for them, even if they've bought it.",
+                    _ => 'Their own purchase decides: '
+                        '${u.devicePremium ? 'Premium' : 'Free'} right now.',
+                  },
+                  style: HrText.bodyS,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const HrLabel('Account'),
+          HrCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (u.banned) ...[
+                  Row(children: [
+                    const Icon(Icons.block_rounded, color: HrColors.dangerText),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text('Banned',
+                          style: HrText.headline
+                              .copyWith(color: HrColors.dangerText)),
+                    ),
+                  ]),
+                  if (u.banReason.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text('Reason: ${u.banReason}', style: HrText.bodyS),
+                  ],
+                  const SizedBox(height: 6),
+                  Text("They can't sign in or post in chat, parties or guilds.",
+                      style: HrText.caption),
+                  const SizedBox(height: 14),
+                  HrButton(
+                    label: 'Unban account',
+                    icon: Icons.lock_open_rounded,
+                    kind: HrButtonKind.secondary,
+                    onPressed: _busy ? null : () => _ban(false),
+                  ),
+                ] else ...[
+                  Text(
+                    cantBan ??
+                        'A ban signs them out, blocks sign-in, and stops them '
+                            'posting in chat, parties and guilds.',
+                    style: HrText.bodyS,
+                  ),
+                  if (cantBan == null) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _reasonCtrl,
+                      style: HrText.body,
+                      maxLength: 200,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: _taskField(
+                          'Reason (optional)', 'e.g. Spam in global chat'),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  HrButton(
+                    label: 'Ban account',
+                    icon: Icons.block_rounded,
+                    kind: HrButtonKind.danger,
+                    onPressed:
+                        cantBan != null || _busy ? null : () => _ban(true),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

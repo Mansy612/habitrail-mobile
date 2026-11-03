@@ -1,0 +1,50 @@
+# Builds an unsigned iPhone app (.ipa) on a GitHub Mac, for installing on your
+# own phone with Sideloadly (which signs it with your Apple ID). Run it from
+# Actions → "iOS build (for sideloading)" → Run workflow, then download the
+# "habitrail-ios" artifact. Needs repo secrets SUPABASE_URL + SUPABASE_ANON_KEY.
+name: iOS build (for sideloading)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+
+      - name: Write the Supabase config (from repo secrets)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$SUPABASE_URL" && test -n "$SUPABASE_ANON_KEY" || {
+            echo "::error::Add the SUPABASE_URL and SUPABASE_ANON_KEY repo secrets"; exit 1; }
+          printf '{"SUPABASE_URL":"%s","SUPABASE_ANON_KEY":"%s"}' \
+            "$SUPABASE_URL" "$SUPABASE_ANON_KEY" > supabase.config.json
+
+      - run: flutter pub get
+
+      - name: Build (unsigned)
+        run: >
+          flutter build ios --release --no-codesign
+          --dart-define-from-file=supabase.config.json
+
+      - name: Package as .ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qry habitrail-unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: habitrail-ios
+          path: habitrail-unsigned.ipa
+          retention-days: 14

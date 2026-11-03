@@ -247,6 +247,33 @@ void main() {
       await _tap(t, find.text('Leaderboard'));
       expect(shellTab.value, 3);
     });
+
+    testWidgets('XP chart: every day shown, today marked, summary line', (t) async {
+      await _app(t);
+      final now = DateTime.now();
+      appState.dailyXp
+        ..clear()
+        ..[dateKey(now)] = 85;
+      await _tab(t, 2);
+      expect(find.text('85 XP'), findsWidgets); // header total + best-day label
+      expect(find.text('1 active day · avg 85 XP'), findsOneWidget);
+      expect(
+          find.descendant(of: find.byType(HrCard), matching: find.text('Today')),
+          findsOneWidget);
+      expect(find.text('${now.day}'), findsWidgets); // today's date under its bar
+      await _tap(t, find.text('Year'));
+      expect(find.text('1 active month · avg 85 XP'), findsOneWidget);
+      expect(find.text('This month'), findsOneWidget);
+    });
+
+    test('XP chart scale keeps one day from filling the chart', () {
+      final one = [0, 120, 0, 0];
+      expect(120 / xpChartScale(one), closeTo(0.5, 0.01));
+      final busy = [for (var d = 0; d < 25; d++) 100 + d * 10];
+      expect(340 / xpChartScale(busy), greaterThan(0.8));
+      expect(20 / xpChartScale([20]), lessThanOrEqualTo(0.2)); // small stays small
+      expect(xpChartScale([0, 0]), 1);
+    });
   });
 
   group('Friends', () {

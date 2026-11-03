@@ -7365,6 +7365,15 @@ class _FocusDialPainter extends CustomPainter {
 
 // ── PROGRESS (Stats · Awards · Journal) ─────────────────────────────────────
 // Folds the old Stats, Awards and Journal tabs behind one segmented control.
+/// XP at the top of the Progress chart. The best bar sits a little below the
+/// top, and lower when only a few bars have XP, so one good day doesn't fill
+/// the whole chart. A bar under 100 XP never reaches the top.
+double xpChartScale(List<int> values) {
+  final active = values.where((v) => v > 0).length;
+  if (active == 0) return 1;
+  return max(values.reduce(max) * (1.15 + 0.85 / active), 100.0);
+}
+
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
   @override
@@ -7739,13 +7748,37 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   Widget _xpChartCard() {
     final s = _xpSeries();
+    final now = DateTime.now();
     final total = _period == 2
         ? appState.dailyXp.values.fold<int>(0, (a, b) => a + b)
         : s.values.fold<int>(0, (a, b) => a + b);
-    final maxV = s.values.fold<int>(0, max);
-    final peak = maxV == 0 ? -1 : s.values.indexOf(maxV);
+    final n = s.values.length;
+    // Today (Month) or this month (Year / All time); later bars are still ahead.
+    final current = switch (_period) {
+      0 => now.day - 1,
+      1 => now.month - 1,
+      _ => n - 1,
+    };
+    final active = s.values.where((v) => v > 0).length;
+    final shown = s.values.fold<int>(0, (a, b) => a + b);
+    final best = s.values.fold<int>(0, max);
+    final peak = best == 0 ? -1 : s.values.indexOf(best);
+    final scale = xpChartScale(s.values);
+    final unit = _period == 0 ? 'day' : 'month';
+    const chartH = 132.0, calloutH = 24.0, plotH = chartH - calloutH;
+    double barH(int v) => max(8.0, plotH * v / scale);
+    final barTop = Color.lerp(HrColors.accentBright, HrColors.pink, 0.2)!;
+
+    // Day numbers show at 1, 5, 10…; today's always shows, and a two-digit
+    // today makes its neighbours give it room.
+    String label(int i) {
+      if (_period != 0) return s.labels[i];
+      if (i == current) return '${i + 1}';
+      return current >= 9 && (i - current).abs() == 1 ? '' : s.labels[i];
+    }
+
     return HrCard(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -7759,59 +7792,63 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 128,
+            height: chartH,
             child: LayoutBuilder(builder: (context, c) {
-              final n = s.values.length;
               final slot = c.maxWidth / n;
-              final barW = max(3.0, min(slot * 0.62, 18.0));
-              const chartTop = 26.0, chartH = 128.0 - chartTop;
+              final barW = max(3.0, min(slot * 0.6, 16.0));
+              double left(int i) => slot * i + (slot - barW) / 2;
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Faint guide lines.
-                  for (var g = 0; g < 3; g++)
+                  for (var i = 0; i < n; i++) ...[
+                    // A faint full-height track for every bar; XP fills it.
                     Positioned(
-                      left: 0,
-                      right: 0,
-                      top: chartTop + chartH * g / 3,
-                      child: Container(height: 1, color: const Color(0x14FFFFFF)),
-                    ),
-                  for (var i = 0; i < n; i++)
-                    Positioned(
-                      left: slot * i + (slot - barW) / 2,
+                      left: left(i),
                       bottom: 0,
                       width: barW,
-                      height: maxV == 0
-                          ? 5
-                          : max(4.0, chartH * s.values[i] / maxV),
+                      height: plotH,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(barW / 2),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: maxV > 0 && s.values[i] >= maxV * 0.7
-                                ? [HrColors.goldBright, HrColors.gold, HrColors.accent]
-                                : [HrColors.accentBright, HrColors.accent],
-                            stops: maxV > 0 && s.values[i] >= maxV * 0.7
-                                ? const [0, 0.35, 1]
-                                : null,
-                          ),
-                          boxShadow: s.values[i] > 0
-                              ? [
-                                  BoxShadow(
-                                    color: HrColors.accent.withValues(alpha: 0.35),
-                                    blurRadius: 6,
-                                  ),
-                                ]
-                              : null,
+                          color: i == current
+                              ? HrColors.pink.withValues(alpha: 0.14)
+                              : HrColors.accentBright
+                                  .withValues(alpha: i > current ? 0.045 : 0.08),
                         ),
                       ),
                     ),
+                    if (s.values[i] > 0)
+                      Positioned(
+                        left: left(i),
+                        bottom: 0,
+                        width: barW,
+                        height: barH(s.values[i]),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(barW / 2),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                i == current ? HrColors.pink : barTop,
+                                HrColors.accent,
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (i == current ? HrColors.pink : HrColors.accent)
+                                    .withValues(alpha: 0.4),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                   if (peak >= 0)
                     Positioned(
                       left: (slot * peak + slot / 2 - 34).clamp(0.0, c.maxWidth - 68),
-                      top: 0, // just above the tallest bar
+                      bottom: barH(best) + 6, // just above the best bar
                       width: 68,
                       child: Center(
                         child: Container(
@@ -7819,15 +7856,23 @@ class _ProgressScreenState extends State<ProgressScreen> {
                           decoration: BoxDecoration(
                             color: HrColors.surface2,
                             borderRadius: BorderRadius.circular(HrRadius.xs),
-                            border: Border.all(color: HrColors.accentBright),
+                            border: Border.all(
+                              color: peak == current
+                                  ? HrColors.pink
+                                  : HrColors.accentBright,
+                            ),
                           ),
-                          child: Text('${hrNum(maxV)} XP',
+                          child: Text('${hrNum(best)} XP',
                               style: HrText.micro.copyWith(color: HrColors.text)),
                         ),
                       ),
                     ),
-                  if (maxV == 0)
-                    Positioned.fill(
+                  if (best == 0)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: calloutH,
+                      bottom: 0,
                       child: Center(
                         child: Text(
                           'Complete quests to fill this chart',
@@ -7842,19 +7887,48 @@ class _ProgressScreenState extends State<ProgressScreen> {
           const SizedBox(height: 6),
           Row(
             children: [
-              for (final l in s.labels)
+              for (var i = 0; i < n; i++)
                 Expanded(
                   child: Text(
-                    l,
+                    label(i),
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.visible,
                     softWrap: false,
-                    style: HrText.micro.copyWith(color: HrColors.text2),
+                    style: i == current
+                        ? HrText.micro.copyWith(
+                            color: HrColors.pink, fontWeight: FontWeight.w900)
+                        : HrText.micro.copyWith(
+                            color: i > current ? HrColors.text3 : HrColors.text2),
                   ),
                 ),
             ],
           ),
+          if (active > 0) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '$active active ${active == 1 ? unit : '${unit}s'}'
+                    ' · avg ${hrNum((shown / active).round())} XP',
+                    style: HrText.micro.copyWith(color: HrColors.text2),
+                  ),
+                ),
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: HrColors.pink,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(_period == 0 ? 'Today' : 'This month',
+                    style: HrText.micro.copyWith(color: HrColors.text2)),
+              ],
+            ),
+          ],
         ],
       ),
     );

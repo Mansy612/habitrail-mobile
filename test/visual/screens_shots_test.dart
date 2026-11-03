@@ -221,6 +221,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     }
 
+    // Progress XP chart with a single active day (today).
+    if (_wanted('progress_one_day')) {
+      final saved = Map.of(appState.dailyXp);
+      appState.dailyXp
+        ..clear()
+        ..[dateKey(DateTime.now())] = 85;
+      shellTab.value = 2;
+      await _shot(tester, 'progress_one_day');
+      appState.dailyXp
+        ..clear()
+        ..addAll(saved);
+      shellTab.value = 0;
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
     // The daily briefing pops up on a fresh shell when today's is unseen.
     if (_wanted('briefing')) {
       appState.lastBriefingDate = '';

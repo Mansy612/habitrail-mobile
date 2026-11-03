@@ -42,6 +42,7 @@ abstract final class HrColors {
   static const dangerText = Color(0xFFFF6961);
   static const dangerSurface = Color(0xFF3A1412);
   static const info = Color(0xFF70D6FF);
+  static const pink = Color(0xFFFF6EB4); // supporting accent (e.g. today on charts)
 
   static const stickerFill = Color(0xFFFFD60A);
   static const stickerInk = Color(0xFF000000);

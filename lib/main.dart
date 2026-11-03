@@ -7727,21 +7727,23 @@ class _ProgressScreenState extends State<ProgressScreen> {
       ];
       return (values: values, labels: labels, title: 'XP this month');
     }
-    // 12 monthly buckets: this year (Year) or the last 12 months (All time).
-    final start = _period == 1
-        ? DateTime(now.year, 1, 1)
-        : DateTime(now.year, now.month - 11, 1);
-    final values = <int>[];
-    final labels = <String>[];
-    for (var i = 0; i < 12; i++) {
-      final a = DateTime(start.year, start.month + i, 1);
-      final b = DateTime(start.year, start.month + i + 1, 1);
-      values.add(appState.sumDays(xp, a, b));
-      labels.add(_kMonthInitials[a.month - 1]);
+    // 12 monthly buckets, January to December: this year (Year), or each
+    // month's XP added up across every year (All time).
+    final values = List.filled(12, 0);
+    if (_period == 1) {
+      for (var m = 0; m < 12; m++) {
+        values[m] = appState.sumDays(
+            xp, DateTime(now.year, m + 1, 1), DateTime(now.year, m + 2, 1));
+      }
+    } else {
+      for (final e in xp.entries) {
+        final d = DateTime.tryParse(e.key);
+        if (d != null) values[d.month - 1] += e.value;
+      }
     }
     return (
       values: values,
-      labels: labels,
+      labels: _kMonthInitials,
       title: _period == 1 ? 'XP this year' : 'XP all time',
     );
   }
@@ -7749,18 +7751,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
   Widget _xpChartCard() {
     final s = _xpSeries();
     final now = DateTime.now();
-    final total = _period == 2
-        ? appState.dailyXp.values.fold<int>(0, (a, b) => a + b)
-        : s.values.fold<int>(0, (a, b) => a + b);
+    final total = s.values.fold<int>(0, (a, b) => a + b);
     final n = s.values.length;
-    // Today (Month) or this month (Year / All time); later bars are still ahead.
-    final current = switch (_period) {
-      0 => now.day - 1,
-      1 => now.month - 1,
-      _ => n - 1,
-    };
+    // Today (Month) or this month (Year / All time). Later bars are still
+    // ahead, except on All time, where every month has past years in it.
+    final current = _period == 0 ? now.day - 1 : now.month - 1;
+    bool ahead(int i) => _period != 2 && i > current;
     final active = s.values.where((v) => v > 0).length;
-    final shown = s.values.fold<int>(0, (a, b) => a + b);
     final best = s.values.fold<int>(0, max);
     final peak = best == 0 ? -1 : s.values.indexOf(best);
     final scale = xpChartScale(s.values);
@@ -7813,7 +7810,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                           color: i == current
                               ? HrColors.pink.withValues(alpha: 0.14)
                               : HrColors.accentBright
-                                  .withValues(alpha: i > current ? 0.045 : 0.08),
+                                  .withValues(alpha: ahead(i) ? 0.045 : 0.08),
                         ),
                       ),
                     ),
@@ -7899,7 +7896,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         ? HrText.micro.copyWith(
                             color: HrColors.pink, fontWeight: FontWeight.w900)
                         : HrText.micro.copyWith(
-                            color: i > current ? HrColors.text3 : HrColors.text2),
+                            color: ahead(i) ? HrColors.text3 : HrColors.text2),
                   ),
                 ),
             ],
@@ -7911,7 +7908,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 Expanded(
                   child: Text(
                     '$active active ${active == 1 ? unit : '${unit}s'}'
-                    ' · avg ${hrNum((shown / active).round())} XP',
+                    ' · avg ${hrNum((total / active).round())} XP',
                     style: HrText.micro.copyWith(color: HrColors.text2),
                   ),
                 ),

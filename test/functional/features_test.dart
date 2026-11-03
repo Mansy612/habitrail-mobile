@@ -266,6 +266,28 @@ void main() {
       expect(find.text('This month'), findsOneWidget);
     });
 
+    testWidgets('All time runs January to December across every year', (t) async {
+      await _app(t);
+      appState.dailyXp
+        ..clear()
+        ..['2024-12-03'] = 40
+        ..['2025-12-20'] = 60 // December again, a year later
+        ..['2026-01-05'] = 50;
+      await _tab(t, 2);
+      await _tap(t, find.text('All time'));
+      final card = find.ancestor(
+          of: find.text('XP all time'), matching: find.byType(HrCard));
+      final months = t
+          .widgetList<Text>(find.descendant(of: card, matching: find.byType(Text)))
+          .map((w) => w.data)
+          .where((d) => d != null && RegExp(r'^[JFMASOND]$').hasMatch(d))
+          .toList();
+      expect(months, ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']);
+      expect(find.text('150 XP'), findsOneWidget); // header total
+      expect(find.text('100 XP'), findsOneWidget); // December's two years
+      expect(find.text('2 active months · avg 75 XP'), findsOneWidget);
+    });
+
     test('XP chart scale keeps one day from filling the chart', () {
       final one = [0, 120, 0, 0];
       expect(120 / xpChartScale(one), closeTo(0.5, 0.01));

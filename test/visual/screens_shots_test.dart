@@ -249,6 +249,17 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     }
 
+    // Progress XP chart on All time (January to December).
+    if (_wanted('progress_all_time')) {
+      shellTab.value = 2;
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('All time'));
+      await _shot(tester, 'progress_all_time');
+      await tester.tap(find.text('Month'));
+      shellTab.value = 0;
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
     // The daily briefing pops up on a fresh shell when today's is unseen.
     if (_wanted('briefing')) {
       appState.lastBriefingDate = '';

@@ -143,6 +143,17 @@ Future<List<String>> _sweep(WidgetTester t, _Screen s) async {
           await t.longPressAt(at);
         }
         await _settle(t);
+        // A sheet that sizes to its content shows as a narrow floating card.
+        // (The sheet's gesture layer is always full width; measure its panel.)
+        final panels = find.descendant(
+            of: find.byType(BottomSheet), matching: find.byType(Material));
+        for (final sheet in panels.evaluate().take(1)) {
+          final w = (sheet.findRenderObject()! as RenderBox).size.width;
+          if (w < _viewSize.width - 1) {
+            failures.add('${s.name} · $mode #$i $label → narrow sheet '
+                '(${w.round()} of ${_viewSize.width.round()} px)');
+          }
+        }
         // Let snackbars, timers and closing animations finish.
         await t.pump(const Duration(seconds: 5));
         await _settle(t, 3);

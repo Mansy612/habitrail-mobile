@@ -6,6 +6,13 @@ import 'dart:ui' show MaskFilter, BlurStyle, ImageByteFormat;
 
 import 'package:flutter/foundation.dart'
     show kIsWeb, kDebugMode, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/cupertino.dart'
+    show
+        CupertinoTheme,
+        CupertinoThemeData,
+        CupertinoTextThemeData,
+        CupertinoTimerPicker,
+        CupertinoTimerPickerMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart'
@@ -6619,6 +6626,13 @@ class FocusScreen extends StatefulWidget {
   State<FocusScreen> createState() => _FocusScreenState();
 }
 
+/// 45 → "45 min", 90 → "1 h 30 min", 120 → "2 h".
+String _fmtFocusLength(int minutes) {
+  if (minutes < 60) return '$minutes min';
+  final h = minutes ~/ 60, m = minutes % 60;
+  return m == 0 ? '$h h' : '$h h $m min';
+}
+
 class _FocusScreenState extends State<FocusScreen> {
   // Preset session lengths (Custom picks anything else).
   // Shortest to longest; Custom follows.
@@ -6627,7 +6641,7 @@ class _FocusScreenState extends State<FocusScreen> {
     ('Pomodoro', '25 min', Icons.timer_outlined, 25),
     ('Long', '50 min', Icons.hourglass_bottom_rounded, 50),
   ];
-  static const _customChoices = [10, 15, 20, 30, 45, 60, 90, 120];
+  static const _customChoices = [10, 15, 30, 45, 60, 90];
   static const _modes = <(String, String)>[
     ('Deep Work', '🌿'),
     ('Study', '📚'),
@@ -6741,47 +6755,98 @@ class _FocusScreenState extends State<FocusScreen> {
     if (picked != null && mounted) setState(() => _mode = picked);
   }
 
+  // Any length from 1 minute up to 23 h 59 min: an hours/minutes wheel, with
+  // a few one-tap shortcuts that jump the wheel.
   Future<void> _pickCustom() async {
     if (_started) return;
+    var pick = Duration(minutes: _custom ? _minutes : 30);
+    var wheel = 0; // bumps to re-seat the wheel after a shortcut
     final picked = await showModalBottomSheet<int>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Custom length', style: HrText.title2),
-              const SizedBox(height: 4),
-              Text('Every minute of focus earns 2 XP.', style: HrText.bodyS),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  for (final m in _customChoices)
-                    HrPressable(
-                      onTap: () => Navigator.pop(ctx, m),
-                      child: Container(
-                        width: 72,
-                        height: 48,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: m == _minutes && _custom
-                              ? HrColors.accent
-                              : HrColors.surface2,
-                          borderRadius: BorderRadius.circular(HrRadius.md),
-                          border: Border.all(color: HrColors.cardEdge),
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
+          child: Padding(
+            padding:
+                const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Custom length', style: HrText.title2),
+                const SizedBox(height: 4),
+                Text('Pick any length. Every minute of focus earns 2 XP.',
+                    style: HrText.bodyS),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 180,
+                  child: CupertinoTheme(
+                    data: const CupertinoThemeData(
+                      brightness: Brightness.dark,
+                      textTheme: CupertinoTextThemeData(
+                        pickerTextStyle: TextStyle(
+                          fontFamily: kHrFont,
+                          color: HrColors.text,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
                         ),
-                        child: Text('$m min',
-                            style: HrText.body
-                                .copyWith(fontWeight: FontWeight.w800)),
                       ),
                     ),
-                ],
-              ),
-            ],
+                    child: CupertinoTimerPicker(
+                      key: ValueKey(wheel),
+                      mode: CupertinoTimerPickerMode.hm,
+                      initialTimerDuration: pick,
+                      onTimerDurationChanged: (d) => setSheet(() => pick = d),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    for (final m in _customChoices)
+                      HrPressable(
+                        onTap: () => setSheet(() {
+                          pick = Duration(minutes: m);
+                          wheel++;
+                        }),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: pick.inMinutes == m
+                                ? HrColors.accentSurface
+                                : HrColors.surface2,
+                            borderRadius: BorderRadius.circular(HrRadius.full),
+                            border: Border.all(
+                              color: pick.inMinutes == m
+                                  ? HrColors.accent
+                                  : HrColors.cardEdge,
+                            ),
+                          ),
+                          child: Text(_fmtFocusLength(m),
+                              style: HrText.bodyS.copyWith(
+                                  color: HrColors.text,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                HrButton(
+                  label: pick.inMinutes < 1
+                      ? 'Pick at least 1 minute'
+                      : 'Set ${_fmtFocusLength(pick.inMinutes)}',
+                  icon: Icons.check_rounded,
+                  kind: HrButtonKind.accent,
+                  onPressed: pick.inMinutes < 1
+                      ? null
+                      : () => Navigator.pop(ctx, pick.inMinutes),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -6838,8 +6903,12 @@ class _FocusScreenState extends State<FocusScreen> {
   );
 
   Widget _timerView(BuildContext context) {
-    final mm = (_remaining ~/ 60).toString().padLeft(2, '0');
+    final hh = _remaining ~/ 3600;
+    final mm = ((hh > 0 ? _remaining % 3600 : _remaining) ~/ 60)
+        .toString()
+        .padLeft(2, '0');
     final ss = (_remaining % 60).toString().padLeft(2, '0');
+    final clock = hh > 0 ? '$hh:$mm:$ss' : '$mm:$ss';
     // The ring is full when a session is ready and drains as time passes.
     final frac = _remaining / (_minutes * 60);
     final label = !_started
@@ -6869,9 +6938,15 @@ class _FocusScreenState extends State<FocusScreen> {
                       Text(label,
                           style: HrText.body.copyWith(color: HrColors.text2)),
                       const SizedBox(height: 2),
-                      Text(
-                        '$mm:$ss',
-                        style: HrText.numeralXl.copyWith(fontSize: 58),
+                      SizedBox(
+                        width: 200,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            clock,
+                            style: HrText.numeralXl.copyWith(fontSize: 58),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Semantics(
@@ -6913,7 +6988,7 @@ class _FocusScreenState extends State<FocusScreen> {
               Expanded(
                 child: _presetTile(
                   'Custom',
-                  _custom ? '$_minutes min' : null,
+                  _custom ? _fmtFocusLength(_minutes) : null,
                   Icons.tune_rounded,
                   selected: _custom,
                   onTap: _pickCustom,

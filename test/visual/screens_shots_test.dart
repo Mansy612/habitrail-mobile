@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/cupertino.dart' show CupertinoTimerPicker;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -202,6 +203,22 @@ void main() {
       await _shot(tester, e.key);
       _navKey.currentState!.pop();
       await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    // Focus → Custom length picker, then the timer with a long custom length.
+    if (_wanted('sheet_focus_custom')) {
+      shellTab.value = 1;
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.text('Custom'));
+      await tester.pump(const Duration(milliseconds: 600));
+      tester
+          .widget<CupertinoTimerPicker>(find.byType(CupertinoTimerPicker))
+          .onTimerDurationChanged(const Duration(hours: 1, minutes: 15));
+      await _shot(tester, 'sheet_focus_custom');
+      await tester.tap(find.text('Set 1 h 15 min'));
+      await _shot(tester, 'focus_custom_set');
+      shellTab.value = 0;
+      await tester.pump(const Duration(milliseconds: 400));
     }
 
     // The daily briefing pops up on a fresh shell when today's is unseen.

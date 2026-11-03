@@ -1,5 +1,6 @@
 // End-to-end feature checks: each test drives the real UI (taps, text entry,
 // sheets, dialogs) and asserts the resulting app state and what's on screen.
+import 'package:flutter/cupertino.dart' show CupertinoTimerPicker;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -166,10 +167,57 @@ void main() {
       await _tab(t, 1);
       await _tap(t, find.text('Custom'));
       await _tap(t, find.text('10 min'));
+      await _tap(t, find.text('Set 10 min'));
       expect(find.text('10:00'), findsOneWidget);
       await _tap(t, find.byTooltip('Focus mode'));
       await _tap(t, find.text('Study'));
       expect(find.text('Study'), findsWidgets);
+    });
+  });
+
+  group('Focus custom length', () {
+    testWidgets('any length from the wheel, shown as h:mm:ss', (t) async {
+      await _app(t);
+      await _tab(t, 1);
+      await _tap(t, find.text('Custom'));
+      t
+          .widget<CupertinoTimerPicker>(find.byType(CupertinoTimerPicker))
+          .onTimerDurationChanged(const Duration(hours: 1, minutes: 15));
+      await _settle(t);
+      await _tap(t, find.text('Set 1 h 15 min'));
+      expect(find.text('1:15:00'), findsOneWidget);
+      expect(find.text('1 h 15 min'), findsOneWidget); // Custom tile
+      expect(find.textContaining('+150 XP'), findsOneWidget);
+    });
+
+    testWidgets('an odd custom length runs to completion', (t) async {
+      await _app(t);
+      await _tab(t, 1);
+      await _tap(t, find.text('Custom'));
+      t
+          .widget<CupertinoTimerPicker>(find.byType(CupertinoTimerPicker))
+          .onTimerDurationChanged(const Duration(minutes: 37));
+      await _settle(t);
+      await _tap(t, find.text('Set 37 min'));
+      expect(find.text('37:00'), findsOneWidget);
+      await _tap(t, find.text('Start Focus'));
+      await t.pump(const Duration(minutes: 37, seconds: 1));
+      await _settle(t);
+      expect(find.text('Session complete'), findsOneWidget);
+      expect(appState.focusMinutesToday, 37);
+    });
+
+    testWidgets('a zero length cannot be set', (t) async {
+      await _app(t);
+      await _tab(t, 1);
+      await _tap(t, find.text('Custom'));
+      t
+          .widget<CupertinoTimerPicker>(find.byType(CupertinoTimerPicker))
+          .onTimerDurationChanged(Duration.zero);
+      await _settle(t);
+      expect(find.text('Pick at least 1 minute'), findsOneWidget);
+      await _tap(t, find.text('Pick at least 1 minute'));
+      expect(find.text('Pick at least 1 minute'), findsOneWidget); // still open
     });
   });
 

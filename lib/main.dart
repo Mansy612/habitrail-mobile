@@ -2660,7 +2660,7 @@ Widget _todayHeader(BuildContext context) {
 const _kQuestTints = [
   Color(0xFF4FA3FF),
   Color(0xFFA06BFF),
-  Color(0xFFFF6EB4),
+  HrColors.pink,
   Color(0xFF34D399),
   Color(0xFFFF9F43),
   Color(0xFF62D5FF),
@@ -4370,7 +4370,7 @@ class RecoveryScreen extends StatelessWidget {
                   Expanded(
                     child: _resetTile(
                       icon: Icons.spa_rounded,
-                      color: const Color(0xFFFF6EB4),
+                      color: HrColors.pink,
                       title: 'Mindful Break',
                       body: 'Write a quick reflection to reset your head.',
                       action: 'Reflect',
@@ -7587,7 +7587,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  maxLines: 1,
+                  maxLines: 2, // wraps on narrow phones instead of cutting off
                   overflow: TextOverflow.ellipsis,
                   style: HrText.micro.copyWith(color: HrColors.text2)),
               FittedBox(
@@ -7764,7 +7764,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final unit = _period == 0 ? 'day' : 'month';
     const chartH = 132.0, calloutH = 24.0, plotH = chartH - calloutH;
     double barH(int v) => max(8.0, plotH * v / scale);
-    final barTop = Color.lerp(HrColors.accentBright, HrColors.pink, 0.2)!;
 
     // Day numbers show at 1, 5, 10…; today's always shows, and a two-digit
     // today makes its neighbours give it room.
@@ -7797,51 +7796,55 @@ class _ProgressScreenState extends State<ProgressScreen> {
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  for (var i = 0; i < n; i++) ...[
-                    // A faint full-height track for every bar; XP fills it.
+                  // Faint guide lines.
+                  for (var g = 0; g < 3; g++)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: calloutH + plotH * g / 3,
+                      child: Container(height: 1, color: const Color(0x0FFFFFFF)),
+                    ),
+                  for (var i = 0; i < n; i++)
+                    // Earned XP is a purple bar (pink today); an empty day is
+                    // a short stub, fainter for days still ahead.
                     Positioned(
                       left: left(i),
                       bottom: 0,
                       width: barW,
-                      height: plotH,
+                      height: s.values[i] > 0 ? barH(s.values[i]) : 5,
                       child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(barW / 2),
-                          color: i == current
-                              ? HrColors.pink.withValues(alpha: 0.14)
-                              : HrColors.accentBright
-                                  .withValues(alpha: ahead(i) ? 0.045 : 0.08),
-                        ),
+                        decoration: s.values[i] > 0
+                            ? BoxDecoration(
+                                borderRadius: BorderRadius.circular(barW / 2),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    i == current
+                                        ? HrColors.pink
+                                        : HrColors.accentBright,
+                                    HrColors.accent,
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (i == current
+                                            ? HrColors.pink
+                                            : HrColors.accent)
+                                        .withValues(alpha: 0.4),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              )
+                            : BoxDecoration(
+                                borderRadius: BorderRadius.circular(barW / 2),
+                                color: i == current
+                                    ? HrColors.pink.withValues(alpha: 0.6)
+                                    : Colors.white
+                                        .withValues(alpha: ahead(i) ? 0.06 : 0.12),
+                              ),
                       ),
                     ),
-                    if (s.values[i] > 0)
-                      Positioned(
-                        left: left(i),
-                        bottom: 0,
-                        width: barW,
-                        height: barH(s.values[i]),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(barW / 2),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                i == current ? HrColors.pink : barTop,
-                                HrColors.accent,
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (i == current ? HrColors.pink : HrColors.accent)
-                                    .withValues(alpha: 0.4),
-                                blurRadius: 8,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
                   if (peak >= 0)
                     Positioned(
                       left: (slot * peak + slot / 2 - 34).clamp(0.0, c.maxWidth - 68),
@@ -7895,8 +7898,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     style: i == current
                         ? HrText.micro.copyWith(
                             color: HrColors.pink, fontWeight: FontWeight.w900)
-                        : HrText.micro.copyWith(
-                            color: ahead(i) ? HrColors.text3 : HrColors.text2),
+                        : HrText.micro.copyWith(color: HrColors.text2),
                   ),
                 ),
             ],
@@ -7986,7 +7988,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       ('Calendar', Icons.calendar_month_rounded, const Color(0xFF62D5FF), () => const CalendarScreen()),
       ('Stats', Icons.insights_rounded, HrColors.accentBright, () => const StatsScreen()),
       ('Awards', Icons.emoji_events_rounded, HrColors.gold, () => const AwardsScreen()),
-      ('Journal', Icons.menu_book_rounded, const Color(0xFFFF6EB4), () => const JournalScreen()),
+      ('Journal', Icons.menu_book_rounded, HrColors.pink, () => const JournalScreen()),
     ];
     return Row(
       children: [
@@ -9391,6 +9393,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Widget _leaderboardTab(BuildContext context, List<_Ranked> board) {
+    // Nobody to rank against yet: explain the board instead of showing a
+    // podium of empty numbered places.
+    if (friends.friends.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 10, HrSpace.gutter, 28),
+        children: [_noFriendsBoard()],
+      );
+    }
     final myXp = appState.totalXp;
     final myIndex = board.indexWhere((entry) => entry.isMe);
     final rank = myIndex >= 0 ? myIndex + 1 : board.length + 1;
@@ -9534,7 +9544,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           fontStyle: FontStyle.italic,
-                          color: const Color(0xFFC08BFF),
+                          color: HrColors.accentBright,
                         ),
                       ),
                     ],
@@ -9557,12 +9567,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                             alignment: Alignment.centerLeft,
                             child: Container(
                               width: constraints.maxWidth * progress,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [
-                                    Color(0xFFA44DFF),
-                                    Color(0xFF36C9F4),
-                                  ],
+                                  colors: [HrColors.accent, HrColors.pink],
                                 ),
                               ),
                             ),
@@ -9586,6 +9593,48 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ),
     );
   }
+
+  Widget _noFriendsBoard() => HrCard(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+        child: Column(
+          children: [
+            const HrHeroArt(
+              width: 170,
+              height: 120,
+              child: HrIconTile(icon: Icons.group_add_rounded, size: 76),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Your friends will appear here',
+              textAlign: TextAlign.center,
+              style: HrText.title2,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Add friends to race on XP and streaks. As soon as someone '
+              'joins, you\'re ranked together on this board.',
+              textAlign: TextAlign.center,
+              style: HrText.bodyS,
+            ),
+            const SizedBox(height: 20),
+            HrButton(
+              label: 'Invite friends',
+              icon: Icons.person_add_alt_1_rounded,
+              onPressed: () => setState(() => _seg = 1),
+            ),
+            const SizedBox(height: 10),
+            HrButton(
+              label: 'Share an invite',
+              icon: Icons.ios_share_rounded,
+              kind: HrButtonKind.secondary,
+              onPressed: () => SharePlus.instance.share(ShareParams(
+                text: 'Join me on Habitrail — add me as a friend and '
+                    "let's race on XP and streaks!",
+              )),
+            ),
+          ],
+        ),
+      );
 
   String _groupedNum(int value) => value.toString().replaceAllMapped(
     RegExp(r'(\d)(?=(\d{3})+(?!\d))'),

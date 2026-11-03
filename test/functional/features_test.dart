@@ -299,6 +299,21 @@ void main() {
   });
 
   group('Friends', () {
+    testWidgets('no friends: empty board with an invite action', (t) async {
+      await _app(t);
+      for (final f in friends.friends.toList()) {
+        friends.remove(f.id);
+      }
+      await _tab(t, 3);
+      expect(find.text('Your friends will appear here'), findsOneWidget);
+      expect(find.textContaining('IN THE RACE'), findsNothing);
+      expect(find.text('—'), findsNothing); // no empty podium places
+      expect(find.text('Share an invite'), findsOneWidget);
+      await _tap(t, find.text('Invite friends'));
+      expect(find.text('Your friends will appear here'), findsNothing);
+      expect(find.text('No friends yet'), findsOneWidget); // Add Friends tab
+    });
+
     testWidgets('add a friend and see them on the leaderboard', (t) async {
       await _app(t);
       await _tab(t, 3);

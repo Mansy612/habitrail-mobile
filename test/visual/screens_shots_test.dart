@@ -2,6 +2,7 @@
 // with the real fonts (no window, no device). Skipped in normal test runs.
 //
 //   flutter test test/visual/screens_shots_test.dart --dart-define=SHOTS=1
+//   (+ SHOTS_ONLY=a,b to pick screens, SHOTS_TALL=true, SHOTS_W=360 for width)
 //
 // Output goes to build/shots/ (override with --dart-define=SHOTS_DIR=...).
 import 'dart:convert';
@@ -25,6 +26,7 @@ const _on = bool.fromEnvironment('SHOTS');
 const _out = String.fromEnvironment('SHOTS_DIR', defaultValue: 'build/shots');
 const _only = String.fromEnvironment('SHOTS_ONLY'); // comma list of names
 const _tall = bool.fromEnvironment('SHOTS_TALL'); // full-length route pages
+const _w = int.fromEnvironment('SHOTS_W', defaultValue: 390) * 1.0; // phone width
 
 final _shotKey = GlobalKey();
 final _navKey = GlobalKey<NavigatorState>();
@@ -117,7 +119,7 @@ bool _wanted(String name) =>
 
 void main() {
   testWidgets('render screens', (tester) async {
-    tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+    tester.view.physicalSize = Size(_w * 2, 844 * 2);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
     await tester.runAsync(_loadFonts);
@@ -144,13 +146,13 @@ void main() {
       await _shot(tester, '0${i + 1}_${tabs[i]}');
     }
     // Tall captures show whole scrolling pages.
-    tester.view.physicalSize = const Size(390 * 2, 1700 * 2);
+    tester.view.physicalSize = Size(_w * 2, 1700 * 2);
     for (var i = 0; i < tabs.length; i++) {
       if (!_wanted(tabs[i])) continue;
       shellTab.value = i;
       await _shot(tester, 'tall_0${i + 1}_${tabs[i]}');
     }
-    tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+    tester.view.physicalSize = Size(_w * 2, 844 * 2);
     shellTab.value = 0;
 
     final routes = <String, Widget Function()>{
@@ -183,7 +185,7 @@ void main() {
       'app_settings': () => const AppSettingsScreen(),
       'friend_profile': () => FriendProfileScreen(friendId: friends.friends.first.id),
     };
-    if (_tall) tester.view.physicalSize = const Size(390 * 2, 1700 * 2);
+    if (_tall) tester.view.physicalSize = Size(_w * 2, 1700 * 2);
     for (final e in routes.entries) {
       if (!_wanted(e.key)) continue;
       _navKey.currentState!.push(MaterialPageRoute<void>(builder: (_) => e.value()));
@@ -256,6 +258,21 @@ void main() {
       await tester.tap(find.text('All time'));
       await _shot(tester, 'progress_all_time');
       await tester.tap(find.text('Month'));
+      shellTab.value = 0;
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    // Social with no friends yet.
+    if (_wanted('friends_empty')) {
+      final added = friends.friends.map((f) => f.username).toList();
+      for (final f in friends.friends.toList()) {
+        friends.remove(f.id);
+      }
+      shellTab.value = 3;
+      await _shot(tester, 'friends_empty');
+      for (final u in added) {
+        await tester.runAsync(() => friends.addByUsername(u));
+      }
       shellTab.value = 0;
       await tester.pump(const Duration(milliseconds: 400));
     }

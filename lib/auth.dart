@@ -221,22 +221,18 @@ class StubAuthService implements AuthService {
 class Auth extends ChangeNotifier {
   Auth(this._service);
   AuthService _service;
-  static const _guestKey = 'auth.guest.v1';
 
   /// Swap the backing service at startup (e.g. the stub → Supabase).
   void useService(AuthService s) => _service = s;
 
   AuthStatus status = AuthStatus.unknown;
   AuthUser? user;
-  bool guest = false; // "continue without an account"
   bool busy = false;
 
   bool get isRemote => _service.isRemote;
   bool get isAuthed => status == AuthStatus.signedIn;
 
   Future<void> init() async {
-    final p = await SharedPreferences.getInstance();
-    guest = p.getBool(_guestKey) ?? false;
     user = await _service.currentUser();
     status = user != null ? AuthStatus.signedIn : AuthStatus.signedOut;
     notifyListeners();
@@ -257,7 +253,6 @@ class Auth extends ChangeNotifier {
     if (r.ok) {
       user = r.user;
       status = AuthStatus.signedIn;
-      await _setGuest(false);
     }
     busy = false;
     notifyListeners();
@@ -295,16 +290,6 @@ class Auth extends ChangeNotifier {
   Future<bool> isUsernameAvailable(String username) =>
       _service.isUsernameAvailable(username);
 
-  Future<void> continueAsGuest() async {
-    await _setGuest(true);
-    notifyListeners();
-  }
-
-  Future<void> _setGuest(bool v) async {
-    guest = v;
-    final p = await SharedPreferences.getInstance();
-    await p.setBool(_guestKey, v);
-  }
 }
 
 /// The single shared auth object. Swap [StubAuthService] for a Supabase-backed

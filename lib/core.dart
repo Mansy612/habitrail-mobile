@@ -1428,7 +1428,7 @@ class AppState extends ChangeNotifier {
 
   /// A brand-new account starts completely from zero: the fresh-install state
   /// (Level 1, 0 XP, starter habits) PLUS the few carry-over fields resetAll
-  /// leaves alone, so nothing from a previous user or guest session remains.
+  /// leaves alone, so nothing from a previous user remains.
   void startFreshForAccount(String name) {
     resetAll();
     dailyScore.clear();

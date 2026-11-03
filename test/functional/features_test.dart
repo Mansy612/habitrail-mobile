@@ -63,6 +63,32 @@ Future<void> _tab(WidgetTester t, int i) async {
 }
 
 void main() {
+  group('Welcome', () {
+    testWidgets('signed out, the only ways in are Create account and Log in',
+        (t) async {
+      t.view.physicalSize = const Size(390 * 2, 844 * 2);
+      t.view.devicePixelRatio = 2;
+      addTearDown(t.view.reset);
+      await t.runAsync(loadAppFonts);
+      // A device that used guest mode before it was removed still can't skip in.
+      SharedPreferences.setMockInitialValues({'auth.guest.v1': true});
+      await t.runAsync(appState.load);
+      await t.pumpWidget(
+          MaterialApp(navigatorKey: _nav, theme: hrTheme(), home: const AuthGate()));
+      await _settle(t);
+      expect(find.byType(WelcomeScreen), findsOneWidget);
+      expect(find.byType(HomeShell), findsNothing);
+      expect(find.text('Continue without an account'), findsNothing);
+      expect(find.byType(HrButton), findsNWidgets(2));
+      await _tap(t, find.text('Create account'));
+      expect(find.byType(SignUpScreen), findsOneWidget);
+      _nav.currentState!.pop();
+      await _settle(t);
+      await _tap(t, find.text('Log in'));
+      expect(find.byType(LoginScreen), findsOneWidget);
+    });
+  });
+
   group('Today', () {
     testWidgets('tapping a quest completes it, awards XP, and undoes', (t) async {
       await _app(t);

@@ -144,15 +144,5 @@ void main() {
       expect(err, isNotNull);
       expect(a.status, AuthStatus.signedOut);
     });
-
-    test('guest mode persists across launches', () async {
-      final a = Auth(StubAuthService());
-      await a.init();
-      await a.continueAsGuest();
-      expect(a.guest, isTrue);
-      final b = Auth(StubAuthService());
-      await b.init();
-      expect(b.guest, isTrue);
-    });
   });
 }

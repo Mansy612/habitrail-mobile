@@ -42,7 +42,7 @@ Connect; **[verify]** need testing on a real device.
   (`supabase/functions/delete-account`), invoked by the Delete-account flow; data
   rows cascade. **Deploy it:** `npx supabase functions deploy delete-account
   --project-ref <ref>` (no secrets needed), then verify deletion on a device.
-- **[ok]** Sign in with Apple is **not required** (email + guest only; it
+- **[ok]** Sign in with Apple is **not required** (email sign-in only; it
   becomes mandatory only if you add Google/Facebook-style social logins).
 - **[done; deploy + EULA needed]** **User-generated content (Guideline 1.2):**
   in-app Report + Block are on every chat message (long-press); reports go to

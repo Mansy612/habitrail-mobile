@@ -10,9 +10,8 @@ Host it at a public URL and put that URL in App Store Connect.
 Habitrail is operated by **[Your name / company]**. Contact:
 **[privacy@your-domain.com]**.
 
-## Use without an account
-You can use Habitrail as a guest. In guest mode your habits, journal, and
-settings are stored **only on your device** and are not sent to us.
+## Accounts
+You need an account to use Habitrail. What we process for it is listed below.
 
 ## Information we collect when you create an account
 Accounts are handled through Supabase. When you sign up or sign in we process:

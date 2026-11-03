@@ -174,7 +174,7 @@ class _FadeSlidePageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
-// ── Auth gate: Welcome (signed out) → app (signed in or guest) ──────────────
+// ── Auth gate: Welcome (signed out) → app (signed in) ───────────────────────
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
   @override
@@ -203,8 +203,10 @@ class _AuthGateState extends State<AuthGate> {
             ),
           );
         }
-        final enter = auth.status == AuthStatus.signedIn || auth.guest;
-        return enter ? const HomeShell() : const WelcomeScreen();
+        // An account is required: there's no guest mode.
+        return auth.status == AuthStatus.signedIn
+            ? const HomeShell()
+            : const WelcomeScreen();
       },
     );
   }
@@ -281,15 +283,8 @@ class WelcomeScreen extends StatelessWidget {
                     .push(MaterialPageRoute(builder: (_) => const LoginScreen())),
               ),
               const SizedBox(height: 10),
-              HrButton(
-                label: 'Continue without an account',
-                icon: Icons.arrow_forward_rounded,
-                kind: HrButtonKind.secondary,
-                onPressed: () => auth.continueAsGuest(),
-              ),
-              const SizedBox(height: 10),
               Text(
-                'You can create an account later to back up and sync your progress.',
+                'Your account backs up your progress and connects you with friends.',
                 textAlign: TextAlign.center,
                 style: HrText.micro.copyWith(color: HrColors.text3),
               ),
@@ -416,7 +411,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (err == null) {
-      // New account → wipe any guest/previous progress and start at Level 1,
+      // New account → wipe any previous progress and start at Level 1,
       // then introduce the app with the onboarding flow.
       appState.startFreshForAccount(auth.user?.name ?? '');
       syncAccountStatus();

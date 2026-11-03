@@ -9612,7 +9612,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 ),
                 const SizedBox(height: 14),
                 HrButton(
-                  label: 'Invite friends',
+                  label: 'Add friends',
                   icon: Icons.person_add_alt_1_rounded,
                   onPressed: () => setState(() => _seg = 1),
                 ),
@@ -9796,7 +9796,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
             ),
             const SizedBox(height: 20),
             HrButton(
-              label: 'Invite friends',
+              label: 'Add friends',
               icon: Icons.person_add_alt_1_rounded,
               onPressed: () => setState(() => _seg = 1),
             ),
@@ -12819,14 +12819,19 @@ class NutritionScreen extends StatelessWidget {
                     ])),
                   ]),
                   const SizedBox(height: 10),
+                  // Calories, then protein, carbs and fat (colours match the
+                  // rings above).
                   for (final m in [
-                    ('Carbs', n.carbs, t.carbs, HrColors.info),
-                    ('Fat', n.fat, t.fat, HrColors.accentBright),
+                    ('Calories', n.calories, t.calories, const Color(0xFFFF9F43), 'kcal'),
+                    ('Protein', n.protein, t.protein, const Color(0xFF62D5FF), 'g'),
+                    ('Carbs', n.carbs, t.carbs, HrColors.success, 'g'),
+                    ('Fat', n.fat, t.fat, HrColors.accentBright, 'g'),
                   ]) ...[
                     Row(children: [
                       Text(m.$1, style: HrText.caption.copyWith(color: HrColors.text2)),
                       const Spacer(),
-                      Text('${m.$2.round()} / ${m.$3.round()} g', style: HrText.caption),
+                      Text('${hrNum(m.$2.round())} / ${hrNum(m.$3.round())} ${m.$5}',
+                          style: HrText.caption),
                     ]),
                     const SizedBox(height: 5),
                     HrXpBar(value: pct(m.$2, m.$3), height: 8, color: m.$4),

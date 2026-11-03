@@ -363,7 +363,8 @@ void main() {
       expect(find.textContaining('IN THE RACE'), findsNothing);
       expect(find.text('—'), findsNothing); // no empty podium places
       expect(find.text('Share an invite'), findsOneWidget);
-      await _tap(t, find.text('Invite friends'));
+      expect(find.text('Invite friends'), findsNothing);
+      await _tap(t, find.text('Add friends'));
       expect(find.text('Your friends will appear here'), findsNothing);
       expect(find.text('No friends yet'), findsOneWidget); // Add Friends tab
     });

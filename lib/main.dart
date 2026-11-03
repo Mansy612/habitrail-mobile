@@ -3023,8 +3023,9 @@ class _BossCard extends StatelessWidget {
       );
 
   Widget _liveBuild(BuildContext context) {
-    final count = appState.perfectDaysThisWeek().clamp(0, kBossGoal);
-    final defeated = count >= kBossGoal;
+    final defeated = appState.bossDefeatedThisWeek;
+    final count =
+        defeated ? kBossGoal : appState.perfectDaysThisWeek().clamp(0, kBossGoal);
     return Padding(
       padding: const EdgeInsets.fromLTRB(HrSpace.gutter, 0, HrSpace.gutter, 8),
       child: HrCard(

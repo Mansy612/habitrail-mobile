@@ -403,13 +403,67 @@ void main() {
       expect(s.streakShields, 0); // shield consumed
     });
 
-    test('perfectDaysThisWeek counts the last 7 days', () {
-      final s = AppState();
+    // Monday of this week, plus [days].
+    DateTime thisWeek(int days) {
       final now = DateTime.now();
-      for (var i = 0; i < 5; i++) {
-        s.perfectDays.add(dateKey(now.subtract(Duration(days: i))));
+      return DateTime(now.year, now.month, now.day - (now.weekday - 1) + days);
+    }
+
+    test('perfectDaysThisWeek counts Monday to Sunday, not a rolling 7 days', () {
+      final s = AppState();
+      for (var i = 1; i <= 4; i++) {
+        s.perfectDays.add(dateKey(thisWeek(-i))); // last week
       }
-      expect(s.perfectDaysThisWeek(), 5);
+      expect(s.perfectDaysThisWeek(), 0);
+      s.perfectDays.add(dateKey(thisWeek(0))); // this Monday
+      expect(s.perfectDaysThisWeek(), 1);
+    });
+
+    test('last week\'s perfect days do not defeat this week\'s boss', () {
+      final s = AppState();
+      s.addHabit('Read', 'common');
+      for (var i = 1; i <= 4; i++) {
+        s.perfectDays.add(dateKey(thisWeek(-i)));
+      }
+      for (final h in s.habits) {
+        if (!s.doneToday(h)) s.toggle(h);
+      }
+      expect(s.totalBossDefeats, 0);
+      expect(s.pendingBossDefeat, isFalse);
+    });
+
+    test('the boss pays once a week, even if a perfect day is undone', () {
+      final s = AppState();
+      s.addHabit('Read', 'common');
+      final today = dateKey(DateTime.now());
+      // Four other perfect days this week (dates ahead count too, so the
+      // test works on any weekday), then make today the fifth.
+      for (var i = 0, n = 0; i < 7 && n < 4; i++) {
+        final k = dateKey(thisWeek(i));
+        if (k != today) {
+          s.perfectDays.add(k);
+          n++;
+        }
+      }
+      for (final h in s.habits) {
+        if (!s.doneToday(h)) s.toggle(h);
+      }
+      expect(s.totalBossDefeats, 1);
+      expect(s.bossDefeatedThisWeek, isTrue);
+      final coins = s.coins;
+      s.toggle(s.habits.first); // undo: today isn't perfect any more
+      s.toggle(s.habits.first); // redo
+      expect(s.totalBossDefeats, 1);
+      expect(s.coins, lessThan(coins + kBossCoins)); // no second payout
+    });
+
+    test('an older save\'s boss flag counts as paid this week', () async {
+      SharedPreferences.setMockInitialValues({
+        'habitrail.meta.v2': '{"bossRewarded": true}',
+      });
+      final s = AppState();
+      await s.load();
+      expect(s.bossDefeatedThisWeek, isTrue);
     });
 
     test('nutrition targets fall back to defaults without a profile', () {

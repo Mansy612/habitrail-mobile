@@ -220,6 +220,10 @@ const String kDefaultAiModel = 'llama3.2';
 String dateKey(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+/// The dateKey of the Monday that starts [d]'s calendar week.
+String weekKey(DateTime d) =>
+    dateKey(DateTime(d.year, d.month, d.day - (d.weekday - 1)));
+
 // ── Victory Score labels/colors (lib/engine/victoryScore.ts) ────────────────
 String victoryLabel(int score) {
   if (score >= 90) return 'Elite Day';
@@ -637,7 +641,7 @@ class AppState extends ChangeNotifier {
   int focusMinutesToday = 0;
   String focusDateKey = '';
   final Set<String> perfectDays = {};
-  bool bossRewarded = false;
+  String bossRewardedWeek = ''; // Monday dateKey of the week the boss paid out
   bool pendingBossDefeat = false;
   final Set<String> questClaimedIds = {};
   String questDateKey = '';
@@ -1327,7 +1331,7 @@ class AppState extends ChangeNotifier {
     coins = 100;
     focusMinutesToday = 0;
     focusDateKey = '';
-    bossRewarded = false;
+    bossRewardedWeek = '';
     pendingBossDefeat = false;
     questDateKey = '';
     prestige = 0;
@@ -1471,14 +1475,17 @@ class AppState extends ChangeNotifier {
     );
   }
 
+  /// Perfect days in this calendar week (Monday to Sunday) — the boss's
+  /// "this week", not a rolling 7 days that reaches into last week.
   int perfectDaysThisWeek() {
-    final now = DateTime.now();
-    int c = 0;
-    for (int i = 0; i < 7; i++) {
-      if (perfectDays.contains(dateKey(now.subtract(Duration(days: i))))) c++;
-    }
-    return c;
+    final week = weekKey(DateTime.now());
+    return perfectDays.where((k) {
+      final d = DateTime.tryParse(k);
+      return d != null && weekKey(d) == week;
+    }).length;
   }
+
+  bool get bossDefeatedThisWeek => bossRewardedWeek == weekKey(DateTime.now());
 
   List<({String label, int score, bool today})> weekTrend() {
     const wd = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -1515,7 +1522,10 @@ class AppState extends ChangeNotifier {
       coins = (m['coins'] as int?) ?? 100;
       focusMinutesToday = (m['focusMinutesToday'] as int?) ?? 0;
       focusDateKey = (m['focusDateKey'] as String?) ?? '';
-      bossRewarded = (m['bossRewarded'] as bool?) ?? false;
+      // Older saves kept a plain flag; read it as "already paid this week" so
+      // the switch to calendar weeks never pays the boss twice.
+      bossRewardedWeek = (m['bossRewardedWeek'] as String?) ??
+          (((m['bossRewarded'] as bool?) ?? false) ? weekKey(DateTime.now()) : '');
       questDateKey = (m['questDateKey'] as String?) ?? '';
       perfectDays.addAll(
           ((m['perfectDays'] as List?) ?? const []).map((e) => e as String));
@@ -1655,7 +1665,7 @@ class AppState extends ChangeNotifier {
           'coins': coins,
           'focusMinutesToday': focusMinutesToday,
           'focusDateKey': focusDateKey,
-          'bossRewarded': bossRewarded,
+          'bossRewardedWeek': bossRewardedWeek,
           'questDateKey': questDateKey,
           'perfectDays': perfectDays.toList(),
           'questClaimedIds': questClaimedIds.toList(),
@@ -1828,13 +1838,13 @@ class AppState extends ChangeNotifier {
     return kAchievements.where((a) => ids.contains(a.id)).toList();
   }
 
+  // Pays out once per calendar week, even if a perfect day is later undone.
   void _updateBoss() {
-    final count = perfectDaysThisWeek();
-    if (count >= kBossGoal && !bossRewarded) {
+    if (perfectDaysThisWeek() >= kBossGoal && !bossDefeatedThisWeek) {
       totalXp += kBossXp;
       _logDay(xp: kBossXp);
       coins += kBossCoins;
-      bossRewarded = true;
+      bossRewardedWeek = weekKey(DateTime.now());
       pendingBossDefeat = true;
       totalBossDefeats += 1;
       _logMilestone('boss_defeat', 'Defeated the weekly boss', xp: kBossXp);
@@ -1847,7 +1857,6 @@ class AppState extends ChangeNotifier {
         _logMilestone('season', 'Season ${currentSeason + 1} begins');
       }
     }
-    if (count < kBossGoal) bossRewarded = false;
   }
 
   bool get canPrestige => level >= kPrestigeMinLevel;

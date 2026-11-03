@@ -57,7 +57,8 @@ First release of Habitrail 🎉 — habits, streaks, XP, companions, journaling,
 co-op parties & guilds, quests, and optional Premium.
 
 ## URLs
-- Support URL: **[https://your-site/support]**  (required)
+- Support URL: **[https://your-site/support]**  (required; must be a web page,
+  not an email. A simple page that lists habitrailapp@gmail.com is enough.)
 - Marketing URL: **[https://your-site]**  (optional)
 - Privacy Policy URL: **[host docs/PRIVACY_POLICY.md and put its URL here]**  (required)
 
@@ -79,11 +80,10 @@ requires UGC apps to provide:
   4. a published contact for reports + a commitment to act.
 **In-app Report + Block are now implemented** on every chat message (long-press
 → Report / Block); reports are recorded in a `content_reports` table and blocked
-users are hidden on-device. Still to do before you submit: (1) **deploy**
-`supabase/migrations/20261029070000_content_reports.sql`, (2) add a short
-**Terms/EULA** stating zero tolerance for objectionable content and that you act
-on reports within 24h, and (3) publish a **report contact** (your support
-email). Displayed chat messages are now **profanity-masked** (whole-word mask in
+users are hidden on-device. `supabase/migrations/20261029070000_content_reports.sql` is deployed, the
+Terms (`docs/TERMS_OF_SERVICE.md`) state zero tolerance and action within 24h,
+and the report contact is **habitrailapp@gmail.com** (in the Terms and the
+privacy policy). Still to do before you submit: host the Terms publicly. Displayed chat messages are now **profanity-masked** (whole-word mask in
 `maskProfanity`); swap in a maintained word list/service for production.
 
 ## Review notes (App Review "Notes" field)

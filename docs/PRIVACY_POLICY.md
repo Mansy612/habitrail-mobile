@@ -8,7 +8,7 @@ lawyer before publishing** — this is a plain-language draft, not legal advice.
 Host it at a public URL and put that URL in App Store Connect.
 
 Habitrail is operated by **[Your name / company]**. Contact:
-**[privacy@your-domain.com]**.
+**habitrailapp@gmail.com**.
 
 ## Accounts
 You need an account to use Habitrail. What we process for it is listed below.
@@ -73,11 +73,11 @@ provided us data, contact us and we will delete it.
 Depending on where you live (e.g. GDPR/CCPA), you may have the right to access,
 correct, export, or delete your personal data. You can exercise most of these
 in-app (edit your profile, export via backup, delete your account) or by
-contacting us at **[privacy@your-domain.com]**.
+contacting us at **habitrailapp@gmail.com**.
 
 ## Changes to this policy
 We may update this policy; we'll change the "Effective date" above and, for
 significant changes, notify you in the app.
 
 ## Contact
-Questions? **[privacy@your-domain.com]**.
+Questions? **habitrailapp@gmail.com**.

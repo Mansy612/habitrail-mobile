@@ -8,7 +8,7 @@ Please read these Terms. By downloading or using Habitrail ("the app", "we",
 publishing** — this is a plain-language draft, not legal advice.
 
 Habitrail is provided by **[Your name / company]** ("we"). Contact:
-**[support@your-domain.com]**.
+**habitrailapp@gmail.com**.
 
 ## 1. Who can use Habitrail
 You must be at least **13 years old** (or the minimum age required in your
@@ -33,7 +33,7 @@ responsible user within 24 hours** of a valid report. We may suspend or
 terminate accounts that violate these rules, without notice.
 
 To report content or abuse, use the in-app **Report** action or email
-**[support@your-domain.com]**.
+**habitrailapp@gmail.com**.
 
 ## 4. Your content
 You keep ownership of the content you create (e.g. chat messages, journal
@@ -112,4 +112,4 @@ subsidiaries are third-party beneficiaries of these Terms** and may enforce them
 against you.
 
 ## 14. Contact
-Questions or reports: **[support@your-domain.com]**.
+Questions or reports: **habitrailapp@gmail.com**.

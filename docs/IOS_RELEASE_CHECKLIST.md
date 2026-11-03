@@ -44,11 +44,11 @@ Connect; **[verify]** need testing on a real device.
   --project-ref <ref>` (no secrets needed), then verify deletion on a device.
 - **[ok]** Sign in with Apple is **not required** (email sign-in only; it
   becomes mandatory only if you add Google/Facebook-style social logins).
-- **[done; deploy + EULA needed]** **User-generated content (Guideline 1.2):**
+- **[done; host the Terms]** **User-generated content (Guideline 1.2):**
   in-app Report + Block are on every chat message (long-press); reports go to
-  `content_reports`; displayed chat is also profanity-masked. Deploy
-  `20261029070000_content_reports.sql`, add a Terms/EULA (zero tolerance + act
-  within 24h), and publish a report contact.
+  `content_reports` (deployed); displayed chat is also profanity-masked. The
+  Terms (`docs/TERMS_OF_SERVICE.md`) cover zero tolerance + acting within 24h,
+  and the report contact is habitrailapp@gmail.com. Host the Terms publicly.
 - **[you]** Age rating questionnaire; export-compliance (uses HTTPS only →
   usually "exempt", declare it).
 

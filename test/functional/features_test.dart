@@ -324,6 +324,24 @@ void main() {
       expect(find.text('Good day'), findsOneWidget);
     });
 
+    testWidgets('journal: long-press an entry to edit or delete it', (t) async {
+      await _app(t);
+      appState.addReflection('Old note', day: 5);
+      await _open(t, const JournalScreen());
+      await t.longPress(find.text('Old note'));
+      await _settle(t);
+      await _tap(t, find.text('Edit reflection'));
+      await t.enterText(find.byType(TextField).last, 'New note');
+      await _settle(t);
+      await _tap(t, find.text('Save changes'));
+      expect(appState.reflections.first.text, 'New note');
+      await t.longPress(find.text('New note'));
+      await _settle(t);
+      await _tap(t, find.text('Delete reflection'));
+      await _tap(t, find.text('Delete'));
+      expect(appState.reflections, isEmpty);
+    });
+
     testWidgets('nutrition: log and remove a meal', (t) async {
       await _app(t);
       await _open(t, const NutritionScreen());

@@ -433,11 +433,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         if (_error != null) _authError(_error!),
         const SizedBox(height: 4),
         _authSubmit('Create account', _busy, _submit),
-        const SizedBox(height: 16),
-        _authDivider(),
-        const SizedBox(height: 16),
-        _appleButton(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         Center(
           child: TextButton(
             onPressed: () => Navigator.pushReplacement(
@@ -516,11 +512,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (_error != null) _authError(_error!),
         const SizedBox(height: 4),
         _authSubmit('Log in', _busy, _submit),
-        const SizedBox(height: 16),
-        _authDivider(),
-        const SizedBox(height: 16),
-        _appleButton(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         Center(
           child: TextButton(
             onPressed: () => Navigator.pushReplacement(
@@ -544,10 +536,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
 // Cloud backup actions + helpers used by the Account screen.
 Future<void> _backupNow(BuildContext context) async {
-  await backupNow();
-  if (context.mounted) {
+  final ok = await backupNow();
+  if (!context.mounted) return;
+  if (ok) {
     hrToast(context, 'Backed up to your account',
         icon: Icons.cloud_done_rounded);
+  } else {
+    hrToast(context, "Couldn't back up — check your connection and try again.",
+        error: true, icon: Icons.cloud_off_rounded);
   }
 }
 
@@ -1618,30 +1614,6 @@ Widget _authError(String msg) => Container(
       ),
     ],
   ),
-);
-
-Widget _authDivider() => Row(
-  children: [
-    const Expanded(child: Divider(color: HrColors.hairline, thickness: 1)),
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Text('or', style: HrText.caption),
-    ),
-    const Expanded(child: Divider(color: HrColors.hairline, thickness: 1)),
-  ],
-);
-
-Widget _appleButton() => Column(
-  children: [
-    const HrButton(
-      label: 'Continue with Apple',
-      icon: Icons.apple,
-      kind: HrButtonKind.secondary,
-      onPressed: null,
-    ),
-    const SizedBox(height: 6),
-    Text('Available on iOS', style: HrText.micro),
-  ],
 );
 
 Widget _authNote() {
@@ -10171,31 +10143,12 @@ class _AddFriendFieldState extends State<_AddFriendField> {
             onSubmitted: (_) => _add(),
             textInputAction: TextInputAction.done,
             style: HrText.body,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: 'Add by username',
-              hintStyle: HrText.body.copyWith(color: HrColors.text3),
-              filled: true,
-              fillColor: HrColors.surface,
-              prefixIcon: const Icon(
+              prefixIcon: Icon(
                 Icons.alternate_email_rounded,
                 size: 18,
                 color: HrColors.text3,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 14,
-                horizontal: 8,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(HrRadius.md),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(HrRadius.md),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(HrRadius.md),
-                borderSide: const BorderSide(color: HrColors.text, width: 1.5),
               ),
             ),
           ),
@@ -10404,7 +10357,14 @@ class FriendProfileScreen extends StatelessWidget {
                 label: 'Send a nudge',
                 icon: Icons.bolt_rounded,
                 kind: HrButtonKind.accent,
-                onPressed: () => _toast(context, 'Nudged ${f.name}!'),
+                // No in-app messaging between friends yet, so the nudge goes
+                // out through the system share sheet (any messenger).
+                onPressed: () => SharePlus.instance.share(ShareParams(
+                  text: f.streak > 0
+                      ? 'Hey ${f.name}! Your ${f.streak}-day streak on Habitrail '
+                          "is waiting — let's both check in today 🔥"
+                      : "Hey ${f.name}! Let's both check in on Habitrail today 🔥",
+                )),
               ),
               const SizedBox(height: 10),
               HrButton(
@@ -11047,6 +11007,7 @@ class _JournalEntryCard extends StatelessWidget {
     final scoreColor = HrColors.victory((ratingScore / 40 * 100).round());
 
     return HrCard(
+      onLongPress: onMenu,
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -12579,24 +12540,7 @@ Widget _numField(
     controller: c,
     keyboardType: kb,
     style: HrText.body,
-    decoration: InputDecoration(
-      labelText: label,
-      labelStyle: HrText.caption,
-      filled: true,
-      fillColor: HrColors.surface,
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        borderSide: BorderSide.none,
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(HrRadius.md),
-        borderSide: const BorderSide(color: HrColors.text, width: 1.5),
-      ),
-    ),
+    decoration: InputDecoration(labelText: label),
     onChanged: onChanged,
   ),
 );
@@ -12647,8 +12591,7 @@ Future<void> showAddFood(BuildContext context) async {
         }
 
         return AlertDialog(
-          backgroundColor: kCard,
-          title: const Text('Log food', style: TextStyle(color: kTextPrimary)),
+          title: const Text('Log food'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -12657,35 +12600,28 @@ Future<void> showAddFood(BuildContext context) async {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: kElevated,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: kBorder),
+                    color: HrColors.surface2,
+                    borderRadius: BorderRadius.circular(HrRadius.md),
+                    border: Border.all(color: HrColors.cardEdge),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.auto_awesome_rounded,
                             size: 15,
-                            color: kCyan,
+                            color: HrColors.gold,
                           ),
                           const SizedBox(width: 6),
-                          const Text(
-                            'Describe your meal',
-                            style: TextStyle(
-                              color: kTextSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          Text('Describe your meal', style: HrText.caption),
                         ],
                       ),
                       const SizedBox(height: 6),
                       TextField(
                         controller: meal,
-                        style: const TextStyle(color: kTextPrimary),
+                        style: HrText.body,
                         textCapitalization: TextCapitalization.sentences,
                         minLines: 1,
                         maxLines: 3,
@@ -12700,8 +12636,7 @@ Future<void> showAddFood(BuildContext context) async {
                         width: double.infinity,
                         child: FilledButton.icon(
                           style: FilledButton.styleFrom(
-                            backgroundColor: kPlasma,
-                            minimumSize: const Size.fromHeight(40),
+                            minimumSize: const Size.fromHeight(44),
                           ),
                           onPressed: busy ? null : runAi,
                           icon: busy
@@ -12731,7 +12666,7 @@ Future<void> showAddFood(BuildContext context) async {
                     padding: EdgeInsets.symmetric(vertical: 2),
                     child: Text(
                       '🤖 AI estimate — adjust anything below',
-                      style: TextStyle(color: kCyan, fontSize: 11),
+                      style: TextStyle(color: HrColors.info, fontSize: 11),
                     ),
                   ),
                 _numField(name, 'Food name', TextInputType.text),
@@ -12748,7 +12683,6 @@ Future<void> showAddFood(BuildContext context) async {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: kPlasma),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Add'),
             ),

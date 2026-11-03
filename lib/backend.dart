@@ -663,17 +663,21 @@ Future<void> Function()? subscribeGlobalMessages(
 
 // ── Cloud backup / restore ────────────────────────────────────────────────────
 
-Future<void> uploadBackup(Map<String, dynamic> data) async {
-  if (!backendEnabled) return;
+/// Upserts the backup row. Returns false when it couldn't be saved.
+Future<bool> uploadBackup(Map<String, dynamic> data) async {
+  if (!backendEnabled) return false;
   final id = _uid;
-  if (id == null) return;
+  if (id == null) return false;
   try {
     await _sb.from('user_backups').upsert({
       'user_id': id,
       'data': data,
       'updated_at': DateTime.now().toIso8601String(),
     });
-  } catch (_) {}
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 Future<Map<String, dynamic>?> downloadBackup() async {
@@ -693,11 +697,14 @@ Future<Map<String, dynamic>?> downloadBackup() async {
 }
 
 /// Back up the full local save to the user's account.
-Future<void> backupNow() async {
-  if (!backendEnabled || _uid == null) return;
+/// Backs the full save up to the account. Returns whether it was saved; only
+/// a successful upload updates "last backed up".
+Future<bool> backupNow() async {
+  if (!backendEnabled || _uid == null) return false;
   final save = await appState.exportSave();
-  await uploadBackup({'v': 1, 'save': save});
-  await appState.markBackedUp();
+  final ok = await uploadBackup({'v': 1, 'save': save});
+  if (ok) await appState.markBackedUp();
+  return ok;
 }
 
 /// Replace the local save with the cloud backup. Returns false if none exists.

@@ -10694,6 +10694,8 @@ class _AchievementCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Full width, or the sheet shrinks to a narrow card.
+              const SizedBox(width: double.infinity),
               Opacity(
                 opacity: on ? 1 : 0.45,
                 child: Image.asset(a.imageAsset, width: 110, height: 110),
@@ -10739,7 +10741,8 @@ class _AchievementCard extends StatelessWidget {
         highlight: highlight,
         radius: HrRadius.md,
         padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
-        child: Column(
+        child: SizedBox.expand( // fill the tile so the badge and name center
+          child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(
@@ -10785,6 +10788,7 @@ class _AchievementCard extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
       ),
     );

@@ -221,6 +221,19 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     }
 
+    // An award's detail sheet, opened from the Awards grid.
+    if (_wanted('sheet_award')) {
+      _navKey.currentState!
+          .push(MaterialPageRoute<void>(builder: (_) => const AwardsScreen()));
+      await _settle(tester);
+      await tester.tap(find.text('Week Warrior'));
+      await _shot(tester, 'sheet_award');
+      _navKey.currentState!.pop(); // sheet
+      await tester.pump(const Duration(milliseconds: 600));
+      _navKey.currentState!.pop(); // page
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+
     // Progress XP chart with a single active day (today).
     if (_wanted('progress_one_day')) {
       final saved = Map.of(appState.dailyXp);

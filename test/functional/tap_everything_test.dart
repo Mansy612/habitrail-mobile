@@ -210,6 +210,8 @@ void main() {
     (name: 'personalize', build: () => const OnboardingQuizScreen(), tab: 0),
     (name: 'signup', build: () => const SignUpScreen(), tab: 0),
     (name: 'login', build: () => const LoginScreen(), tab: 0),
+    (name: 'forgot_password',
+        build: () => const ForgotPasswordScreen(initialEmail: 'tester@example.com'), tab: 0),
     (name: 'admin', build: () => const AdminScreen(), tab: 0),
     for (final u in sampleAdminUsers())
       (name: 'admin_user_${u.username}', build: () => AdminUserScreen(user: u), tab: 0),

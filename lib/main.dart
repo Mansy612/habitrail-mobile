@@ -475,6 +475,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
 }
 
 // ── Log in ───────────────────────────────────────────────────────────────────
+/// After any sign-in: restore a cloud backup onto a fresh device, then pick up
+/// admin changes (after the restore, so admin coins aren't lost), then the name.
+Future<void> _afterSignIn() async {
+  await syncAfterSignIn();
+  await syncAccountStatus();
+  final u = auth.user;
+  if (u != null) appState.setDisplayName(u.name);
+}
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
   @override
@@ -502,11 +511,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final err = await auth.signIn(_email.text, _pw.text);
     if (!mounted) return;
     if (err == null) {
-      await syncAfterSignIn(); // restore a cloud backup onto a fresh device
-      await syncAccountStatus(); // after the restore, so admin coins aren't lost
+      await _afterSignIn();
       if (!mounted) return;
-      final u = auth.user;
-      if (u != null) appState.setDisplayName(u.name);
       setState(() => _busy = false);
       Navigator.of(context).popUntil((r) => r.isFirst);
     } else {
@@ -529,6 +535,19 @@ class _LoginScreenState extends State<LoginScreen> {
           hint: 'you@example.com',
         ),
         _authField(_pw, 'Password', obscure: true, hint: 'Your password'),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) =>
+                    ForgotPasswordScreen(initialEmail: _email.text.trim()))),
+            child: Text(
+              'Forgot password?',
+              style: HrText.bodyS.copyWith(
+                  color: HrColors.accentBright, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
         if (_error != null) _authError(_error!),
         const SizedBox(height: 4),
         _authSubmit('Log in', _busy, _submit),
@@ -549,6 +568,135 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         _authNote(),
+      ],
+    );
+  }
+}
+
+/// Forgot password: email a one-time code, then set a new password with it.
+/// Codes rather than links, so it works the same on iPhone and desktop.
+class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({this.initialEmail = '', super.key});
+  final String initialEmail;
+  @override
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+}
+
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  late final _email = TextEditingController(text: widget.initialEmail);
+  final _code = TextEditingController();
+  final _pw = TextEditingController();
+  bool _codeSent = false;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _code.dispose();
+    _pw.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send({bool again = false}) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final err = await auth.sendPasswordReset(_email.text);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _error = err;
+      if (err == null) _codeSent = true;
+    });
+    if (err == null && again) {
+      hrToast(context, 'New code sent', icon: Icons.mark_email_read_rounded);
+    }
+  }
+
+  Future<void> _reset() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final err = await auth.resetPassword(_email.text, _code.text, _pw.text);
+    if (!mounted) return;
+    if (err != null) {
+      setState(() {
+        _busy = false;
+        _error = err;
+      });
+      return;
+    }
+    await _afterSignIn();
+    if (!mounted) return;
+    hrToast(context, 'Password updated', icon: Icons.lock_reset_rounded);
+    Navigator.of(context).popUntil((r) => r.isFirst);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final email = _email.text.trim();
+    if (!_codeSent) {
+      return _authScaffold(
+        context,
+        title: 'Reset password',
+        subtitle: "Enter your account's email and we'll send you a code to "
+            'set a new password.',
+        children: [
+          _authField(
+            _email,
+            'Email',
+            keyboard: TextInputType.emailAddress,
+            hint: 'you@example.com',
+          ),
+          if (_error != null) _authError(_error!),
+          const SizedBox(height: 4),
+          _authSubmit('Send code', _busy, _send),
+        ],
+      );
+    }
+    return _authScaffold(
+      context,
+      title: 'Check your email',
+      subtitle: "If there's an account for $email, we've sent it a code. "
+          'Enter it below with your new password.',
+      children: [
+        _authField(_code, 'Code',
+            keyboard: TextInputType.number, hint: '6-digit code'),
+        _authField(_pw, 'New password',
+            obscure: true, hint: 'At least 6 characters'),
+        if (_error != null) _authError(_error!),
+        const SizedBox(height: 4),
+        _authSubmit('Set new password', _busy, _reset),
+        const SizedBox(height: 14),
+        Center(
+          child: TextButton(
+            onPressed: _busy ? null : () => _send(again: true),
+            child: Text(
+              "Didn't get it? Send a new code",
+              style: HrText.bodyS
+                  .copyWith(color: HrColors.text, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+        Center(
+          child: TextButton(
+            onPressed: _busy
+                ? null
+                : () => setState(() {
+                      _codeSent = false;
+                      _error = null;
+                      _code.clear();
+                      _pw.clear();
+                    }),
+            child: Text(
+              'Use a different email',
+              style: HrText.bodyS.copyWith(color: HrColors.text2),
+            ),
+          ),
+        ),
       ],
     );
   }

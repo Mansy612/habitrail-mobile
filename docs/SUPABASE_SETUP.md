@@ -171,6 +171,34 @@ Sign out and back in (or relaunch) and the Admin console row appears. Until
 the migration is deployed the app behaves exactly as before: the status check
 reads as "not an admin, not banned, no override".
 
+## 2k. Forgot password (email code) — required for the reset to work
+
+**Log in → Forgot password?** emails a one-time code; the user types it in the
+app with a new password (`resetPasswordForEmail` → `verifyOTP(type: recovery)`
+→ `updateUser`). Codes instead of links, so it works the same on iPhone and
+desktop with no deep links or redirect URLs.
+
+1. **Authentication → Emails → Templates → Reset Password**: the default email
+   only has a link, so replace its body with one that shows the code:
+
+   ```html
+   <h2>Reset your Habitrail password</h2>
+   <p>Enter this code in the app to choose a new password:</p>
+   <p style="font-size:28px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
+   <p>It expires in an hour. If you didn't ask for this, you can ignore this email.</p>
+   ```
+
+   Subject: `Your Habitrail password reset code`.
+2. **Authentication → Emails → SMTP Settings**: Supabase's built-in sender only
+   delivers to your own team's addresses and a few emails an hour. For real
+   users, turn on custom SMTP, e.g. Gmail with `habitrailapp@gmail.com`: host
+   `smtp.gmail.com`, port `465`, username `habitrailapp@gmail.com`, password =
+   a Google **App Password** (Google Account → Security → 2-Step Verification
+   → App passwords), sender name `Habitrail`.
+
+The code length follows **Authentication → Providers → Email → Email OTP
+Length** (6 by default); the app accepts 6–10 digits.
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

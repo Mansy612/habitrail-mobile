@@ -186,6 +186,65 @@ class SupabaseAuthService implements AuthService {
       (await fetchAccountStatus())?['banned'] == true;
 
   @override
+  Future<String?> sendPasswordReset(String email) async {
+    if (!isValidEmail(email)) return 'Enter a valid email address.';
+    try {
+      // The "Reset password" email template must include {{ .Token }} so the
+      // email carries the code (docs/SUPABASE_SETUP.md, 2k).
+      await _sb.auth.resetPasswordForEmail(email.trim());
+      return null;
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (_) {
+      return 'Could not send the code. Check your connection and try again.';
+    }
+  }
+
+  @override
+  Future<AuthResult> resetPassword(
+      {required String email,
+      required String code,
+      required String newPassword}) async {
+    final err = validateCredentials(email, newPassword);
+    if (err != null) return AuthResult.fail(err);
+    if (!isValidResetCode(code)) return const AuthResult.fail(kBadResetCode);
+    final User? u;
+    try {
+      // A valid recovery code signs the user in; then the password is set.
+      final res = await _sb.auth.verifyOTP(
+          email: email.trim(), token: code.trim(), type: OtpType.recovery);
+      u = res.user;
+    } on AuthException catch (e) {
+      if (e.code == 'user_banned') return const AuthResult.fail(kSuspendedMessage);
+      return const AuthResult.fail(kBadResetCode);
+    } catch (_) {
+      return const AuthResult.fail('Could not check the code. Try again.');
+    }
+    if (u == null) return const AuthResult.fail(kBadResetCode);
+    if (await _isBanned()) {
+      await signOut();
+      return const AuthResult.fail(kSuspendedMessage);
+    }
+    try {
+      await _sb.auth.updateUser(UserAttributes(password: newPassword));
+    } on AuthException catch (e) {
+      // Choosing the old password again still leaves them signed in with it.
+      if (e.code != 'same_password') {
+        await signOut();
+        return AuthResult.fail('${e.message} Request a new code and try again.');
+      }
+    } catch (_) {
+      await signOut();
+      return const AuthResult.fail(
+          'Could not set the new password. Request a new code and try again.');
+    }
+    final profile = await _profile(u.id);
+    return AuthResult.ok(_toAuthUser(u,
+        username: profile?['username'] as String?,
+        name: profile?['name'] as String?));
+  }
+
+  @override
   Future<void> updateName(String name) async {
     final id = _uid;
     if (id == null) return;

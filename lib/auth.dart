@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -71,6 +72,12 @@ String? validateCredentials(String email, String password) {
 /// Shown when a banned account tries to sign in (see lib/admin.dart).
 const kSuspendedMessage = 'This account has been suspended.';
 
+/// Shown when a password-reset code doesn't match (or has expired).
+const kBadResetCode = 'That code is wrong or has expired.';
+
+/// Reset codes are digits only; Supabase sends 6 by default (up to 10).
+bool isValidResetCode(String code) => RegExp(r'^\d{6,10}$').hasMatch(code.trim());
+
 /// The seam the real Supabase backend will implement later.
 abstract class AuthService {
   /// true once a real cloud backend is wired (so the UI can hide the
@@ -86,6 +93,16 @@ abstract class AuthService {
   Future<void> updateName(String name);
   Future<void> deleteAccount();
   Future<bool> isUsernameAvailable(String username);
+
+  /// Emails a one-time code for choosing a new password. Null on success —
+  /// including when no account has that email, so nobody can probe for one.
+  Future<String?> sendPasswordReset(String email);
+
+  /// Checks the emailed [code], sets [newPassword] and signs the user in.
+  Future<AuthResult> resetPassword(
+      {required String email,
+      required String code,
+      required String newPassword});
 }
 
 /// On-device stand-in for Supabase auth. Accounts + the current session live in
@@ -206,6 +223,48 @@ class StubAuthService implements AuthService {
         a is Map && (a['username'] ?? '').toString().toLowerCase() == u);
   }
 
+  // There's no email on the device, so the stub keeps each code in memory;
+  // tests read it from [lastResetCode].
+  final Map<String, String> _resetCodes = {};
+  @visibleForTesting
+  String? lastResetCode;
+
+  @override
+  Future<String?> sendPasswordReset(String email) async {
+    if (!isValidEmail(email)) return 'Enter a valid email address.';
+    final key = email.trim().toLowerCase();
+    final p = await SharedPreferences.getInstance();
+    if ((await _accounts(p)).containsKey(key)) {
+      final code = (Random.secure().nextInt(900000) + 100000).toString();
+      _resetCodes[key] = code;
+      lastResetCode = code;
+    }
+    return null;
+  }
+
+  @override
+  Future<AuthResult> resetPassword(
+      {required String email,
+      required String code,
+      required String newPassword}) async {
+    final err = validateCredentials(email, newPassword);
+    if (err != null) return AuthResult.fail(err);
+    final key = email.trim().toLowerCase();
+    if (_resetCodes[key] == null || _resetCodes[key] != code.trim()) {
+      return const AuthResult.fail(kBadResetCode);
+    }
+    _resetCodes.remove(key); // single use
+    final p = await SharedPreferences.getInstance();
+    final accounts = await _accounts(p);
+    final acc = accounts[key];
+    if (acc is! Map) return const AuthResult.fail(kBadResetCode);
+    acc['pw'] = _obscure(newPassword);
+    accounts[key] = acc;
+    await p.setString(_accountsKey, jsonEncode(accounts));
+    await p.setString(_sessionKey, key);
+    return AuthResult.ok(AuthUser.fromMap(acc.cast<String, dynamic>()));
+  }
+
   @override
   Future<AuthUser?> currentUser() async {
     final p = await SharedPreferences.getInstance();
@@ -244,6 +303,14 @@ class Auth extends ChangeNotifier {
 
   Future<String?> signIn(String email, String password) =>
       _run(() => _service.signIn(email: email, password: password));
+
+  Future<String?> sendPasswordReset(String email) =>
+      _service.sendPasswordReset(email);
+
+  /// Sets a new password with the emailed code; signs in on success.
+  Future<String?> resetPassword(String email, String code, String newPassword) =>
+      _run(() => _service.resetPassword(
+          email: email, code: code, newPassword: newPassword));
 
   /// Runs an auth call, updates state, returns null on success or the error.
   Future<String?> _run(Future<AuthResult> Function() call) async {

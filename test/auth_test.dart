@@ -116,6 +116,67 @@ void main() {
     });
   });
 
+  group('password reset (stub)', () {
+    Future<StubAuthService> withAccount() async {
+      final s = StubAuthService();
+      await s.signUp(email: 'sam@example.com', password: 'oldpass1', username: 'sam');
+      await s.signOut();
+      return s;
+    }
+
+    test('a code resets the password and signs in', () async {
+      final s = await withAccount();
+      expect(await s.sendPasswordReset('Sam@Example.com'), isNull);
+      final code = s.lastResetCode!;
+      expect(isValidResetCode(code), isTrue);
+      final r = await s.resetPassword(
+          email: 'sam@example.com', code: code, newPassword: 'newpass1');
+      expect(r.ok, isTrue);
+      expect(await s.currentUser(), isNotNull);
+      await s.signOut();
+      expect((await s.signIn(email: 'sam@example.com', password: 'oldpass1')).ok,
+          isFalse);
+      expect((await s.signIn(email: 'sam@example.com', password: 'newpass1')).ok,
+          isTrue);
+    });
+
+    test('a wrong code fails and changes nothing', () async {
+      final s = await withAccount();
+      await s.sendPasswordReset('sam@example.com');
+      final r = await s.resetPassword(
+          email: 'sam@example.com', code: '000000', newPassword: 'newpass1');
+      expect(r.error, kBadResetCode);
+      expect(await s.currentUser(), isNull);
+      expect((await s.signIn(email: 'sam@example.com', password: 'oldpass1')).ok,
+          isTrue);
+    });
+
+    test('a code works only once', () async {
+      final s = await withAccount();
+      await s.sendPasswordReset('sam@example.com');
+      final code = s.lastResetCode!;
+      await s.resetPassword(email: 'sam@example.com', code: code, newPassword: 'newpass1');
+      final again = await s.resetPassword(
+          email: 'sam@example.com', code: code, newPassword: 'newpass2');
+      expect(again.error, kBadResetCode);
+    });
+
+    test("an unknown email looks the same but sends nothing", () async {
+      final s = await withAccount();
+      expect(await s.sendPasswordReset('nobody@example.com'), isNull);
+      expect(s.lastResetCode, isNull);
+    });
+
+    test('a bad email or short password is rejected', () async {
+      final s = await withAccount();
+      expect(await s.sendPasswordReset('not-an-email'), isNotNull);
+      await s.sendPasswordReset('sam@example.com');
+      final r = await s.resetPassword(
+          email: 'sam@example.com', code: s.lastResetCode!, newPassword: '123');
+      expect(r.ok, isFalse);
+    });
+  });
+
   group('Auth state', () {
     test('init resolves to signedOut with no session', () async {
       final a = Auth(StubAuthService());

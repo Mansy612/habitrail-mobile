@@ -187,6 +187,7 @@ void main() {
       'onboarding': () => const OnboardingScreen(),
       'signup': () => const SignUpScreen(),
       'login': () => const LoginScreen(),
+      'forgot_password': () => const ForgotPasswordScreen(),
       'app_settings': () => const AppSettingsScreen(),
       'friend_profile': () => FriendProfileScreen(friendId: friends.friends.first.id),
       'admin': () => const AdminScreen(),
@@ -198,6 +199,17 @@ void main() {
       if (!_wanted(e.key)) continue;
       _navKey.currentState!.push(MaterialPageRoute<void>(builder: (_) => e.value()));
       await _shot(tester, e.key);
+      _navKey.currentState!.pop();
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    // Forgot password, step 2 (after a code was sent).
+    if (_wanted('forgot_password_code')) {
+      _navKey.currentState!.push(MaterialPageRoute<void>(
+          builder: (_) => const ForgotPasswordScreen(initialEmail: 'alex@example.com')));
+      await _settle(tester);
+      await tester.tap(find.text('Send code'));
+      await _shot(tester, 'forgot_password_code');
       _navKey.currentState!.pop();
       await tester.pump(const Duration(milliseconds: 600));
     }

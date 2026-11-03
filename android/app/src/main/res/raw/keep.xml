@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keep the reminder status-bar icon when release builds shrink resources;
+     it is only referenced by name from Dart (lib/notifications.dart). -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_habitrail" />

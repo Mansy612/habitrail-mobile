@@ -72,6 +72,23 @@ for dpi, scale in [("mdpi", 1), ("hdpi", 1.5), ("xhdpi", 2),
     '    <color name="ic_launcher_background">#%02X%02X%02X</color>\n'
     '</resources>\n' % BG, encoding="utf-8")
 
+# Android status-bar icon for reminders: Android draws it as a white
+# silhouette, so cut the glyph (purple + gold, far brighter than the
+# background) out as white-on-transparent, with the engraved tick as a hole.
+value = MASTER.convert("HSV").split()[2]  # max(r, g, b) per pixel
+glyph = value.point(lambda v: 255 if v > 120 else 0)
+# Close the thin shadow creases between the blocks (the tick is wider).
+glyph = glyph.filter(ImageFilter.MaxFilter(11)).filter(ImageFilter.MinFilter(11))
+glyph = glyph.crop(glyph.getbbox())
+side = round(max(glyph.size) * 1.12)
+mask = Image.new("L", (side, side), 0)
+mask.paste(glyph, ((side - glyph.width) // 2, (side - glyph.height) // 2))
+for dpi, px in [("mdpi", 24), ("hdpi", 36), ("xhdpi", 48),
+                ("xxhdpi", 72), ("xxxhdpi", 96)]:
+    icon = Image.new("RGBA", (px, px), (255, 255, 255, 0))
+    icon.putalpha(mask.resize((px, px), Image.LANCZOS))
+    save(icon, f"android/app/src/main/res/drawable-{dpi}/ic_stat_habitrail.png")
+
 # macOS: the Big Sur tile, an inset rounded square with a soft shadow.
 mac = "macos/Runner/Assets.xcassets/AppIcon.appiconset"
 for size in (16, 32, 64, 128, 256, 512, 1024):
@@ -90,6 +107,9 @@ ico_path = ROOT / "windows/runner/resources/app_icon.ico"
 ico.save(ico_path, sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64),
                           (128, 128), (256, 256)])
 print("windows/runner/resources/app_icon.ico", "7 sizes")
+
+# In-app copy: the notification preview in Settings and the Windows toast icon.
+save(rounded(128, radius=0.22), "assets/branding/app_icon.png")
 
 # Web: favicon, home-screen icons, and maskable icons with the glyph inside
 # the 80% safe circle.

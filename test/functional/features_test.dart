@@ -422,6 +422,28 @@ void main() {
       await _tap(t, find.text('Reset everything'));
       expect(appState.totalXp, 0);
     });
+
+    testWidgets('settings: notification switches', (t) async {
+      await _app(t);
+      appState.setNotificationPrefs(
+          reminders: true, streakAlert: true, streakAlertAt: 20 * 60);
+      appState.setHabitReminder(appState.habits.first, 9 * 60);
+      await _open(t, const AppSettingsScreen());
+      await _tap(t, find.text('Notifications'));
+      // Widget tests can't reach the OS, so the page says so (and the in-app
+      // nudge keeps covering reminders).
+      expect(find.text('Not available on this device'), findsOneWidget);
+      expect(find.text('1 habit has a reminder'), findsOneWidget);
+      expect(find.text('8:00 PM'), findsOneWidget);
+      final who = companionByType(appState.activeCompanion);
+      expect(find.text('${who.name}: ${companionLine(who.type, 'reminder')}'),
+          findsOneWidget);
+      await _tap(t, find.byType(Switch).first);
+      expect(appState.remindersOn, isFalse);
+      await _tap(t, find.byType(Switch).last);
+      expect(appState.streakAlertOn, isFalse);
+      expect(find.text('Alert time'), findsNothing);
+    });
   });
 
   group('Economy', () {

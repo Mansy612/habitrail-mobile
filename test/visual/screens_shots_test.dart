@@ -189,6 +189,7 @@ void main() {
       'login': () => const LoginScreen(),
       'forgot_password': () => const ForgotPasswordScreen(),
       'app_settings': () => const AppSettingsScreen(),
+      'notifications': () => const NotificationsScreen(),
       'friend_profile': () => FriendProfileScreen(friendId: friends.friends.first.id),
       'admin': () => const AdminScreen(),
       'admin_user': () => AdminUserScreen(user: sampleAdminUsers()[2]),

@@ -283,6 +283,126 @@ void main() {
     });
   });
 
+  group('phone notifications', () {
+    // Noon on a Tuesday; the plan is a pure function of the state and this.
+    final now = DateTime(2026, 11, 3, 12);
+    final today = dateKey(now);
+    final yesterday = dateKey(DateTime(2026, 11, 2));
+    Habit habit(AppState s, String name, {int? at}) {
+      s.addHabit(name, 'common', reminderMinutes: at);
+      return s.habits.last;
+    }
+
+    AppState fresh() => AppState()
+      ..habits.clear()
+      ..streakAlertOn = false;
+
+    test('reminders skip past times and habits already done today', () {
+      final s = fresh();
+      final morning = habit(s, 'Stretch', at: 9 * 60); // already passed
+      final evening = habit(s, 'Read', at: 18 * 60);
+      final done = habit(s, 'Walk', at: 18 * 60 + 30)..lastCompletedDate = today;
+      habit(s, 'Water'); // no reminder
+      final plan = planNotifications(s, now);
+      final todays = plan.where((p) => dateKey(p.at) == today).toList();
+      expect(todays.map((p) => p.habitId), [evening.id]);
+      expect(todays.single.at, DateTime(2026, 11, 3, 18));
+      final tomorrow = plan.where((p) => dateKey(p.at) == '2026-11-04');
+      expect(tomorrow.map((p) => p.habitId).toSet(),
+          {morning.id, evening.id, done.id});
+      // A week ahead, then they stop.
+      expect(plan.last.at.isBefore(DateTime(2026, 11, 10)), isTrue);
+      expect(plan.length, 1 + 6 * 3);
+    });
+
+    test('copy is in the companion\'s voice and names an open streak', () {
+      final s = fresh()..activeCompanion = 'wolf';
+      habit(s, 'Read', at: 18 * 60)
+        ..streak = 4
+        ..lastCompletedDate = yesterday;
+      final plan = planNotifications(s, now);
+      expect(plan.first.title, 'Read');
+      expect(plan.first.body,
+          'Fenrir: The hunt starts now. Keep your 4-day streak going.');
+      // Two days unopened: a welcome back instead of the same nudge.
+      expect(plan[2].body, 'Fenrir: The pack is waiting for you.');
+    });
+
+    test('streak alert fires only while a streak is still open', () {
+      final s = fresh()..streakAlertOn = true;
+      final h = habit(s, 'Read')
+        ..streak = 5
+        ..lastCompletedDate = yesterday;
+      habit(s, 'Water');
+      var alerts = planNotifications(s, now).where((p) => p.payload == 'streak');
+      expect(alerts.single.at, DateTime(2026, 11, 3, 20));
+      expect(alerts.single.title, '🔥 Your 5-day streak ends at midnight');
+      expect(alerts.single.body, endsWith('2 habits left today.'));
+
+      // Kept today: nothing at risk today, tomorrow's alert guards it.
+      h
+        ..streak = 6
+        ..lastCompletedDate = today;
+      alerts = planNotifications(s, now).where((p) => p.payload == 'streak');
+      expect(alerts.single.at, DateTime(2026, 11, 4, 20));
+      expect(alerts.single.title, contains('6-day'));
+
+      // A planned rest day can't break a streak, so no alert that day.
+      s.restDays.add('2026-11-04');
+      expect(planNotifications(s, now).where((p) => p.payload == 'streak'),
+          isEmpty);
+    });
+
+    test('a one-day streak and a past alert time send nothing', () {
+      final s = fresh()..streakAlertOn = true;
+      habit(s, 'Read')
+        ..streak = 1
+        ..lastCompletedDate = yesterday;
+      expect(planNotifications(s, now), isEmpty);
+      s.habits.first.streak = 3;
+      s.streakAlertMinutes = 11 * 60; // before noon
+      expect(planNotifications(s, now), isEmpty);
+    });
+
+    test('stays under the iOS limit of 64 pending notifications', () {
+      final s = fresh();
+      for (var i = 0; i < 100; i++) {
+        habit(s, 'Habit $i', at: 13 * 60 + i % 60);
+      }
+      final plan = planNotifications(s, now);
+      expect(plan.length, kMaxPlannedNotifications);
+      expect(plan.every((p) => dateKey(p.at) == today), isTrue);
+    });
+
+    test('each switch turns its kind off', () {
+      final s = fresh()..streakAlertOn = true;
+      habit(s, 'Read', at: 18 * 60)
+        ..streak = 3
+        ..lastCompletedDate = yesterday;
+      s.remindersOn = false;
+      expect(planNotifications(s, now).map((p) => p.payload).toSet(), {'streak'});
+      s
+        ..remindersOn = true
+        ..streakAlertOn = false;
+      expect(planNotifications(s, now).any((p) => p.payload == 'streak'), isFalse);
+    });
+
+    test('notification settings survive a save/load round trip', () async {
+      final s = AppState();
+      await s.load();
+      expect(s.remindersOn && s.streakAlertOn, isTrue); // on by default
+      s.setNotificationPrefs(
+          reminders: false, streakAlertAt: 21 * 60 + 30, asked: true, offered: true);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final again = AppState();
+      await again.load();
+      expect(again.remindersOn, isFalse);
+      expect(again.streakAlertOn, isTrue);
+      expect(again.streakAlertMinutes, 21 * 60 + 30);
+      expect(again.notifAsked && again.notifOffered, isTrue);
+    });
+  });
+
   group('AppState economy', () {
     test('toggle awards XP then refunds exactly on undo', () {
       final s = AppState();

@@ -34,6 +34,7 @@ import 'auth.dart';
 import 'backend.dart';
 import 'friends.dart';
 import 'profanity.dart';
+import 'notifications.dart';
 import 'purchases.dart';
 import 'ui/hr_tokens.dart';
 import 'ui/hr_theme.dart';
@@ -75,6 +76,8 @@ void main() async {
   await appState.load();
   await friends.load();
   if (backendEnabled) _startBackendSync();
+  await reminders.init();
+  reminders.attach();
   runApp(const HabitrailApp());
 }
 
@@ -1904,11 +1907,50 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     shellTab.addListener(_onShellTab);
+    reminders.pendingAction.addListener(_onNotificationTap);
     _reminderTimer = Timer.periodic(
       const Duration(seconds: 30),
       (_) => _checkReminders(),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkReminders());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _onNotificationTap(); // the notification that launched the app, if any
+      _checkReminders();
+    });
+  }
+
+  // A tapped reminder opens Today; its "Mark done" button checks the habit off.
+  void _onNotificationTap() {
+    final a = reminders.pendingAction.value;
+    if (a == null || !mounted) return;
+    reminders.pendingAction.value = null;
+    shellTab.value = 0;
+    if (!a.startsWith('done:')) return;
+    final h = appState.habits.where((x) => x.id == a.substring(5)).firstOrNull;
+    if (h == null) return;
+    if (!appState.doneToday(h)) appState.toggle(h);
+    hrToast(context, 'Habit complete  ·  +${h.todayAwardXp} XP',
+        icon: Icons.bolt_rounded);
+  }
+
+  // Once, for people who already rely on reminders or streaks: explain why
+  // Habitrail wants notifications before the OS asks.
+  void _maybeOfferNotifications() {
+    if (appState.notifOffered ||
+        !reminders.available ||
+        reminders.permitted.value == true ||
+        appState.notifAsked ||
+        appState.needsBriefing ||
+        ModalRoute.of(context)?.isCurrent == false) {
+      return;
+    }
+    final wantsThem = appState.habits.any((h) => h.reminderMinutes != null) ||
+        appState.bestStreak >= 2;
+    if (!wantsThem) return;
+    appState.setNotificationPrefs(offered: true);
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => const _NotificationOffer(),
+    );
   }
 
   void _onShellTab() {
@@ -1920,15 +1962,19 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void dispose() {
     shellTab.removeListener(_onShellTab);
+    reminders.pendingAction.removeListener(_onNotificationTap);
     _reminderTimer?.cancel();
     super.dispose();
   }
 
   // In-app reminders while the app is open: nudge once per habit per day when
-  // its time has passed and it isn't done. (OS-level notifications on iOS get
-  // wired on top of the same reminderMinutes later.)
+  // its time has passed and it isn't done. Only when phone notifications can't
+  // deliver them (lib/notifications.dart), so a reminder never arrives twice.
   void _checkReminders() {
     if (!mounted) return;
+    reminders.replan(); // a no-op unless the plan changed (e.g. past midnight)
+    _maybeOfferNotifications();
+    if (reminders.active) return;
     final now = DateTime.now();
     final nowMin = now.hour * 60 + now.minute;
     final day = dateKey(now);
@@ -11843,6 +11889,20 @@ void _showAchievementUnlocked(BuildContext context, List<Achievement> items) {
   );
 }
 
+/// A reminder was just set: ask for notification permission the first time,
+/// or say why it won't reach the phone if notifications were turned off.
+Future<void> _afterReminderSet(BuildContext context) async {
+  if (!reminders.available || reminders.permitted.value == true) return;
+  if (!appState.notifAsked) {
+    await reminders.requestPermission();
+  } else if (context.mounted) {
+    hrToast(context, 'Notifications are off for Habitrail',
+        icon: Icons.notifications_off_rounded,
+        actionLabel: 'Turn on',
+        onAction: reminders.openSystemSettings);
+  }
+}
+
 String _fmtReminder(int minutes) {
   final h = minutes ~/ 60;
   final m = minutes % 60;
@@ -12070,6 +12130,7 @@ Future<void> showHabitEditor(BuildContext context, [Habit? existing]) async {
             appState.setHabitReminder(existing, reminderMinutes);
           }
           Navigator.pop(ctx);
+          if (reminderMinutes != null) _afterReminderSet(context);
         }
 
         Future<void> pickReminder() async {
@@ -14550,6 +14611,12 @@ class AppSettingsScreen extends StatelessWidget {
                   subtitle: 'Theme & accent colour',
                   onTap: () => _go(context, const AppearanceScreen()),
                 ),
+                HrMenuRow(
+                  icon: Icons.notifications_rounded,
+                  label: 'Notifications',
+                  subtitle: 'Habit reminders & streak alerts',
+                  onTap: () => _go(context, const NotificationsScreen()),
+                ),
               ]),
               const SizedBox(height: 12),
               HrMenuGroup(title: 'Data', children: [
@@ -14583,6 +14650,274 @@ class AppSettingsScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// ── Notifications (Settings → Notifications) ────────────────────────────────
+// Phone notifications are planned in core.dart and scheduled by
+// lib/notifications.dart; this screen holds the switches and the permission.
+
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
+  // Turning a switch on is the moment to ask the OS, if it hasn't been asked.
+  Future<void> _enable(BuildContext context, VoidCallback apply) async {
+    apply();
+    if (!reminders.available || reminders.permitted.value == true) return;
+    if (!appState.notifAsked) {
+      await reminders.requestPermission();
+    } else if (context.mounted) {
+      hrToast(context, 'Notifications are off for Habitrail',
+          icon: Icons.notifications_off_rounded,
+          actionLabel: 'Turn on',
+          onAction: reminders.openSystemSettings);
+    }
+  }
+
+  Future<void> _pickAlertTime(BuildContext context) async {
+    final m = appState.streakAlertMinutes;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: m ~/ 60, minute: m % 60),
+    );
+    if (picked != null) {
+      appState.setNotificationPrefs(
+          streakAlertAt: picked.hour * 60 + picked.minute);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([appState, reminders.permitted]),
+      builder: (context, _) {
+        final timed =
+            appState.habits.where((h) => h.reminderMinutes != null).length;
+        final blocked = reminders.available && reminders.permitted.value == false;
+        final who = companionByType(appState.activeCompanion);
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(title: const HrAppBarTitle('Notifications')),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(
+                HrSpace.gutter, 8, HrSpace.gutter, 28),
+            children: [
+              if (!reminders.available || blocked) ...[
+                HrCard(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          const Icon(Icons.notifications_off_rounded,
+                              size: 20, color: HrColors.gold),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              reminders.available
+                                  ? 'Notifications are off'
+                                  : 'Not available on this device',
+                              style: HrText.headline,
+                            ),
+                          ),
+                        ]),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Reminders only show while Habitrail is open.',
+                          style: HrText.bodyS,
+                        ),
+                        if (blocked) ...[
+                          const SizedBox(height: 12),
+                          HrButton(
+                            label: appState.notifAsked
+                                ? 'Turn on in Settings'
+                                : 'Allow notifications',
+                            icon: Icons.notifications_active_rounded,
+                            kind: HrButtonKind.secondary,
+                            onPressed: appState.notifAsked
+                                ? reminders.openSystemSettings
+                                : reminders.requestPermission,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              HrMenuGroup(title: 'Reminders', children: [
+                HrMenuRow(
+                  icon: Icons.alarm_rounded,
+                  label: 'Habit reminders',
+                  subtitle: timed == 0
+                      ? 'Set a time when you edit a habit'
+                      : '$timed ${timed == 1 ? 'habit has' : 'habits have'} a reminder',
+                  chevron: false,
+                  trailing: Switch(
+                    value: appState.remindersOn,
+                    onChanged: (v) => v
+                        ? _enable(context,
+                            () => appState.setNotificationPrefs(reminders: true))
+                        : appState.setNotificationPrefs(reminders: false),
+                  ),
+                ),
+                HrMenuRow(
+                  icon: Icons.local_fire_department_rounded,
+                  iconColor: HrColors.pink,
+                  label: 'Streak alert',
+                  subtitle: 'A heads-up if a streak is still open',
+                  chevron: false,
+                  trailing: Switch(
+                    value: appState.streakAlertOn,
+                    onChanged: (v) => v
+                        ? _enable(context,
+                            () => appState.setNotificationPrefs(streakAlert: true))
+                        : appState.setNotificationPrefs(streakAlert: false),
+                  ),
+                ),
+                if (appState.streakAlertOn)
+                  HrMenuRow(
+                    icon: Icons.schedule_rounded,
+                    label: 'Alert time',
+                    value: _menuValue(_fmtReminder(appState.streakAlertMinutes)),
+                    onTap: () => _pickAlertTime(context),
+                  ),
+              ]),
+              const SizedBox(height: 16),
+              HrLabel('${who.name.toUpperCase()} WILL SAY'),
+              const SizedBox(height: 8),
+              _notificationPreview(
+                '🔥 Your 5-day streak ends at midnight',
+                '${who.name}: ${companionLine(who.type, 'streak_risk')}',
+              ),
+              const SizedBox(height: 8),
+              _notificationPreview(
+                '📖 Read 20 minutes',
+                '${who.name}: ${companionLine(who.type, 'reminder')}',
+              ),
+              const SizedBox(height: 16),
+              if (reminders.available)
+                HrButton(
+                  label: 'Send a test notification',
+                  icon: Icons.send_rounded,
+                  kind: HrButtonKind.ghost,
+                  onPressed: () async {
+                    final ok = await reminders.sendTest();
+                    if (!ok && context.mounted) {
+                      hrToast(context, 'Couldn\'t send it. Check that notifications are on.',
+                          error: true);
+                    }
+                  },
+                ),
+              const SizedBox(height: 10),
+              Text(
+                'Reminders pause after a week without opening Habitrail.',
+                textAlign: TextAlign.center,
+                style: HrText.caption,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// A lock-screen style notification, to show what reminders will say.
+Widget _notificationPreview(String title, String body) => Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: HrColors.surface2,
+        borderRadius: BorderRadius.circular(HrRadius.lg),
+        border: Border.all(color: HrColors.hairline),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset('assets/branding/app_icon.png', width: 36, height: 36),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Text('HABITRAIL', style: HrText.micro),
+                  const Spacer(),
+                  Text('now', style: HrText.micro),
+                ]),
+                const SizedBox(height: 3),
+                Text(title,
+                    style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text(body, style: HrText.bodyS),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+/// Shown once to people who already set reminders or keep streaks, before the
+/// OS asks, so the prompt arrives with a reason.
+class _NotificationOffer extends StatelessWidget {
+  const _NotificationOffer();
+  @override
+  Widget build(BuildContext context) {
+    final who = companionByType(appState.activeCompanion);
+    final timed = appState.habits.any((h) => h.reminderMinutes != null);
+    return Dialog(
+      backgroundColor: HrColors.surface,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(HrRadius.xl)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: double.infinity),
+            _CompanionOrb(
+              color: who.color,
+              icon: who.icon,
+              size: 72,
+              imageAsset: who.imageAsset,
+            ),
+            const SizedBox(height: 14),
+            Text('Never miss a habit',
+                textAlign: TextAlign.center, style: HrText.title2),
+            const SizedBox(height: 8),
+            Text(
+              timed
+                  ? 'Your reminders can reach you even when Habitrail is closed, '
+                      'plus a heads-up before a streak breaks.'
+                  : 'Get a heads-up before a streak breaks, even when Habitrail '
+                      'is closed.',
+              textAlign: TextAlign.center,
+              style: HrText.bodyS,
+            ),
+            const SizedBox(height: 18),
+            HrButton(
+              label: 'Turn on reminders',
+              icon: Icons.notifications_active_rounded,
+              onPressed: () {
+                Navigator.pop(context);
+                reminders.requestPermission();
+              },
+            ),
+            const SizedBox(height: 6),
+            HrButton(
+              label: 'Not now',
+              kind: HrButtonKind.ghost,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

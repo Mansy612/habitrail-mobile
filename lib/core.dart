@@ -681,6 +681,13 @@ class AppState extends ChangeNotifier {
   bool aiEnabled = true;
   String aiBaseUrl = kDefaultAiBaseUrl;
   String aiModel = kDefaultAiModel;
+  // Phone notifications, planned by planNotifications() and scheduled by
+  // lib/notifications.dart. Settings, not progress, so a reset keeps them.
+  bool remindersOn = true; // each habit's reminder time as a notification
+  bool streakAlertOn = true; // heads-up before an open streak breaks
+  int streakAlertMinutes = 20 * 60; // minutes since midnight
+  bool notifAsked = false; // the OS permission prompt has been shown
+  bool notifOffered = false; // the in-app "turn on reminders" offer was shown
   // Premium + AI-coach quota (freemium). ownPremium is this device's own
   // entitlement (store purchase / scaffold); coach usage counts against a
   // weekly allowance.
@@ -925,6 +932,22 @@ class AppState extends ChangeNotifier {
     if (enabled != null) aiEnabled = enabled;
     if (baseUrl != null) aiBaseUrl = baseUrl.trim();
     if (model != null) aiModel = model.trim();
+    notifyListeners();
+    _save();
+  }
+
+  void setNotificationPrefs({
+    bool? reminders,
+    bool? streakAlert,
+    int? streakAlertAt,
+    bool? asked,
+    bool? offered,
+  }) {
+    if (reminders != null) remindersOn = reminders;
+    if (streakAlert != null) streakAlertOn = streakAlert;
+    if (streakAlertAt != null) streakAlertMinutes = streakAlertAt;
+    if (asked != null) notifAsked = asked;
+    if (offered != null) notifOffered = offered;
     notifyListeners();
     _save();
   }
@@ -1608,6 +1631,11 @@ class AppState extends ChangeNotifier {
       aiEnabled = (m['aiEnabled'] as bool?) ?? true;
       aiBaseUrl = (m['aiBaseUrl'] as String?) ?? kDefaultAiBaseUrl;
       aiModel = (m['aiModel'] as String?) ?? kDefaultAiModel;
+      remindersOn = (m['remindersOn'] as bool?) ?? true;
+      streakAlertOn = (m['streakAlertOn'] as bool?) ?? true;
+      streakAlertMinutes = (m['streakAlertMinutes'] as int?) ?? 20 * 60;
+      notifAsked = (m['notifAsked'] as bool?) ?? false;
+      notifOffered = (m['notifOffered'] as bool?) ?? false;
       ownPremium = (m['isPremium'] as bool?) ?? false;
       premiumOverride = (m['premiumOverride'] as String?) ?? '';
       appliedCoinGrants
@@ -1745,6 +1773,11 @@ class AppState extends ChangeNotifier {
           'aiEnabled': aiEnabled,
           'aiBaseUrl': aiBaseUrl,
           'aiModel': aiModel,
+          'remindersOn': remindersOn,
+          'streakAlertOn': streakAlertOn,
+          'streakAlertMinutes': streakAlertMinutes,
+          'notifAsked': notifAsked,
+          'notifOffered': notifOffered,
           'isPremium': ownPremium,
           'premiumOverride': premiumOverride,
           'appliedCoinGrants': appliedCoinGrants.toList(),
@@ -2428,6 +2461,9 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'level_up': 'Upgrade installed. Recalibrating.',
     'prestige': 'Full reset. Parameters improved.',
     'challenge_done': 'Challenge complete. Objective met.',
+    'reminder': 'Scheduled task due. Awaiting your input.',
+    'streak_risk': 'Streak integrity at risk. Action advised.',
+    'comeback': 'Systems idle. Ready when you are.',
   },
   'wolf': {
     'elite_day': 'The pack feasts tonight.',
@@ -2437,6 +2473,9 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'level_up': 'Stronger. The forest knows.',
     'prestige': 'Reborn — wilder than before.',
     'challenge_done': 'The long hunt is won.',
+    'reminder': 'The hunt starts now.',
+    'streak_risk': 'The trail goes cold at midnight.',
+    'comeback': 'The pack is waiting for you.',
   },
   'phoenix': {
     'elite_day': 'You burned bright today.',
@@ -2446,6 +2485,9 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'level_up': 'Rising, warmer than before.',
     'prestige': 'From the ashes. Again.',
     'challenge_done': 'You walked through fire — and won.',
+    'reminder': 'Time to light the spark.',
+    'streak_risk': 'Your flame burns out at midnight.',
+    'comeback': 'Every fire starts with one spark.',
   },
   'ghost': {
     'elite_day': '…perfect.',
@@ -2455,6 +2497,9 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'level_up': 'Mm. Higher.',
     'prestige': '…again.',
     'challenge_done': 'Done. …quietly.',
+    'reminder': '…it\'s time.',
+    'streak_risk': '…midnight. Don\'t let it fade.',
+    'comeback': '…still here.',
   },
   'lynx': {
     'elite_day': 'Clean execution. No trace.',
@@ -2464,6 +2509,9 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'level_up': 'Sharper now.',
     'prestige': 'A new skin. Same silence.',
     'challenge_done': 'Target met. Quietly.',
+    'reminder': 'Move now. Quietly.',
+    'streak_risk': 'One slip and the trail is lost.',
+    'comeback': 'The shadows kept your place.',
   },
   'titan': {
     'elite_day': 'Discipline wins wars.',
@@ -2473,6 +2521,9 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'level_up': 'Forged harder.',
     'prestige': 'Reborn. Unbroken.',
     'challenge_done': 'Held the line to the end.',
+    'reminder': 'Discipline calls. Answer it.',
+    'streak_risk': 'Hold the wall. It falls at midnight.',
+    'comeback': 'Iron rusts. Pick it back up.',
   },
   'serpent': {
     'elite_day': 'Precision. Every time.',
@@ -2482,6 +2533,9 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'level_up': 'Evolved.',
     'prestige': 'Shed the skin. Begin again.',
     'challenge_done': 'The plan unfolded. Precisely.',
+    'reminder': 'Right on schedule. Proceed.',
+    'streak_risk': 'The pattern breaks at midnight.',
+    'comeback': 'Patience. Strike when ready.',
   },
   'dragon': {
     'elite_day': 'The fire never fades.',
@@ -2491,6 +2545,9 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'level_up': 'Power ascending.',
     'prestige': 'A dragon transforms, never retires.',
     'challenge_done': 'Another legend, earned.',
+    'reminder': 'Legends are built today.',
+    'streak_risk': 'Your legend dims at midnight.',
+    'comeback': 'Even dragons rest. Rise again.',
   },
   'specter': {
     'elite_day': 'You cannot rest. Neither can I.',
@@ -2500,6 +2557,9 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'level_up': 'Keep going.',
     'prestige': 'Death is just another level.',
     'challenge_done': 'Finished. On to the next.',
+    'reminder': 'No excuses. Now.',
+    'streak_risk': 'Midnight takes your streak. Don\'t let it.',
+    'comeback': 'Rest is over. Return.',
   },
   'wraith': {
     'elite_day': 'The void is satisfied.',
@@ -2509,11 +2569,115 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'level_up': 'Ascending beyond.',
     'prestige': 'Transcendence. Again.',
     'challenge_done': 'Consumed, whole. Complete.',
+    'reminder': 'The void calls. Answer.',
+    'streak_risk': 'The void claims it at midnight.',
+    'comeback': 'The void remembers you.',
   },
 };
 
 String companionLine(String type, String trigger) =>
     kCompanionLines[type]?[trigger] ?? '';
+
+// ── Phone notifications (planned here, scheduled by lib/notifications.dart) ──
+class PlannedNotification {
+  const PlannedNotification({
+    required this.id,
+    required this.at,
+    required this.title,
+    required this.body,
+    required this.payload,
+  });
+  final int id;
+  final DateTime at;
+  final String title;
+  final String body;
+  final String payload; // 'habit:<id>' (has a "Mark done" button) or 'streak'
+  String? get habitId => payload.startsWith('habit:') ? payload.substring(6) : null;
+}
+
+/// iOS keeps only the 64 most recently scheduled notifications.
+const int kMaxPlannedNotifications = 60;
+
+/// Habit reminders reach a week ahead, so they still arrive if the app isn't
+/// opened, then stop instead of nagging forever.
+const int kReminderDaysAhead = 7;
+
+/// Every notification to schedule from [now]: habit reminders at each habit's
+/// reminder time, and a streak alert before an open streak breaks. Completing
+/// a habit replans, which drops its reminder and any alert it settles.
+List<PlannedNotification> planNotifications(AppState s, DateTime now) {
+  final out = <PlannedNotification>[];
+  final c = companionByType(s.activeCompanion);
+  String voice(String trigger) => '${c.name}: ${companionLine(c.type, trigger)}';
+  DateTime at(int day, int minutes) =>
+      DateTime(now.year, now.month, now.day + day, minutes ~/ 60, minutes % 60);
+  String key(int day) => dateKey(DateTime(now.year, now.month, now.day + day));
+  final today = key(0), yesterday = key(-1);
+  bool doneToday(Habit h) => h.lastCompletedDate == today;
+  var id = 1;
+
+  // Today for streaks still open; tomorrow for the ones kept today. Later days
+  // can't be at risk: by then the streak is either kept or already gone.
+  if (s.streakAlertOn) {
+    for (final day in [0, 1]) {
+      final t = at(day, s.streakAlertMinutes);
+      if (!t.isAfter(now) || s.restDays.contains(key(day))) continue;
+      final atRisk = s.habits
+          .where((h) => day == 0
+              ? !doneToday(h) && h.lastCompletedDate == yesterday
+              : doneToday(h))
+          .where((h) => h.streak >= 2);
+      if (atRisk.isEmpty) continue;
+      final top = atRisk.map((h) => h.streak).reduce(max);
+      final open = s.habits.where((h) => !doneToday(h)).length;
+      out.add(PlannedNotification(
+        id: id++,
+        at: t,
+        title: '🔥 Your $top-day streak ends at midnight',
+        body: day == 0
+            ? '${voice('streak_risk')} $open ${open == 1 ? 'habit' : 'habits'} left today.'
+            : voice('streak_risk'),
+        payload: 'streak',
+      ));
+    }
+  }
+
+  if (s.remindersOn) {
+    final timed = s.habits.where((h) => h.reminderMinutes != null).toList();
+    final days = timed.isEmpty
+        ? 0
+        : ((kMaxPlannedNotifications - out.length) ~/ timed.length)
+            .clamp(1, kReminderDaysAhead);
+    for (var day = 0; day < days; day++) {
+      for (final h in timed) {
+        final t = at(day, h.reminderMinutes!);
+        if (!t.isAfter(now) || (day == 0 && doneToday(h))) continue;
+        // The streak this check-off keeps, while it's still known.
+        final streak = (day == 0 && h.lastCompletedDate == yesterday) ||
+                (day == 1 && doneToday(h))
+            ? h.streak
+            : 0;
+        out.add(PlannedNotification(
+          id: id++,
+          at: t,
+          title: h.icon.isEmpty ? h.name : '${h.icon} ${h.name}',
+          // Two days without opening the app: a welcome back, not a nag.
+          body: day >= 2
+              ? voice('comeback')
+              : streak >= 2
+                  ? '${voice('reminder')} Keep your $streak-day streak going.'
+                  : voice('reminder'),
+          payload: 'habit:${h.id}',
+        ));
+      }
+    }
+  }
+
+  out.sort((a, b) => a.at.compareTo(b.at));
+  return out.length > kMaxPlannedNotifications
+      ? out.sublist(0, kMaxPlannedNotifications)
+      : out;
+}
 
 // ── Co-op quests (shared party boss goals) ──────────────────────────────────
 class CoopQuestDef {

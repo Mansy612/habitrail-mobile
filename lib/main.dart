@@ -1913,6 +1913,7 @@ class _HomeShellState extends State<HomeShell> {
     super.initState();
     shellTab.addListener(_onShellTab);
     reminders.pendingAction.addListener(_onNotificationTap);
+    appState.addListener(_onProgress);
     _reminderTimer = Timer.periodic(
       const Duration(seconds: 30),
       (_) => _checkReminders(),
@@ -1935,6 +1936,21 @@ class _HomeShellState extends State<HomeShell> {
     if (!appState.doneToday(h)) appState.toggle(h);
     hrToast(context, 'Habit complete  ·  +${h.todayAwardXp} XP',
         icon: Icons.bolt_rounded);
+  }
+
+  // A stage reached through XP that isn't a habit check-off (focus, tasks,
+  // quests): celebrate it when the user is back with nothing else open.
+  void _onProgress() =>
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowEvolution());
+
+  void _maybeShowEvolution() {
+    if (!mounted ||
+        appState.needsBriefing ||
+        ModalRoute.of(context)?.isCurrent == false) {
+      return;
+    }
+    final stage = appState.consumeEvolution();
+    if (stage != null) _showEvolution(context, stage);
   }
 
   // Once, for people who already rely on reminders or streaks: explain why
@@ -1969,6 +1985,7 @@ class _HomeShellState extends State<HomeShell> {
   void dispose() {
     shellTab.removeListener(_onShellTab);
     reminders.pendingAction.removeListener(_onNotificationTap);
+    appState.removeListener(_onProgress);
     _reminderTimer?.cancel();
     super.dispose();
   }
@@ -1979,6 +1996,7 @@ class _HomeShellState extends State<HomeShell> {
   void _checkReminders() {
     if (!mounted) return;
     reminders.replan(); // a no-op unless the plan changed (e.g. past midnight)
+    _maybeShowEvolution();
     _maybeOfferNotifications();
     if (reminders.active) return;
     final now = DateTime.now();
@@ -2544,9 +2562,14 @@ class HomeScreen extends StatelessWidget {
         }
         shownMajor = true;
       } else if (appState.level > old) {
-        appState.setCompanionLine(companionLine(who, 'level_up'));
-        celebrate(context);
-        _showLevelUp(context, appState.level);
+        final evolved = appState.consumeEvolution();
+        if (evolved != null) {
+          _showEvolution(context, evolved);
+        } else {
+          appState.setCompanionLine(companionLine(who, 'level_up'));
+          celebrate(context);
+          _showLevelUp(context, appState.level);
+        }
         shownMajor = true;
       } else {
         if (h.streak == 30 && oldStreak != 30) {
@@ -13582,6 +13605,7 @@ class _CompanionOrb extends StatelessWidget {
     this.imageAsset,
     this.glowColor, // premium skin tint; null = default behaviour
     this.accessoryEmoji = '', // premium accessory overlay; '' = none
+    this.stage = 0, // evolution stage (kCompanionStages); 0 = no aura
   });
   final Color color;
   final IconData icon;
@@ -13589,6 +13613,7 @@ class _CompanionOrb extends StatelessWidget {
   final String? imageAsset;
   final Color? glowColor;
   final String accessoryEmoji;
+  final int stage;
 
   @override
   Widget build(BuildContext context) {
@@ -13625,12 +13650,16 @@ class _CompanionOrb extends StatelessWidget {
           ? Icon(icon, color: Colors.white, size: size * 0.5)
           : Image.asset(imageAsset!, fit: BoxFit.cover),
     );
-    if (accessoryEmoji.isEmpty) return orb;
+    final evolved = stage > 0
+        ? _EvolutionAura(
+            stage: stage, color: glowColor ?? color, size: size, child: orb)
+        : orb;
+    if (accessoryEmoji.isEmpty) return evolved;
     return SizedBox(
       width: size,
       height: size,
       child: Stack(clipBehavior: Clip.none, children: [
-        orb,
+        evolved,
         Positioned(
           top: -size * 0.14,
           right: -size * 0.06,
@@ -13639,6 +13668,356 @@ class _CompanionOrb extends StatelessWidget {
       ]),
     );
   }
+}
+
+/// The look a companion grows into (kCompanionStages), drawn around the orb
+/// and spilling past it, so the orb keeps its size wherever it's shown. Each
+/// stage adds to the one before.
+class _EvolutionAura extends StatefulWidget {
+  const _EvolutionAura({
+    required this.stage,
+    required this.color,
+    required this.size,
+    required this.child,
+  });
+  final int stage;
+  final Color color;
+  final double size;
+  final Widget child;
+
+  @override
+  State<_EvolutionAura> createState() => _EvolutionAuraState();
+}
+
+class _EvolutionAuraState extends State<_EvolutionAura>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spin =
+      AnimationController(vsync: this, duration: const Duration(seconds: 14));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_EvolutionAura old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  // Only the orbiting stages move, and nothing moves under Reduce Motion.
+  void _sync() {
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (widget.stage >= 2 && !still) {
+      if (!_spin.isAnimating) _spin.repeat();
+    } else {
+      _spin.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: CustomPaint(
+          painter: _AuraPainter(widget.stage, widget.color, _spin),
+          child: widget.child,
+        ),
+      );
+}
+
+class _AuraPainter extends CustomPainter {
+  _AuraPainter(this.stage, this.color, this.spin) : super(repaint: spin);
+  final int stage;
+  final Color color;
+  final Animation<double> spin;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide / 2;
+    final t = spin.value * 2 * pi;
+    // 1 Bonded: a soft aura in its colour.
+    final glowR = r * 1.55;
+    canvas.drawCircle(
+      c,
+      glowR,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [color.withValues(alpha: 0.5), color.withValues(alpha: 0)],
+          stops: const [0.6, 1],
+        ).createShader(Rect.fromCircle(center: c, radius: glowR)),
+    );
+    if (stage < 2) return;
+    // 2 Awakened: a ring with three orbiting sparks.
+    final ringR = r * 1.2;
+    canvas.drawCircle(
+      c,
+      ringR,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = max(1.2, r * 0.035)
+        ..color = color.withValues(alpha: 0.65),
+    );
+    _sparks(canvas, c, ringR, 3, t, stage >= 3 ? HrColors.gold : Colors.white, r);
+    if (stage < 3) return;
+    // 3 Ascended: a second, golden ring turning the other way.
+    final outerR = r * 1.38;
+    final dash = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = max(1.2, r * 0.03)
+      ..color = HrColors.gold.withValues(alpha: 0.7);
+    final rect = Rect.fromCircle(center: c, radius: outerR);
+    const n = 24;
+    for (var i = 0; i < n; i++) {
+      canvas.drawArc(rect, -t * 0.6 + i * 2 * pi / n, 2 * pi / n * 0.5, false, dash);
+    }
+    _sparks(canvas, c, outerR, 2, -t * 0.6 + pi / 2, HrColors.gold, r);
+    if (stage < 4) return;
+    // 4 Mythic: a prismatic halo hugging the orb.
+    final haloR = r * 1.06;
+    canvas.drawCircle(
+      c,
+      haloR,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.09
+        ..shader = SweepGradient(
+          colors: [HrColors.accent, HrColors.pink, HrColors.gold, HrColors.accent],
+          transform: GradientRotation(t),
+        ).createShader(Rect.fromCircle(center: c, radius: haloR)),
+    );
+  }
+
+  void _sparks(Canvas canvas, Offset c, double radius, int n, double angle,
+      Color tint, double r) {
+    for (var i = 0; i < n; i++) {
+      final a = angle + i * 2 * pi / n;
+      final p = c + Offset(cos(a), sin(a)) * radius;
+      canvas.drawCircle(
+        p,
+        r * 0.12,
+        Paint()
+          ..color = tint.withValues(alpha: 0.35)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.08),
+      );
+      canvas.drawCircle(p, max(1.5, r * 0.045), Paint()..color = tint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_AuraPainter old) =>
+      old.stage != stage || old.color != color;
+}
+
+/// The evolution moment's emblem: the new form pops in behind a flash.
+class _EvolutionEmblem extends StatefulWidget {
+  const _EvolutionEmblem({required this.companion, required this.stage});
+  final CompanionDef companion;
+  final int stage;
+  @override
+  State<_EvolutionEmblem> createState() => _EvolutionEmblemState();
+}
+
+class _EvolutionEmblemState extends State<_EvolutionEmblem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pop = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1100));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (still) {
+      _pop.value = 1;
+    } else if (!_pop.isAnimating && _pop.value == 0) {
+      _pop.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pop.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.companion;
+    return AnimatedBuilder(
+      animation: _pop,
+      builder: (context, _) {
+        final t = _pop.value;
+        final scale = t < 0.35
+            ? 0.75 + 0.35 * Curves.easeOut.transform(t / 0.35)
+            : 1.1 - 0.1 * Curves.easeInOut.transform((t - 0.35) / 0.65);
+        return Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            if (t < 1)
+              Container(
+                width: 90 + 120 * t,
+                height: 90 + 120 * t,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.8 * (1 - t)),
+                    width: 1 + 3 * (1 - t),
+                  ),
+                ),
+              ),
+            Transform.scale(
+              scale: scale,
+              child: _CompanionOrb(
+                color: c.color,
+                icon: c.icon,
+                size: 92,
+                imageAsset: c.imageAsset,
+                stage: widget.stage,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+void _showEvolution(BuildContext context, int stage) {
+  final c = companionByType(appState.activeCompanion);
+  final st = kCompanionStages[stage];
+  appState.setCompanionLine(companionLine(c.type, 'evolve'));
+  celebrate(context);
+  _showMoment(
+    context,
+    label: 'Evolution',
+    labelColor: HrColors.pink,
+    emblem: _EvolutionEmblem(companion: c, stage: stage),
+    title: '${c.name} evolved!',
+    subtitle: 'Stage $stage · ${st.name}\n${c.name} gains ${st.look}.',
+    bubble: companionLine(c.type, 'evolve'),
+    buttonLabel: 'Amazing',
+  );
+}
+
+/// Companions screen: the stages, where you are, and what's next.
+class _EvolutionPath extends StatelessWidget {
+  const _EvolutionPath();
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) {
+          final level = appState.level;
+          final stage = companionStage(level);
+          final c = companionByType(appState.activeCompanion);
+          final cur = kCompanionStages[stage];
+          final next = stage + 1 < kCompanionStages.length
+              ? kCompanionStages[stage + 1]
+              : null;
+          Widget node(int i) {
+            final reached = i <= stage;
+            return Column(children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: reached
+                      ? LinearGradient(
+                          colors: [HrColors.accent, HrColors.pink])
+                      : null,
+                  color: reached ? null : HrColors.surface3,
+                  border: i == stage
+                      ? Border.all(color: Colors.white, width: 2)
+                      : null,
+                  boxShadow: i == stage
+                      ? [
+                          BoxShadow(
+                              color: HrColors.pink.withValues(alpha: 0.5),
+                              blurRadius: 12),
+                        ]
+                      : null,
+                ),
+                child: Text('$i',
+                    style: HrText.micro.copyWith(
+                        color: reached ? Colors.white : HrColors.text3,
+                        fontWeight: FontWeight.w900)),
+              ),
+              const SizedBox(height: 6),
+              Text('Lv ${kCompanionStages[i].minLevel}',
+                  style: HrText.micro.copyWith(
+                      color: i == stage ? HrColors.text : HrColors.text3,
+                      fontWeight: i == stage ? FontWeight.w800 : null)),
+            ]);
+          }
+
+          return HrCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Text('Evolution', style: HrText.headline),
+                  const Spacer(),
+                  Text('Stage $stage · ${cur.name}',
+                      style: HrText.bodyS.copyWith(
+                          color: HrColors.pink, fontWeight: FontWeight.w800)),
+                ]),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = 0; i < kCompanionStages.length; i++) ...[
+                      if (i > 0)
+                        Expanded(
+                          child: Container(
+                            height: 3,
+                            margin: const EdgeInsets.only(top: 13.5),
+                            decoration: BoxDecoration(
+                              color: i <= stage ? HrColors.pink : HrColors.surface3,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                      node(i),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (next == null)
+                  Text('${c.name} has reached its final form.', style: HrText.bodyS)
+                else ...[
+                  Text('Next: ${next.name} at level ${next.minLevel}',
+                      style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text('${c.name} gains ${next.look}.', style: HrText.bodyS),
+                  const SizedBox(height: 10),
+                  HrXpBar(
+                    value: ((level - cur.minLevel) / (next.minLevel - cur.minLevel))
+                        .clamp(0.0, 1.0)
+                        .toDouble(),
+                    height: 8,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${next.minLevel - level} ${next.minLevel - level == 1 ? 'level' : 'levels'} to go',
+                    style: HrText.micro,
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      );
 }
 
 class _CompanionCard extends StatelessWidget {
@@ -13672,6 +14051,7 @@ class _CompanionCard extends StatelessWidget {
                   : companionGlowColor(appState.companionSkin, c.color),
               accessoryEmoji:
                   companionAccessoryById(appState.companionAccessory).emoji,
+              stage: stage,
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -13701,7 +14081,7 @@ class _CompanionCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(HrRadius.xs),
                         ),
                         child: Text(
-                          'Stage $stage',
+                          kCompanionStages[stage].name,
                           style: HrText.micro.copyWith(
                             color: HrColors.accent,
                             fontWeight: FontWeight.w800,
@@ -13935,6 +14315,7 @@ class _CompanionsScreenState extends State<CompanionsScreen> {
                                 accessoryEmoji: active
                                     ? companionAccessoryById(appState.companionAccessory).emoji
                                     : '',
+                                stage: unlocked ? companionStage(appState.level) : 0,
                               ),
                             ),
                           ),
@@ -14092,6 +14473,8 @@ class _CompanionsScreenState extends State<CompanionsScreen> {
                       }
                     : null,
               ),
+              const SizedBox(height: 20),
+              const _EvolutionPath(),
               const SizedBox(height: 20),
               _customizeSection(context),
               const SizedBox(height: 20),
@@ -15296,6 +15679,7 @@ class _NotificationOffer extends StatelessWidget {
               icon: who.icon,
               size: 72,
               imageAsset: who.imageAsset,
+              stage: companionStage(appState.level),
             ),
             const SizedBox(height: 14),
             Text('Never miss a habit',
@@ -16838,6 +17222,7 @@ class _DailyBriefingState extends State<_DailyBriefing> {
       icon: who.icon,
       size: 84,
       imageAsset: who.imageAsset,
+      stage: companionStage(appState.level),
     );
     final quote = HrText.body.copyWith(
       color: HrColors.text2,

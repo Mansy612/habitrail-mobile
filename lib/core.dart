@@ -665,6 +665,7 @@ class AppState extends ChangeNotifier {
   final Set<String> blockedUsers = {}; // chat user ids this device has blocked
   int totalBossDefeats = 0;
   int highestLevel = 1;
+  int evolvedStage = 0; // highest companion stage celebrated (prestige resets)
   int _prevLevel = 1;
   String displayName = 'Player';
   String lastBackupAt = ''; // ISO8601 of the last successful cloud backup
@@ -1420,6 +1421,7 @@ class AppState extends ChangeNotifier {
     bodyProfile = null;
     totalBossDefeats = 0;
     highestLevel = 1;
+    evolvedStage = 0;
     _prevLevel = 1;
     activeCompanion = 'drone';
     lastCompanionLine = '';
@@ -1618,6 +1620,7 @@ class AppState extends ChangeNotifier {
       if (bp is Map<String, dynamic>) bodyProfile = BodyProfile.fromMap(bp);
       totalBossDefeats = (m['totalBossDefeats'] as int?) ?? 0;
       highestLevel = (m['highestLevel'] as int?) ?? 1;
+      evolvedStage = (m['evolvedStage'] as int?) ?? -1; // -1: older save
       displayName = (m['displayName'] as String?) ?? 'Player';
       lastBackupAt = (m['lastBackupAt'] as String?) ?? '';
       lastBriefingDate = (m['lastBriefingDate'] as String?) ?? '';
@@ -1730,6 +1733,8 @@ class AppState extends ChangeNotifier {
     }
     _prevLevel = level;
     if (level > highestLevel) highestLevel = level;
+    // An older save already reached its stage; don't celebrate it again.
+    if (evolvedStage < 0) evolvedStage = companionStage(level);
     _checkAchievements(silent: true); // backfill anything already satisfied
     loading = false;
     notifyListeners();
@@ -1765,6 +1770,7 @@ class AppState extends ChangeNotifier {
           'bodyProfile': bodyProfile?.toMap(),
           'totalBossDefeats': totalBossDefeats,
           'highestLevel': highestLevel,
+          'evolvedStage': evolvedStage,
           'displayName': displayName,
           'lastBackupAt': lastBackupAt,
           'lastBriefingDate': lastBriefingDate,
@@ -1957,6 +1963,16 @@ class AppState extends ChangeNotifier {
 
   bool get canPrestige => level >= kPrestigeMinLevel;
 
+  /// The stage the companion just evolved to, once; null when there's nothing
+  /// new to celebrate.
+  int? consumeEvolution() {
+    final st = companionStage(level);
+    if (st <= evolvedStage) return null;
+    evolvedStage = st;
+    _save();
+    return st;
+  }
+
   void doPrestige() {
     if (!canPrestige) return;
     totalXp = 0;
@@ -1970,6 +1986,7 @@ class AppState extends ChangeNotifier {
     if (!companionUnlocked(activeCompanion)) activeCompanion = 'drone';
     _logMilestone('prestige', 'Prestiged — now ★$prestige');
     _prevLevel = 1;
+    evolvedStage = 0; // a fresh path: each stage evolves (and is celebrated) again
     notifyListeners();
     _save();
   }
@@ -2449,13 +2466,25 @@ const List<CompanionAccessory> kCompanionAccessories = [
 CompanionAccessory companionAccessoryById(String id) => kCompanionAccessories
     .firstWhere((a) => a.id == id, orElse: () => kCompanionAccessories.first);
 
-int companionStage(int level) {
-  if (level >= 75) return 4;
-  if (level >= 50) return 3;
-  if (level >= 25) return 2;
-  if (level >= 10) return 1;
-  return 0;
+/// A companion stage: reached at [minLevel], with a look that builds on the
+/// one before (drawn by _EvolutionAura in main.dart).
+class CompanionStageDef {
+  const CompanionStageDef(this.name, this.minLevel, this.look);
+  final String name;
+  final int minLevel;
+  final String look; // what it gains, e.g. "orbiting sparks"
 }
+
+const List<CompanionStageDef> kCompanionStages = [
+  CompanionStageDef('Hatchling', 1, 'its first form'),
+  CompanionStageDef('Bonded', 10, 'a soft aura'),
+  CompanionStageDef('Awakened', 25, 'orbiting sparks'),
+  CompanionStageDef('Ascended', 50, 'twin golden rings'),
+  CompanionStageDef('Mythic', 75, 'a prismatic halo'),
+];
+
+int companionStage(int level) =>
+    kCompanionStages.lastIndexWhere((st) => level >= st.minLevel).clamp(0, 4);
 
 const Map<String, Map<String, String>> kCompanionLines = {
   'drone': {
@@ -2469,6 +2498,7 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'reminder': 'Scheduled task due. Awaiting your input.',
     'streak_risk': 'Streak integrity at risk. Action advised.',
     'comeback': 'Systems idle. Ready when you are.',
+    'evolve': 'Evolution complete. New systems online.',
   },
   'wolf': {
     'elite_day': 'The pack feasts tonight.',
@@ -2481,6 +2511,7 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'reminder': 'The hunt starts now.',
     'streak_risk': 'The trail goes cold at midnight.',
     'comeback': 'The pack is waiting for you.',
+    'evolve': 'I feel the wild growing stronger.',
   },
   'phoenix': {
     'elite_day': 'You burned bright today.',
@@ -2493,6 +2524,7 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'reminder': 'Time to light the spark.',
     'streak_risk': 'Your flame burns out at midnight.',
     'comeback': 'Every fire starts with one spark.',
+    'evolve': 'Burning brighter than ever.',
   },
   'ghost': {
     'elite_day': '…perfect.',
@@ -2505,6 +2537,7 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'reminder': '…it\'s time.',
     'streak_risk': '…midnight. Don\'t let it fade.',
     'comeback': '…still here.',
+    'evolve': '…I feel… more.',
   },
   'lynx': {
     'elite_day': 'Clean execution. No trace.',
@@ -2517,6 +2550,7 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'reminder': 'Move now. Quietly.',
     'streak_risk': 'One slip and the trail is lost.',
     'comeback': 'The shadows kept your place.',
+    'evolve': 'Sharper eyes. Quieter steps.',
   },
   'titan': {
     'elite_day': 'Discipline wins wars.',
@@ -2529,6 +2563,7 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'reminder': 'Discipline calls. Answer it.',
     'streak_risk': 'Hold the wall. It falls at midnight.',
     'comeback': 'Iron rusts. Pick it back up.',
+    'evolve': 'Stronger armour. Same resolve.',
   },
   'serpent': {
     'elite_day': 'Precision. Every time.',
@@ -2541,6 +2576,7 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'reminder': 'Right on schedule. Proceed.',
     'streak_risk': 'The pattern breaks at midnight.',
     'comeback': 'Patience. Strike when ready.',
+    'evolve': 'A new skin. A sharper mind.',
   },
   'dragon': {
     'elite_day': 'The fire never fades.',
@@ -2553,6 +2589,7 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'reminder': 'Legends are built today.',
     'streak_risk': 'Your legend dims at midnight.',
     'comeback': 'Even dragons rest. Rise again.',
+    'evolve': 'Ancient power, awakened further.',
   },
   'specter': {
     'elite_day': 'You cannot rest. Neither can I.',
@@ -2565,6 +2602,7 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'reminder': 'No excuses. Now.',
     'streak_risk': 'Midnight takes your streak. Don\'t let it.',
     'comeback': 'Rest is over. Return.',
+    'evolve': 'More. I can take more.',
   },
   'wraith': {
     'elite_day': 'The void is satisfied.',
@@ -2577,6 +2615,7 @@ const Map<String, Map<String, String>> kCompanionLines = {
     'reminder': 'The void calls. Answer.',
     'streak_risk': 'The void claims it at midnight.',
     'comeback': 'The void remembers you.',
+    'evolve': 'The void deepens.',
   },
 };
 

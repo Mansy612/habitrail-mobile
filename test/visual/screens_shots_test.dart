@@ -344,6 +344,37 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     }
 
+    // Companion evolution: the Companions page at each stage, and the moment.
+    int xpToReach(int level) {
+      var xp = 0;
+      for (var i = 1; i < level; i++) {
+        xp += xpForLevel(i);
+      }
+      return xp;
+    }
+
+    final savedXp = appState.totalXp;
+    for (final (i, st) in kCompanionStages.indexed.skip(1)) {
+      if (!_wanted('companions_stage$i')) continue;
+      appState.totalXp = xpToReach(st.minLevel) + 1;
+      appState.evolvedStage = i;
+      _navKey.currentState!.push(
+          MaterialPageRoute<void>(builder: (_) => const CompanionsScreen()));
+      await _shot(tester, 'companions_stage$i');
+      _navKey.currentState!.pop();
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+    if (_wanted('evolution_moment')) {
+      appState.totalXp = xpToReach(25) + 1;
+      appState.evolvedStage = 1; // Awakened not celebrated yet
+      _navKey.currentState!
+          .push(MaterialPageRoute<void>(builder: (_) => const HomeShell()));
+      await _shot(tester, 'evolution_moment');
+      _navKey.currentState!.popUntil((r) => r.isFirst);
+    }
+    appState.totalXp = savedXp;
+    appState.evolvedStage = companionStage(appState.level);
+
     // The daily briefing pops up on a fresh shell when today's is unseen.
     if (_wanted('briefing')) {
       appState.lastBriefingDate = '';

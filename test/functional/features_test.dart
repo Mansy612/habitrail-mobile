@@ -108,6 +108,28 @@ void main() {
       expect(appState.totalXp, lessThan(xp));
     });
 
+    testWidgets('reaching level 10 evolves the companion', (t) async {
+      await _app(t);
+      var xp = 0;
+      for (var i = 1; i < 10; i++) {
+        xp += xpForLevel(i);
+      }
+      appState.totalXp = xp - 1; // one check-off away from level 10
+      appState.earnedAchievements.add('first'); // keep First Step's popup out
+      final who = companionByType(appState.activeCompanion);
+      await _tap(t, find.text(appState.habits.first.name));
+      expect(appState.level, 10);
+      expect(find.text('${who.name} evolved!'), findsOneWidget);
+      expect(find.text('Level Up'.toUpperCase()), findsNothing);
+      expect(find.text(companionLine(who.type, 'evolve')), findsOneWidget);
+      await _dismissMoment(t);
+      expect(appState.consumeEvolution(), isNull); // shown once
+
+      await _open(t, const CompanionsScreen());
+      expect(find.text('Stage 1 · Bonded'), findsOneWidget);
+      expect(find.text('Next: Awakened at level 25'), findsOneWidget);
+    });
+
     testWidgets('+ adds a habit through the editor sheet', (t) async {
       await _app(t);
       final n = appState.habits.length;

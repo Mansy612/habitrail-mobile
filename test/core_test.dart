@@ -487,6 +487,49 @@ void main() {
     });
   });
 
+  group('companion evolution', () {
+    int xpToReach(int level) {
+      var xp = 0;
+      for (var i = 1; i < level; i++) {
+        xp += xpForLevel(i);
+      }
+      return xp;
+    }
+
+    test('stages start at levels 1, 10, 25, 50 and 75', () {
+      expect([1, 9, 10, 24, 25, 49, 50, 74, 75, 120].map(companionStage),
+          [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+      expect(kCompanionStages.map((st) => st.name),
+          ['Hatchling', 'Bonded', 'Awakened', 'Ascended', 'Mythic']);
+    });
+
+    test('each stage is celebrated once, and again after a prestige', () {
+      final s = AppState();
+      expect(s.consumeEvolution(), isNull); // level 1: nothing yet
+      s.totalXp = xpToReach(10);
+      expect(s.consumeEvolution(), 1);
+      expect(s.consumeEvolution(), isNull); // only once
+      s.totalXp = xpToReach(50); // skipped a stage: the newest one shows
+      expect(s.consumeEvolution(), 3);
+
+      s.totalXp = xpToReach(kPrestigeMinLevel);
+      s.doPrestige();
+      expect(s.evolvedStage, 0);
+      s.totalXp = xpToReach(10);
+      expect(s.consumeEvolution(), 1);
+    });
+
+    test('an older save does not celebrate the stage it already had', () async {
+      SharedPreferences.setMockInitialValues({
+        'habitrail.meta.v2': '{"totalXp": ${xpToReach(30)}}',
+      });
+      final s = AppState();
+      await s.load();
+      expect(s.evolvedStage, 2);
+      expect(s.consumeEvolution(), isNull);
+    });
+  });
+
   group('AppState economy', () {
     test('toggle awards XP then refunds exactly on undo', () {
       final s = AppState();

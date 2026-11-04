@@ -32,6 +32,7 @@ import 'admin.dart';
 import 'ai.dart';
 import 'auth.dart';
 import 'backend.dart';
+import 'buddies.dart';
 import 'friends.dart';
 import 'profanity.dart';
 import 'notifications.dart';
@@ -75,6 +76,8 @@ void main() async {
   if (backendEnabled) auth.useService(SupabaseAuthService());
   await appState.load();
   await friends.load();
+  await buddies.load();
+  buddies.attach();
   if (backendEnabled) _startBackendSync();
   await reminders.init();
   reminders.attach();
@@ -111,8 +114,10 @@ void _startBackendSync() {
     if (auth.isAuthed) {
       push();
       friends.refresh();
+      buddies.refresh();
     } else if (auth.status == AuthStatus.signedOut) {
       clearAccountStatus(); // admin access + Premium override were that account's
+      buddies.clear();
     }
   });
 }
@@ -1957,6 +1962,7 @@ class _HomeShellState extends State<HomeShell> {
     if (mounted && shellTab.value != _index) {
       setState(() => _index = shellTab.value);
     }
+    if (shellTab.value == 3) buddies.refresh(); // buddies' check-ins today
   }
 
   @override
@@ -9640,6 +9646,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
         28,
       ),
       children: [
+        const SizedBox(height: 10),
+        const _BuddyStrip(),
+        const SizedBox(height: 6),
         _podium(context, board),
         const SizedBox(height: 14),
         for (int i = 3; i < board.length; i++)
@@ -9926,6 +9935,405 @@ class _FriendsScreenState extends State<FriendsScreen> {
 }
 
 // Avatar for an arbitrary name + border (friends have no photo of their own).
+// ── Buddy streaks (lib/buddies.dart) ────────────────────────────────────────
+// One streak kept by two friends: it grows on days you both check in.
+
+(String, Color) _buddyStatus(Buddy b) {
+  final me = buddies.meToday(b), them = buddies.themToday(b);
+  if (me && them) return ('Both checked in today', HrColors.success);
+  if (me) return ('Waiting on ${b.name}', HrColors.text2);
+  if (them) return ('${b.name} checked in · your turn', HrColors.pink);
+  return ('Your turn to check in', HrColors.pink);
+}
+
+Widget _buddyFlame(int days, {double size = 26}) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Opacity(
+          opacity: days > 0 ? 1 : 0.4,
+          child: Image.asset('assets/streaks/enamel_flame.png',
+              width: size, height: size),
+        ),
+        const SizedBox(width: 4),
+        Text('$days', style: HrText.title1.copyWith(height: 1)),
+      ],
+    );
+
+/// Friends who could start a buddy streak (no streak or invite with them yet).
+List<Friend> _buddyCandidates() =>
+    friends.friends.where((f) => buddies.forFriend(f.id) == null).toList();
+
+Future<void> _startBuddy(BuildContext context, Friend f) async {
+  final err = await buddies.invite(f);
+  if (!context.mounted) return;
+  if (err != null) {
+    hrToast(context, err, error: true);
+  } else {
+    final b = buddies.forFriend(f.id);
+    hrToast(
+      context,
+      b != null && b.active
+          ? 'You and ${f.name} are buddies now'
+          : 'Buddy invite sent to ${f.name}',
+      icon: Icons.local_fire_department_rounded,
+      iconColor: HrColors.pink,
+    );
+  }
+}
+
+void _showBuddyPicker(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) => SafeArea(
+      child: ListenableBuilder(
+        listenable: Listenable.merge([buddies, friends]),
+        builder: (ctx, _) {
+          final pick = _buddyCandidates();
+          return ConstrainedBox(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.75),
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              children: [
+                Text('Start a buddy streak', style: HrText.title2),
+                const SizedBox(height: 4),
+                Text(
+                  'One streak you keep together. It grows on days you both '
+                  'finish a habit, and breaks if either of you misses.',
+                  style: HrText.bodyS,
+                ),
+                const SizedBox(height: 14),
+                if (buddies.full)
+                  Text('You have $kMaxBuddies buddy streaks, the most you can keep.',
+                      style: HrText.caption)
+                else if (pick.isEmpty)
+                  Text('Everyone on your list already has one with you.',
+                      style: HrText.caption)
+                else
+                  for (final f in pick)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(children: [
+                        _FriendAvatar(name: f.name, borderId: f.borderId, size: 40),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(f.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: HrText.body
+                                      .copyWith(fontWeight: FontWeight.w800)),
+                              Text('@${f.username}', style: HrText.micro),
+                            ],
+                          ),
+                        ),
+                        HrButton(
+                          label: 'Start',
+                          small: true,
+                          expand: false,
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _startBuddy(context, f);
+                          },
+                        ),
+                      ]),
+                    ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
+/// The buddy streaks strip at the top of the Social leaderboard.
+class _BuddyStrip extends StatelessWidget {
+  const _BuddyStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([buddies, appState]),
+      builder: (context, _) {
+        final list = buddies.list;
+        final canStart = !buddies.full && _buddyCandidates().isNotEmpty;
+        if (list.isEmpty) {
+          return HrCard(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            child: Row(children: [
+              Image.asset('assets/streaks/enamel_flame.png', width: 40, height: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Buddy streaks', style: HrText.headline),
+                    const SizedBox(height: 2),
+                    Text('Keep a streak going with a friend.',
+                        style: HrText.bodyS),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              HrButton(
+                label: 'Start',
+                small: true,
+                expand: false,
+                onPressed: canStart ? () => _showBuddyPicker(context) : null,
+              ),
+            ]),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            HrLabel(
+              'Buddy streaks',
+              trailing: canStart
+                  ? HrLink('Start one', onTap: () => _showBuddyPicker(context))
+                  : null,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 148,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: list.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (context, i) => _BuddyCard(buddy: list[i]),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _BuddyCard extends StatelessWidget {
+  const _BuddyCard({required this.buddy});
+  final Buddy buddy;
+
+  @override
+  Widget build(BuildContext context) {
+    final b = buddy;
+    final friend = friends.friends.where((f) => f.id == b.friendId).firstOrNull;
+    final Widget body;
+    if (b.active) {
+      final (status, color) = _buddyStatus(b);
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Spacer(),
+          _buddyFlame(buddies.streakOf(b)),
+          const SizedBox(height: 2),
+          Text('day buddy streak', style: HrText.micro),
+          const SizedBox(height: 6),
+          Text(status,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.micro.copyWith(color: color, fontWeight: FontWeight.w800)),
+        ],
+      );
+    } else if (b.incoming) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 4),
+          Text('wants a buddy streak', style: HrText.micro),
+          const Spacer(),
+          HrButton(
+            label: 'Accept',
+            small: true,
+            onPressed: () async {
+              final err = await buddies.respond(b, true);
+              if (err != null && context.mounted) hrToast(context, err, error: true);
+            },
+          ),
+          const SizedBox(height: 2),
+          Center(
+            child: HrLink('Decline', onTap: () => buddies.respond(b, false)),
+          ),
+        ],
+      );
+    } else {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Spacer(),
+          Text('Invite sent',
+              style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text('Waiting for ${b.name} to accept',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: HrText.micro),
+        ],
+      );
+    }
+    return Semantics(
+      button: friend != null,
+      label: 'Buddy streak with ${b.name}',
+      child: GestureDetector(
+        onTap: friend == null
+            ? null
+            : () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => FriendProfileScreen(friendId: friend.id))),
+        child: Container(
+          width: 150,
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+          decoration: HrCard.decoration(highlight: b.active && buddies.meToday(b) && buddies.themToday(b)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                _FriendAvatar(name: b.name, borderId: b.borderId, size: 30),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(b.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: HrText.body.copyWith(fontWeight: FontWeight.w800)),
+                ),
+              ]),
+              Expanded(child: body),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// On a friend's profile: your buddy streak with them, or a way to start one.
+class _BuddyProfileCard extends StatelessWidget {
+  const _BuddyProfileCard({required this.friend});
+  final Friend friend;
+
+  Future<void> _confirmEnd(BuildContext context, Buddy b) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: HrColors.surface,
+        title: Text('End your buddy streak?', style: HrText.title2),
+        content: Text(
+          'Your ${buddies.streakOf(b)}-day streak with ${b.name} will be gone '
+          'for both of you.',
+          style: HrText.bodyS,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Keep it', style: HrText.caption),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('End streak',
+                style: HrText.body.copyWith(color: HrColors.dangerText)),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await buddies.end(b);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([buddies, appState]),
+      builder: (context, _) {
+        final b = buddies.forFriend(friend.id);
+        final children = <Widget>[];
+        if (b == null) {
+          children.addAll([
+            Text('Buddy streak', style: HrText.headline),
+            const SizedBox(height: 4),
+            Text(
+              'Keep one streak going with ${friend.name}. It grows on days '
+              'you both finish a habit.',
+              style: HrText.bodyS,
+            ),
+            const SizedBox(height: 12),
+            HrButton(
+              label: buddies.full
+                  ? 'You have $kMaxBuddies buddy streaks'
+                  : 'Start a buddy streak',
+              icon: Icons.local_fire_department_rounded,
+              kind: HrButtonKind.secondary,
+              onPressed: buddies.full ? null : () => _startBuddy(context, friend),
+            ),
+          ]);
+        } else if (b.active) {
+          final (status, color) = _buddyStatus(b);
+          children.addAll([
+            Row(children: [
+              _buddyFlame(buddies.streakOf(b), size: 34),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('day buddy streak', style: HrText.headline),
+                    Text(status,
+                        style: HrText.bodyS.copyWith(color: color)),
+                  ],
+                ),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: HrLink('End buddy streak', onTap: () => _confirmEnd(context, b)),
+            ),
+          ]);
+        } else if (b.incoming) {
+          children.addAll([
+            Text('${friend.name} wants a buddy streak', style: HrText.headline),
+            const SizedBox(height: 12),
+            HrButton(
+              label: 'Accept',
+              icon: Icons.local_fire_department_rounded,
+              onPressed: () async {
+                final err = await buddies.respond(b, true);
+                if (err != null && context.mounted) hrToast(context, err, error: true);
+              },
+            ),
+            const SizedBox(height: 4),
+            Center(child: HrLink('Decline', onTap: () => buddies.respond(b, false))),
+          ]);
+        } else {
+          children.addAll([
+            Text('Buddy invite sent', style: HrText.headline),
+            const SizedBox(height: 4),
+            Text('Your streak starts when ${friend.name} accepts.',
+                style: HrText.bodyS),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: HrLink('Withdraw invite', onTap: () => buddies.end(b)),
+            ),
+          ]);
+        }
+        return HrCard(
+          padding: const EdgeInsets.all(16),
+          child: SizedBox(
+            width: double.infinity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _FriendAvatar extends StatelessWidget {
   const _FriendAvatar({
     required this.name,
@@ -10776,6 +11184,8 @@ class FriendProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
+              _BuddyProfileCard(friend: f),
               const SizedBox(height: 18),
               HrButton(
                 label: 'Send a nudge',

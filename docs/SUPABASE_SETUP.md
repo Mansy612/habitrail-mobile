@@ -199,6 +199,17 @@ desktop with no deep links or redirect URLs.
 The code length follows **Authentication → Providers → Email → Email OTP
 Length** (6 by default); the app accepts 6–10 digits.
 
+## 2l. Buddy streaks — optional
+
+Two friends keep one shared streak that grows on days they both finish a
+habit or task. Run `supabase/migrations/20261104000000_buddy_streaks.sql`
+(or `supabase db push`). It creates `checkins` (who checked in on which local
+day) and `buddies` (invite → active pair, at most 5 per user), RLS on with no
+direct policies, plus SECURITY DEFINER RPCs `check_in`, `invite_buddy`,
+`respond_buddy`, `end_buddy` and `my_buddies`. The server only stores the
+days; the app counts the streak (`buddyStreak` in `lib/core.dart`). Until
+it's run, the Social strip shows no buddies and invites fail with a toast.
+
 ## 3. Run the app with credentials
 Pass them at build/run time with `--dart-define`:
 

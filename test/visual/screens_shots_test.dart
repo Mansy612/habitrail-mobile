@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:habitrail/admin.dart';
+import 'package:habitrail/buddies.dart';
 import 'package:habitrail/core.dart';
 import 'package:habitrail/friends.dart';
 import 'package:habitrail/main.dart';
@@ -305,6 +306,40 @@ void main() {
       for (final u in added) {
         await tester.runAsync(() => friends.addByUsername(u));
       }
+      shellTab.value = 0;
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    // Social with two buddy streaks that started 12 days ago.
+    if (_wanted('social_buddies') || _wanted('friend_profile_buddy')) {
+      final now = DateTime.now();
+      final start = dateKey(DateTime(now.year, now.month, now.day - 12));
+      for (var i = 0; i <= 12; i++) {
+        appState.dailyDone[dateKey(DateTime(now.year, now.month, now.day - i))] = 1;
+      }
+      final prefs = await tester.runAsync(SharedPreferences.getInstance);
+      await prefs!.setString('buddies_v1', jsonEncode([
+        for (final f in friends.friends.take(2))
+          {
+            'friendId': f.id,
+            'name': f.name,
+            'username': f.username,
+            'borderId': f.borderId,
+            'startedOn': start,
+          },
+      ]));
+      await tester.runAsync(buddies.load);
+      shellTab.value = 3;
+      if (_wanted('social_buddies')) await _shot(tester, 'social_buddies');
+      if (_wanted('friend_profile_buddy')) {
+        _navKey.currentState!.push(MaterialPageRoute<void>(
+            builder: (_) =>
+                FriendProfileScreen(friendId: friends.friends.first.id)));
+        await _shot(tester, 'friend_profile_buddy');
+        _navKey.currentState!.pop();
+      }
+      await prefs.remove('buddies_v1');
+      await tester.runAsync(buddies.load);
       shellTab.value = 0;
       await tester.pump(const Duration(milliseconds: 400));
     }

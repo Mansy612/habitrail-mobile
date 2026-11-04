@@ -398,6 +398,52 @@ Future<List<Map<String, dynamic>>> fetchSuggestionProfiles(
   }
 }
 
+// ── Buddy streaks ────────────────────────────────────────────────────────────
+// SECURITY DEFINER RPCs from supabase/migrations/..._buddy_streaks.sql; the
+// streak itself is counted in the app (core.dart buddyStreak).
+
+/// Records the caller's check-in days (dateKeys). Best-effort.
+Future<void> checkIn(List<String> days) async {
+  if (!backendEnabled || _uid == null || days.isEmpty) return;
+  try {
+    await _sb.rpc('check_in', params: {'p_days': days});
+  } catch (_) {}
+}
+
+/// The caller's buddies and invites, or null when they couldn't be fetched
+/// (so a network blip doesn't wipe the list).
+Future<List<Map<String, dynamic>>?> myBuddies() async {
+  if (!backendEnabled || _uid == null) return const [];
+  try {
+    final r = await _sb.rpc('my_buddies');
+    return (r as List).cast<Map<String, dynamic>>();
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Runs a buddy RPC; returns null on success, else the server's reason
+/// ('buddy limit', 'not friends', …) or 'offline'.
+Future<String?> _buddyCall(String fn, Map<String, dynamic> params) async {
+  if (!backendEnabled || _uid == null) return 'signed out';
+  try {
+    await _sb.rpc(fn, params: params);
+    return null;
+  } on PostgrestException catch (e) {
+    return e.message;
+  } catch (_) {
+    return 'offline';
+  }
+}
+
+Future<String?> inviteBuddy(String friendId, String today) =>
+    _buddyCall('invite_buddy', {'p_friend': friendId, 'p_today': today});
+
+Future<String?> respondBuddy(String id, bool accept, String today) =>
+    _buddyCall('respond_buddy', {'p_id': id, 'p_accept': accept, 'p_today': today});
+
+Future<String?> endBuddy(String id) => _buddyCall('end_buddy', {'p_id': id});
+
 // ── Parties (co-op) ──────────────────────────────────────────────────────────
 // All calls go through SECURITY DEFINER RPCs (see
 // supabase/migrations/..._parties.sql); they no-op when the backend is off.

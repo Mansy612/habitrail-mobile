@@ -10,6 +10,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import 'buddies.dart';
 import 'core.dart';
 
 class ReminderNotifications {
@@ -96,6 +97,7 @@ class ReminderNotifications {
   void attach() {
     if (!_ready) return;
     appState.addListener(replanSoon);
+    buddies.addListener(replanSoon);
     _lifecycle = AppLifecycleListener(onResume: () async {
       await refreshPermission();
       replanSoon();
@@ -172,7 +174,7 @@ class ReminderNotifications {
     // A few seconds' margin: the OS rejects times that are already past.
     final soon = DateTime.now().add(const Duration(seconds: 5));
     final plan = allowed
-        ? planNotifications(appState, DateTime.now())
+        ? planNotifications(appState, DateTime.now(), buddies: buddies.active)
             .where((p) => p.at.isAfter(soon))
             .toList()
         : const <PlannedNotification>[];
@@ -286,6 +288,7 @@ class ReminderNotifications {
     _debounce?.cancel();
     _lifecycle?.dispose();
     appState.removeListener(replanSoon);
+    buddies.removeListener(replanSoon);
   }
 }
 

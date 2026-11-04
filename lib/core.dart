@@ -758,6 +758,11 @@ class AppState extends ChangeNotifier {
       habits.isEmpty ? 0 : habits.map((h) => h.streak).reduce(max);
   int get totalPerfectDays => perfectDays.length;
 
+  /// Days this user checked in (finished at least one habit or task), which
+  /// is what keeps a buddy streak going.
+  Set<String> get activeDays =>
+      {for (final e in dailyDone.entries) if (e.value > 0) e.key};
+
   /// Average Victory Score over the last [n] recorded days (0 when none yet).
   double avgScoreLastDays(int n) {
     if (dailyScore.isEmpty) return 0;
@@ -2578,6 +2583,53 @@ const Map<String, Map<String, String>> kCompanionLines = {
 String companionLine(String type, String trigger) =>
     kCompanionLines[type]?[trigger] ?? '';
 
+// ── Buddy streaks (synced by lib/buddies.dart) ──────────────────────────────
+// Two friends keep one streak; it grows on days they both check in.
+
+const int kMaxBuddies = 5;
+
+class Buddy {
+  const Buddy({
+    required this.id,
+    required this.friendId,
+    required this.name,
+    required this.username,
+    this.borderId = 'none',
+    this.status = 'active',
+    this.incoming = false,
+    this.startedOn,
+    this.myDays = const {},
+    this.theirDays = const {},
+  });
+  final String id;
+  final String friendId;
+  final String name;
+  final String username;
+  final String borderId;
+  final String status; // 'pending' (invite sent or received) | 'active'
+  final bool incoming; // a pending invite this user received
+  final String? startedOn; // dateKey the invite was accepted
+  final Set<String> myDays; // this user's check-ins the server knows about
+  final Set<String> theirDays; // the buddy's check-ins
+  bool get active => status == 'active';
+}
+
+/// Days in a row both checked in, counting back from today (or from
+/// yesterday while today is still open), never before the streak began.
+int buddyStreak(
+    Set<String> mine, Set<String> theirs, String? startedOn, DateTime now) {
+  if (startedOn == null) return 0;
+  bool both(String k) => mine.contains(k) && theirs.contains(k);
+  var d = DateTime(now.year, now.month, now.day);
+  if (!both(dateKey(d))) d = DateTime(d.year, d.month, d.day - 1);
+  var n = 0;
+  while (dateKey(d).compareTo(startedOn) >= 0 && both(dateKey(d))) {
+    n++;
+    d = DateTime(d.year, d.month, d.day - 1);
+  }
+  return n;
+}
+
 // ── Phone notifications (planned here, scheduled by lib/notifications.dart) ──
 class PlannedNotification {
   const PlannedNotification({
@@ -2605,7 +2657,8 @@ const int kReminderDaysAhead = 7;
 /// Every notification to schedule from [now]: habit reminders at each habit's
 /// reminder time, and a streak alert before an open streak breaks. Completing
 /// a habit replans, which drops its reminder and any alert it settles.
-List<PlannedNotification> planNotifications(AppState s, DateTime now) {
+List<PlannedNotification> planNotifications(AppState s, DateTime now,
+    {List<Buddy> buddies = const []}) {
   final out = <PlannedNotification>[];
   final c = companionByType(s.activeCompanion);
   String voice(String trigger) => '${c.name}: ${companionLine(c.type, trigger)}';
@@ -2618,25 +2671,49 @@ List<PlannedNotification> planNotifications(AppState s, DateTime now) {
 
   // Today for streaks still open; tomorrow for the ones kept today. Later days
   // can't be at risk: by then the streak is either kept or already gone.
+  // One alert a day covers both a habit streak and a buddy streak.
   if (s.streakAlertOn) {
+    final checkedIn = s.activeDays;
     for (final day in [0, 1]) {
       final t = at(day, s.streakAlertMinutes);
-      if (!t.isAfter(now) || s.restDays.contains(key(day))) continue;
-      final atRisk = s.habits
-          .where((h) => day == 0
-              ? !doneToday(h) && h.lastCompletedDate == yesterday
-              : doneToday(h))
-          .where((h) => h.streak >= 2);
-      if (atRisk.isEmpty) continue;
-      final top = atRisk.map((h) => h.streak).reduce(max);
-      final open = s.habits.where((h) => !doneToday(h)).length;
+      if (!t.isAfter(now)) continue;
+      final atRisk = s.restDays.contains(key(day))
+          ? const <Habit>[]
+          : s.habits
+              .where((h) => day == 0
+                  ? !doneToday(h) && h.lastCompletedDate == yesterday
+                  : doneToday(h))
+              .where((h) => h.streak >= 2)
+              .toList();
+      final top = atRisk.isEmpty ? 0 : atRisk.map((h) => h.streak).reduce(max);
+      // A buddy streak is open today until this user checks in; tomorrow's
+      // is at risk once both kept it today.
+      Buddy? buddy;
+      var buddyTop = 0;
+      for (final b in buddies.where((b) => b.active)) {
+        final mine = {...checkedIn, ...b.myDays};
+        final n = buddyStreak(mine, b.theirDays, b.startedOn, now);
+        final open = day == 0
+            ? !mine.contains(today)
+            : mine.contains(today) && b.theirDays.contains(today);
+        if (open && n >= 2 && n > buddyTop) (buddy, buddyTop) = (b, n);
+      }
+      if (top == 0 && buddy == null) continue;
+      final buddyFirst = buddy != null && buddyTop > top;
+      final left = s.habits.where((h) => !doneToday(h)).length;
       out.add(PlannedNotification(
         id: id++,
         at: t,
-        title: '🔥 Your $top-day streak ends at midnight',
-        body: day == 0
-            ? '${voice('streak_risk')} $open ${open == 1 ? 'habit' : 'habits'} left today.'
-            : voice('streak_risk'),
+        title: buddyFirst
+            ? '🔥 Your $buddyTop-day buddy streak with ${buddy.name} ends at midnight'
+            : '🔥 Your $top-day streak ends at midnight',
+        body: [
+          voice('streak_risk'),
+          if (day == 0 && top > 0) '$left ${left == 1 ? 'habit' : 'habits'} left today.',
+          if (buddy != null && !buddyFirst) '${buddy.name} is counting on you too.',
+          if (buddy != null && buddyFirst && day == 0 && buddy.theirDays.contains(today))
+            '${buddy.name} already checked in.',
+        ].join(' '),
         payload: 'streak',
       ));
     }

@@ -403,6 +403,90 @@ void main() {
     });
   });
 
+  group('buddy streaks', () {
+    final now = DateTime(2026, 11, 3, 12);
+    Set<String> days(List<int> ago) => {
+          for (final a in ago) dateKey(DateTime(2026, 11, 3 - a)),
+        };
+
+    test('counts days in a row you both checked in', () {
+      final start = dateKey(DateTime(2026, 10, 1));
+      // Both today and the 3 days before; a gap 4 days ago ends it.
+      expect(buddyStreak(days([0, 1, 2, 3, 5]), days([0, 1, 2, 3, 4, 5]), start, now), 4);
+      // Today still open for one of you: it counts up to yesterday.
+      expect(buddyStreak(days([1, 2]), days([0, 1, 2]), start, now), 2);
+      // Missed yesterday together: gone, whatever came before.
+      expect(buddyStreak(days([0, 2, 3]), days([0, 1, 2, 3]), start, now), 1);
+      expect(buddyStreak(days([2, 3]), days([2, 3]), start, now), 0);
+    });
+
+    test('never counts days before the streak began', () {
+      final started = dateKey(DateTime(2026, 11, 2)); // accepted yesterday
+      expect(buddyStreak(days([0, 1, 2, 3]), days([0, 1, 2, 3]), started, now), 2);
+      expect(buddyStreak(days([0]), days([0]), null, now), 0); // still pending
+    });
+
+    test('the streak alert covers a buddy streak', () {
+      final s = AppState()
+        ..habits.clear()
+        ..dailyDone.clear();
+      for (final a in [1, 2, 3]) {
+        s.dailyDone[dateKey(DateTime(2026, 11, 3 - a))] = 1;
+      }
+      final maya = Buddy(
+        id: 'b1',
+        friendId: 'u1',
+        name: 'Maya',
+        username: 'maya',
+        startedOn: '2026-10-01',
+        theirDays: days([0, 1, 2, 3]),
+      );
+      var alert = planNotifications(s, now, buddies: [maya])
+          .singleWhere((p) => p.payload == 'streak');
+      expect(alert.at, DateTime(2026, 11, 3, 20));
+      expect(alert.title, '🔥 Your 3-day buddy streak with Maya ends at midnight');
+      expect(alert.body, endsWith('Maya already checked in.'));
+
+      // Checked in today: tonight is safe, tomorrow's alert guards it.
+      s.dailyDone[dateKey(now)] = 1;
+      alert = planNotifications(s, now, buddies: [maya])
+          .singleWhere((p) => p.payload == 'streak');
+      expect(alert.at, DateTime(2026, 11, 4, 20));
+      expect(alert.title, contains('4-day buddy streak'));
+
+      // A pending invite isn't a streak yet.
+      s.dailyDone.remove(dateKey(now));
+      const invite = Buddy(
+          id: 'b2', friendId: 'u2', name: 'Leo', username: 'leo', status: 'pending');
+      expect(planNotifications(s, now, buddies: [invite]), isEmpty);
+    });
+
+    test('a bigger habit streak keeps the alert and names the buddy too', () {
+      final s = AppState()
+        ..habits.clear()
+        ..dailyDone.clear();
+      s.addHabit('Read', 'common');
+      s.habits.last
+        ..streak = 10
+        ..lastCompletedDate = dateKey(DateTime(2026, 11, 2));
+      for (final a in [1, 2]) {
+        s.dailyDone[dateKey(DateTime(2026, 11, 3 - a))] = 1;
+      }
+      final maya = Buddy(
+        id: 'b1',
+        friendId: 'u1',
+        name: 'Maya',
+        username: 'maya',
+        startedOn: '2026-10-01',
+        theirDays: days([1, 2]),
+      );
+      final alert = planNotifications(s, now, buddies: [maya])
+          .singleWhere((p) => p.payload == 'streak');
+      expect(alert.title, '🔥 Your 10-day streak ends at midnight');
+      expect(alert.body, endsWith('1 habit left today. Maya is counting on you too.'));
+    });
+  });
+
   group('AppState economy', () {
     test('toggle awards XP then refunds exactly on undo', () {
       final s = AppState();

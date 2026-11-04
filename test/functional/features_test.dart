@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:habitrail/buddies.dart';
 import 'package:habitrail/core.dart';
 import 'package:habitrail/friends.dart';
 import 'package:habitrail/main.dart';
@@ -34,6 +35,7 @@ Future<void> _app(WidgetTester t, {Widget home = const HomeShell()}) async {
   appState.aiEnabled = false; // no network in tests
   shellTab.value = 0;
   await t.runAsync(friends.load);
+  await t.runAsync(buddies.load);
   await t.pumpWidget(MaterialApp(navigatorKey: _nav, theme: hrTheme(), home: home));
   await _settle(t);
 }
@@ -353,6 +355,41 @@ void main() {
   });
 
   group('Friends', () {
+    testWidgets('buddy streak: start one, check in, end it', (t) async {
+      await _app(t);
+      await _tab(t, 3);
+      expect(find.text('Buddy streaks'), findsOneWidget);
+      await _tap(t, find.text('Start')); // opens the friend picker
+      final f = friends.friends.first;
+      await _tap(t, find.descendant(
+          of: find.byType(BottomSheet), matching: find.text('Start')));
+      final b = buddies.forFriend(f.id)!;
+      expect(b.active, isTrue); // demo friends accept straight away
+      expect(find.text('day buddy streak'), findsOneWidget);
+      expect(find.text('Your turn to check in').evaluate().isNotEmpty ||
+          find.text('${f.name} checked in · your turn').evaluate().isNotEmpty,
+          isTrue);
+
+      // Finishing a habit is a check-in, and the card says so at once.
+      appState.toggle(appState.habits.first);
+      await _settle(t);
+      await _dismissMoment(t);
+      expect(buddies.meToday(b), isTrue);
+      expect(
+          find.text(buddies.themToday(b)
+              ? 'Both checked in today'
+              : 'Waiting on ${f.name}'),
+          findsOneWidget);
+
+      // End it from their profile.
+      await _tap(t, find.text('day buddy streak'));
+      expect(find.text('End buddy streak'), findsOneWidget);
+      await _tap(t, find.text('End buddy streak'));
+      await _tap(t, find.text('End streak'));
+      expect(buddies.forFriend(f.id), isNull);
+      expect(find.text('Start a buddy streak'), findsOneWidget);
+    });
+
     testWidgets('no friends: empty board with an invite action', (t) async {
       await _app(t);
       for (final f in friends.friends.toList()) {

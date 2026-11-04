@@ -87,6 +87,8 @@ void main() async {
   // Premium: drop a lapsed entitlement's locked theme, and attach the store
   // purchase observer early so renewals / restored subscriptions are caught.
   appState.reconcilePremium();
+  // Credit a focus session whose deadline passed while the app was closed.
+  appState.reconcileFocus();
   purchases.init();
   await friends.load();
   await buddies.load();
@@ -6997,21 +6999,88 @@ class _FocusScreenState extends State<FocusScreen> {
   int _minutes = 25;
   bool _custom = false;
   int _mode = 0;
-  int _remaining = 25 * 60;
+  int _remaining = 25 * 60; // shown time; refreshed from the deadline, not ticked
   bool _running = false;
   bool _started = false;
   bool _complete = false;
   int _lastGain = 0;
   Timer? _timer;
+  AppLifecycleListener? _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    // Adopt a session that survived an app restart or was left running.
+    if (appState.focusSessionActive) {
+      _minutes = appState.focusSessionMinutes;
+      _mode = appState.focusSessionMode;
+      _custom = !_presets.any((p) => p.$4 == _minutes);
+      _started = true;
+      _running = appState.focusRunning;
+      _remaining = appState.focusRemainingSeconds;
+      if (_running) _startTicker();
+      // Its deadline may already have passed while we were gone — credit it.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
+    } else {
+      _remaining = _minutes * 60;
+    }
+    // Recompute from the deadline whenever the app returns to the foreground, so
+    // time spent backgrounded or locked is reconciled (and a session that
+    // finished while away completes). This fires even on other tabs, because the
+    // 5 screens share one IndexedStack and stay mounted.
+    _lifecycle = AppLifecycleListener(onResume: _onResume);
+  }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _lifecycle?.dispose();
     super.dispose();
   }
 
+  void _startTicker() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
+
+  void _stopTicker() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  // One UI heartbeat: complete-on-deadline (exactly once), else repaint from the
+  // clock. The countdown is never decremented here — it's read from the deadline.
+  void _tick() {
+    if (!mounted) return;
+    final gain = appState.reconcileFocus();
+    if (gain != null) {
+      _onComplete(gain);
+    } else {
+      setState(() => _remaining = appState.focusRemainingSeconds);
+    }
+  }
+
+  void _onResume() {
+    if (!mounted || !appState.focusSessionActive) return;
+    _tick();
+    if (appState.focusRunning && _timer == null) _startTicker();
+  }
+
+  void _onComplete(int gain) {
+    _stopTicker();
+    HapticFeedback.mediumImpact();
+    if (!mounted) return;
+    setState(() {
+      _running = false;
+      _started = false;
+      _remaining = _minutes * 60;
+      _complete = true;
+      _lastGain = gain;
+    });
+  }
+
   void _setMinutes(int m, {bool custom = false}) {
-    if (_started) return;
+    if (appState.focusSessionActive) return;
     setState(() {
       _minutes = m;
       _custom = custom;
@@ -7020,37 +7089,35 @@ class _FocusScreenState extends State<FocusScreen> {
   }
 
   void _start() {
+    // Fresh start vs resume-from-pause: both arrive here (the Resume button
+    // reuses this), but a paused session must keep its remaining time, so it
+    // gets a new deadline of now + what was left — not a full reset.
+    if (appState.focusPaused) {
+      appState.resumeFocus();
+    } else {
+      appState.startFocus(_minutes, mode: _mode);
+    }
     setState(() {
       _running = true;
       _started = true;
       _complete = false;
+      _remaining = appState.focusRemainingSeconds;
     });
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (_remaining <= 1) {
-        t.cancel();
-        final gain = appState.completeFocus(_minutes);
-        if (!mounted) return;
-        HapticFeedback.mediumImpact();
-        setState(() {
-          _running = false;
-          _started = false;
-          _remaining = _minutes * 60;
-          _complete = true;
-          _lastGain = gain;
-        });
-      } else {
-        setState(() => _remaining--);
-      }
-    });
+    _startTicker();
   }
 
   void _pause() {
-    _timer?.cancel();
-    setState(() => _running = false);
+    appState.pauseFocus();
+    _stopTicker();
+    setState(() {
+      _running = false;
+      _remaining = appState.focusRemainingSeconds;
+    });
   }
 
   void _reset() {
-    _timer?.cancel();
+    appState.resetFocus();
+    _stopTicker();
     setState(() {
       _running = false;
       _started = false;

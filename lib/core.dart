@@ -650,6 +650,18 @@ class AppState extends ChangeNotifier {
   // Economy layer
   int focusMinutesToday = 0;
   String focusDateKey = '';
+  // Focus session (deadline-based). Remaining time is derived from a wall-clock
+  // deadline, so it stays accurate across backgrounding, lock and restart — it
+  // is never counted down a second per tick. Persisted, so a kill mid-session
+  // can resume or complete it. Mode is cosmetic.
+  bool focusSessionActive = false;
+  int focusSessionMinutes = 0; // target length of the running/paused session
+  String focusSessionDeadline = ''; // ISO8601 end while RUNNING; '' while PAUSED
+  int focusSessionPausedRemaining = 0; // seconds left while PAUSED
+  int focusSessionMode = 0; // selected focus-mode index (cosmetic)
+  // Injectable clock so tests can simulate time passing / backgrounding.
+  @visibleForTesting
+  DateTime Function() focusNow = DateTime.now;
   final Set<String> perfectDays = {};
   String bossRewardedWeek = ''; // Monday dateKey of the week the boss paid out
   bool pendingBossDefeat = false;
@@ -1534,6 +1546,7 @@ class AppState extends ChangeNotifier {
     coins = 100;
     focusMinutesToday = 0;
     focusDateKey = '';
+    _clearFocusSession();
     bossRewardedWeek = '';
     pendingBossDefeat = false;
     questDateKey = '';
@@ -1728,6 +1741,12 @@ class AppState extends ChangeNotifier {
       coins = (m['coins'] as int?) ?? 100;
       focusMinutesToday = (m['focusMinutesToday'] as int?) ?? 0;
       focusDateKey = (m['focusDateKey'] as String?) ?? '';
+      focusSessionActive = (m['focusSessionActive'] as bool?) ?? false;
+      focusSessionMinutes = (m['focusSessionMinutes'] as int?) ?? 0;
+      focusSessionDeadline = (m['focusSessionDeadline'] as String?) ?? '';
+      focusSessionPausedRemaining =
+          (m['focusSessionPausedRemaining'] as int?) ?? 0;
+      focusSessionMode = (m['focusSessionMode'] as int?) ?? 0;
       // Older saves kept a plain flag; read it as "already paid this week" so
       // the switch to calendar weeks never pays the boss twice.
       bossRewardedWeek = (m['bossRewardedWeek'] as String?) ??
@@ -1895,6 +1914,11 @@ class AppState extends ChangeNotifier {
           'coins': coins,
           'focusMinutesToday': focusMinutesToday,
           'focusDateKey': focusDateKey,
+          'focusSessionActive': focusSessionActive,
+          'focusSessionMinutes': focusSessionMinutes,
+          'focusSessionDeadline': focusSessionDeadline,
+          'focusSessionPausedRemaining': focusSessionPausedRemaining,
+          'focusSessionMode': focusSessionMode,
           'bossRewardedWeek': bossRewardedWeek,
           'questDateKey': questDateKey,
           'perfectDays': perfectDays.toList(),
@@ -2343,6 +2367,83 @@ class AppState extends ChangeNotifier {
   void deleteFood(FoodEntry e) {
     foodLog.removeWhere((x) => x.id == e.id);
     _afterAction();
+  }
+
+  // ── Focus session ──────────────────────────────────────────────────────────
+  bool get focusRunning =>
+      focusSessionActive && focusSessionDeadline.isNotEmpty;
+  bool get focusPaused =>
+      focusSessionActive && focusSessionDeadline.isEmpty;
+
+  /// Seconds left in the active session, from the wall-clock deadline (running)
+  /// or the frozen value (paused). 0 once the deadline has passed; 0 when idle.
+  int get focusRemainingSeconds {
+    if (!focusSessionActive) return 0;
+    if (focusSessionDeadline.isEmpty) return focusSessionPausedRemaining;
+    final d = DateTime.tryParse(focusSessionDeadline);
+    if (d == null) return 0;
+    final secs = d.difference(focusNow()).inSeconds;
+    return secs < 0 ? 0 : secs;
+  }
+
+  /// Begin a [minutes]-long session, ending at now + minutes (a real deadline).
+  void startFocus(int minutes, {int mode = 0}) {
+    focusSessionActive = true;
+    focusSessionMinutes = minutes;
+    focusSessionMode = mode;
+    focusSessionDeadline =
+        focusNow().add(Duration(minutes: minutes)).toIso8601String();
+    focusSessionPausedRemaining = 0;
+    notifyListeners();
+    _save();
+  }
+
+  /// Freeze the countdown: remember the seconds left and drop the deadline.
+  void pauseFocus() {
+    if (!focusRunning) return;
+    focusSessionPausedRemaining = focusRemainingSeconds;
+    focusSessionDeadline = '';
+    notifyListeners();
+    _save();
+  }
+
+  /// Resume from a pause: a fresh deadline of now + the frozen remaining.
+  void resumeFocus() {
+    if (!focusPaused) return;
+    focusSessionDeadline = focusNow()
+        .add(Duration(seconds: focusSessionPausedRemaining))
+        .toIso8601String();
+    focusSessionPausedRemaining = 0;
+    notifyListeners();
+    _save();
+  }
+
+  /// Abandon the session without granting anything.
+  void resetFocus() {
+    if (!focusSessionActive) return;
+    _clearFocusSession();
+    notifyListeners();
+    _save();
+  }
+
+  void _clearFocusSession() {
+    focusSessionActive = false;
+    focusSessionDeadline = '';
+    focusSessionPausedRemaining = 0;
+    focusSessionMinutes = 0;
+  }
+
+  /// Grant a running session that has reached its deadline — EXACTLY once — and
+  /// return the XP gained; otherwise null. Safe to call repeatedly (every UI
+  /// tick, on resume, and at launch): the session is consumed before the grant,
+  /// so no resume / restart / repeated-resume path can credit it twice. This is
+  /// also how a session whose deadline passed in the background gets credited.
+  int? reconcileFocus() {
+    if (!focusRunning) return null;
+    if (focusRemainingSeconds > 0) return null;
+    final minutes = focusSessionMinutes;
+    _clearFocusSession(); // consume FIRST — the once-only guard
+    return completeFocus(minutes); // adds minutes + XP + coins, then saves
   }
 
   /// Rewards a completed focus session (~2 XP per minute).

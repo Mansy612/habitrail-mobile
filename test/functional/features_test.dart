@@ -187,11 +187,16 @@ void main() {
     testWidgets('a Short session runs, completes and awards XP', (t) async {
       await _app(t);
       await _tab(t, 1);
+      // Simulated clock so the deadline is reached without real-time waiting.
+      var now = DateTime(2026, 6, 1, 9, 0, 0);
+      appState.focusNow = () => now;
+      addTearDown(() => appState.focusNow = DateTime.now);
       await _tap(t, find.text('Short'));
       expect(find.text('05:00'), findsOneWidget);
       await _tap(t, find.text('Start Focus'));
       expect(find.text('Stay with it'), findsOneWidget);
-      await t.pump(const Duration(seconds: 301));
+      now = now.add(const Duration(minutes: 5, seconds: 1)); // deadline passed
+      await t.pump(const Duration(seconds: 1)); // the 1 s ticker reconciles
       await _settle(t);
       expect(find.text('Session complete'), findsOneWidget);
       expect(appState.focusMinutesToday, 5);
@@ -243,6 +248,9 @@ void main() {
     testWidgets('an odd custom length runs to completion', (t) async {
       await _app(t);
       await _tab(t, 1);
+      var now = DateTime(2026, 6, 1, 9, 0, 0);
+      appState.focusNow = () => now;
+      addTearDown(() => appState.focusNow = DateTime.now);
       await _tap(t, find.text('Custom'));
       t
           .widget<CupertinoTimerPicker>(find.byType(CupertinoTimerPicker))
@@ -251,7 +259,8 @@ void main() {
       await _tap(t, find.text('Set 37 min'));
       expect(find.text('37:00'), findsOneWidget);
       await _tap(t, find.text('Start Focus'));
-      await t.pump(const Duration(minutes: 37, seconds: 1));
+      now = now.add(const Duration(minutes: 37, seconds: 1)); // deadline passed
+      await t.pump(const Duration(seconds: 1)); // the 1 s ticker reconciles
       await _settle(t);
       expect(find.text('Session complete'), findsOneWidget);
       expect(appState.focusMinutesToday, 37);

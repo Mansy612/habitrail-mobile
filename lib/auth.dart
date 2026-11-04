@@ -288,6 +288,14 @@ class Auth extends ChangeNotifier {
   AuthUser? user;
   bool busy = false;
 
+  /// Wired by the app at startup (main.dart) so sign-out stays decoupled from
+  /// the backend and app state. [onBeforeSignOut] runs while the session is
+  /// still valid (flush a final cloud backup for the account); [onAfterSignOut]
+  /// runs once signed out (wipe the device save so the next account starts
+  /// clean and can't inherit this one's data).
+  Future<void> Function()? onBeforeSignOut;
+  Future<void> Function()? onAfterSignOut;
+
   bool get isRemote => _service.isRemote;
   bool get isAuthed => status == AuthStatus.signedIn;
 
@@ -327,10 +335,16 @@ class Auth extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    try {
+      await onBeforeSignOut?.call(); // flush this account's backup while authed
+    } catch (_) {}
     await _service.signOut();
     user = null;
     status = AuthStatus.signedOut;
     notifyListeners();
+    try {
+      await onAfterSignOut?.call(); // wipe the device save for the next account
+    } catch (_) {}
   }
 
   Future<void> updateName(String name) async {
@@ -352,6 +366,11 @@ class Auth extends ChangeNotifier {
     user = null;
     status = AuthStatus.signedOut;
     notifyListeners();
+    // No pre-flush (the account is gone), but still wipe the device save so a
+    // deleted account's data never lingers for the next person to sign in.
+    try {
+      await onAfterSignOut?.call();
+    } catch (_) {}
   }
 
   Future<bool> isUsernameAvailable(String username) =>

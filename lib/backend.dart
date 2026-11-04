@@ -69,6 +69,16 @@ String? get _uid => _sb.auth.currentUser?.id;
 String? get currentUserId =>
     backendEnabled ? _sb.auth.currentUser?.id : null;
 
+/// True only when the on-device save belongs to the signed-in account. Every
+/// upload of local data (full backup, public profile stats, buddy check-ins) is
+/// gated on this, so one account can never publish or overwrite another's cloud
+/// data — in particular during the brief window after an account switch, before
+/// the local save has been re-owned (see AppState.adoptOwner).
+bool get _localBelongsToSignedInUser {
+  final id = _uid;
+  return id != null && appState.saveOwnerId == id;
+}
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
 /// Supabase-backed auth. Drops in behind [AuthService]; the UI is unchanged.
@@ -309,6 +319,8 @@ Future<void> pushProfileStats({
   if (!backendEnabled) return;
   final id = _uid;
   if (id == null) return;
+  // Don't publish another account's stats to this profile row.
+  if (appState.saveOwnerId != id) return;
   try {
     final data = <String, dynamic>{
       'total_xp': totalXp,
@@ -405,6 +417,7 @@ Future<List<Map<String, dynamic>>> fetchSuggestionProfiles(
 /// Records the caller's check-in days (dateKeys). Best-effort.
 Future<void> checkIn(List<String> days) async {
   if (!backendEnabled || _uid == null || days.isEmpty) return;
+  if (!_localBelongsToSignedInUser) return; // don't post another account's days
   try {
     await _sb.rpc('check_in', params: {'p_days': days});
   } catch (_) {}
@@ -822,7 +835,11 @@ Future<Map<String, dynamic>?> downloadBackup() async {
 /// Backs the full save up to the account. Returns whether it was saved; only
 /// a successful upload updates "last backed up".
 Future<bool> backupNow() async {
-  if (!backendEnabled || _uid == null) return false;
+  // Only ever back up the save that belongs to the signed-in account. This is
+  // the guard that stops the account-switch window: if the on-device save is
+  // still the previous user's (owner != uid), skip rather than overwrite this
+  // account's cloud row with another account's data.
+  if (!backendEnabled || !_localBelongsToSignedInUser) return false;
   final save = await appState.exportSave();
   final ok = await uploadBackup({'v': 1, 'save': save});
   if (ok) await appState.markBackedUp();
@@ -831,24 +848,34 @@ Future<bool> backupNow() async {
 
 /// Replace the local save with the cloud backup. Returns false if none exists.
 Future<bool> restoreFromCloud() async {
+  if (!backendEnabled) return false;
+  final id = _uid;
+  if (id == null) return false;
   final cloud = await downloadBackup();
   final data = cloud?['data'];
   if (data is Map && data['save'] is Map) {
     await appState.importSave((data['save'] as Map).cast<String, dynamic>());
+    await appState.setSaveOwner(id); // the restored save now belongs to this account
     return true;
   }
   return false;
 }
 
 /// After sign-in: restore the cloud backup onto a fresh device, otherwise push
-/// this device's save up. Never overwrites existing local progress.
+/// this device's save up. [AppState.adoptOwner] must run first (see
+/// main._afterSignIn) so the local save already belongs to this account — a
+/// foreign save is wiped there, which makes [localIsEmpty] true and lets this
+/// account's own cloud backup restore cleanly.
 Future<void> syncAfterSignIn() async {
-  if (!backendEnabled || _uid == null) return;
+  if (!backendEnabled) return;
+  final id = _uid;
+  if (id == null) return;
   final cloud = await downloadBackup();
   final data = cloud?['data'];
   final hasCloud = data is Map && data['save'] is Map;
   if (hasCloud && appState.localIsEmpty) {
     await appState.importSave((data['save'] as Map).cast<String, dynamic>());
+    await appState.setSaveOwner(id); // restored data belongs to the signed-in user
   } else {
     await backupNow();
   }
@@ -888,6 +915,7 @@ Future<bool> ackCoinGrants(List<String> ids) async {
 Future<void> reportAccountSnapshot(
     {required int coins, required bool premium}) async {
   if (!backendEnabled || _uid == null) return;
+  if (!_localBelongsToSignedInUser) return; // don't report another account's balance
   try {
     await _sb.rpc('report_account_snapshot',
         params: {'p_coins': coins, 'p_premium': premium});

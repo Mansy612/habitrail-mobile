@@ -75,6 +75,15 @@ void main() async {
   await initBackend();
   if (backendEnabled) auth.useService(SupabaseAuthService());
   await appState.load();
+  // Keep each account's on-device save isolated across sign-outs: flush a final
+  // backup for the signing-out account (while its session is still valid), then
+  // wipe the save so the next account can never inherit it.
+  auth.onBeforeSignOut = () async {
+    if (backendEnabled) await backupNow();
+  };
+  auth.onAfterSignOut = () async {
+    await appState.clearForSignOut();
+  };
   await friends.load();
   await buddies.load();
   buddies.attach();
@@ -195,7 +204,11 @@ class _AuthGateState extends State<AuthGate> {
   void initState() {
     super.initState();
     // Then pick up anything an admin changed on this account since last time.
-    auth.init().then((_) {
+    auth.init().then((_) async {
+      // Migration: a save written before owner-stamping (owner == '') belongs to
+      // the already-signed-in user, so claim it — existing progress is preserved
+      // by the update rather than wiped or re-synced from a stale cloud copy.
+      await appState.migrateOwnerAtLaunch(auth.user?.id);
       if (auth.isAuthed) syncAccountStatus();
     });
   }
@@ -420,8 +433,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (err == null) {
-      // New account → wipe any previous progress and start at Level 1,
-      // then introduce the app with the onboarding flow.
+      // New account → wipe any previous progress and start at Level 1 as this
+      // account's owner, then introduce the app with the onboarding flow.
+      appState.saveOwnerId = auth.user?.id ?? '';
       appState.startFreshForAccount(auth.user?.name ?? '');
       syncAccountStatus();
       Navigator.of(context).pushReplacement(
@@ -487,6 +501,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 /// After any sign-in: restore a cloud backup onto a fresh device, then pick up
 /// admin changes (after the restore, so admin coins aren't lost), then the name.
 Future<void> _afterSignIn() async {
+  // Make the on-device save belong to this account BEFORE any cloud read/write,
+  // so a previous user's leftover data can't be published or backed up as this
+  // account's. A foreign save is wiped here; syncAfterSignIn then restores this
+  // account's own cloud backup (or seeds a fresh one).
+  await appState.adoptOwner(auth.user?.id ?? '', name: auth.user?.name ?? '');
   await syncAfterSignIn();
   await syncAccountStatus();
   final u = auth.user;

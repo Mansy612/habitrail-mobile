@@ -617,6 +617,12 @@ String _monthKey(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}';
 
 // ── Shared app state ─────────────────────────────────────────────────────────
+/// Sentinel owner for an on-device save that exists but can't be attributed to
+/// a signed-in account (e.g. a pre-stamping save found while signed out). It
+/// equals no real uid, so the next sign-in treats it as "not mine" and starts
+/// clean rather than adopting another account's data.
+const kUnknownOwner = '\u0000unclaimed';
+
 /// The single app-wide state instance, shared across main.dart and
 /// purchases.dart. Lazily initialized on first access.
 final appState = AppState();
@@ -628,6 +634,10 @@ class AppState extends ChangeNotifier {
   static const _foodKey = 'habitrail.food.v1';
   static const _milestoneKey = 'habitrail.milestones.v1';
   static const _tasksKey = 'habitrail.tasks.v1';
+  // The account (Supabase uid) the on-device save belongs to. Kept in its OWN
+  // key, deliberately NOT part of exportSave()/importSave(), so a cloud backup
+  // never carries an owner id that would re-stamp whoever restores it.
+  static const _ownerKey = 'habitrail.owner.v1';
 
   final List<Habit> habits = [];
   final List<Reflection> reflections = [];
@@ -669,6 +679,12 @@ class AppState extends ChangeNotifier {
   int _prevLevel = 1;
   String displayName = 'Player';
   String lastBackupAt = ''; // ISO8601 of the last successful cloud backup
+  // Which account this device's save belongs to: '' = unclaimed/pristine,
+  // [kUnknownOwner] = present but unattributed, otherwise a signed-in uid.
+  // Enforced on sign-in (adoptOwner) and on every cloud upload so one account's
+  // habits/journal/nutrition/purchases/progress can never show up as — or
+  // overwrite — another account's.
+  String saveOwnerId = '';
   String lastBriefingDate = '';
   String themeId = 'violet';
   final Map<String, int> dailyScore = {}; // dateKey -> victory score
@@ -1393,6 +1409,67 @@ class AppState extends ChangeNotifier {
     await _save();
   }
 
+  // ── Account isolation ───────────────────────────────────────────────────────
+  // The on-device save is stamped with [saveOwnerId], the account it belongs to.
+  // These keep it bound to its owner so logging out of A and into B on the same
+  // device can never let A's habits/journal/nutrition/purchases/progress show up
+  // as — or be backed up as — B's. The cloud upload paths (backend.dart) also
+  // refuse to run unless the save's owner is the signed-in user.
+
+  /// Stamp the save's owner and persist it. Used when a restore makes the local
+  /// save belong to the signed-in account.
+  Future<void> setSaveOwner(String uid) async {
+    saveOwnerId = uid;
+    await _save();
+  }
+
+  /// Make the on-device save belong to [uid] before any backup or stat upload.
+  /// Called on every sign-in:
+  ///   • same owner        → keep the save untouched (same account, same device);
+  ///   • pristine & empty  → just claim it (fresh install / first account);
+  ///   • anyone else's save→ wipe to a clean start for [uid]. Their own progress
+  ///     is safe in their cloud backup, which syncAfterSignIn restores next.
+  Future<void> adoptOwner(String uid, {String name = ''}) async {
+    if (uid.isEmpty) return;
+    if (saveOwnerId == uid) return; // same account returning on the same device
+    final claimEmpty = saveOwnerId.isEmpty && localIsEmpty;
+    saveOwnerId = uid; // stamp FIRST so every _save() below writes the new owner
+    if (claimEmpty) {
+      await _save(); // nothing to wipe — take ownership of the empty seed state
+    } else {
+      startFreshForAccount(name); // foreign/unattributed save → clean slate
+      await _save();
+    }
+  }
+
+  /// One-time migration for saves written before owner-stamping existed (owner
+  /// is ''). Run once at launch with the signed-in user's id (or null). The
+  /// already-signed-in user legitimately owns the on-device save, so claim it —
+  /// their existing progress is preserved by the update. If nobody is signed in
+  /// but data is present, mark it unattributed so a later sign-in won't adopt
+  /// another account's data.
+  Future<void> migrateOwnerAtLaunch(String? activeUid) async {
+    if (saveOwnerId.isNotEmpty) return; // already stamped — nothing to migrate
+    if (activeUid != null && activeUid.isNotEmpty) {
+      saveOwnerId = activeUid;
+      await _save();
+    } else if (!localIsEmpty) {
+      saveOwnerId = kUnknownOwner;
+      await _save();
+    }
+    // else: pristine, signed-out device — leave '' for the first sign-in to claim.
+  }
+
+  /// Wipe the device save on sign-out so the next account starts clean and never
+  /// inherits this one's data. The signed-out account's progress is safe in its
+  /// own cloud backup (flushed just before sign-out).
+  Future<void> clearForSignOut() async {
+    saveOwnerId = '';
+    displayName = 'Player';
+    startFreshForAccount('');
+    await _save();
+  }
+
   void resetAll() {
     habits
       ..clear()
@@ -1587,6 +1664,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
+    saveOwnerId = prefs.getString(_ownerKey) ?? '';
     final raw = prefs.getString(_habitsKey);
     if (raw != null && raw.isNotEmpty) {
       habits
@@ -1742,6 +1820,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_ownerKey, saveOwnerId);
     await prefs.setString(
         _habitsKey, jsonEncode(habits.map((h) => h.toMap()).toList()));
     await prefs.setString(

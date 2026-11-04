@@ -91,7 +91,11 @@ abstract class AuthService {
   Future<void> signOut();
   Future<AuthUser?> currentUser();
   Future<void> updateName(String name);
-  Future<void> deleteAccount();
+
+  /// Permanently delete the account. Returns null only on confirmed success;
+  /// on failure returns a short, retryable error message AND leaves the session
+  /// intact (the caller keeps the user signed in).
+  Future<String?> deleteAccount();
   Future<bool> isUsernameAvailable(String username);
 
   /// Emails a one-time code for choosing a new password. Null on success —
@@ -202,7 +206,7 @@ class StubAuthService implements AuthService {
   }
 
   @override
-  Future<void> deleteAccount() async {
+  Future<String?> deleteAccount() async {
     final p = await SharedPreferences.getInstance();
     final key = p.getString(_sessionKey);
     if (key != null) {
@@ -211,6 +215,7 @@ class StubAuthService implements AuthService {
       await p.setString(_accountsKey, jsonEncode(accounts));
     }
     await p.remove(_sessionKey);
+    return null; // the on-device stub can always complete
   }
 
   @override
@@ -361,16 +366,25 @@ class Auth extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> deleteAccount() async {
-    await _service.deleteAccount();
+  /// Delete the account. Returns null on success (signed out, device wiped) or a
+  /// retryable error message on failure — on failure the session is kept exactly
+  /// as it was, so the user stays signed in and can try again.
+  Future<String?> deleteAccount() async {
+    final err = await _service.deleteAccount();
+    if (err != null) {
+      // Cloud deletion did not confirm — keep the user signed in. Nothing is
+      // signed out and no device data is wiped.
+      return err;
+    }
     user = null;
     status = AuthStatus.signedOut;
     notifyListeners();
-    // No pre-flush (the account is gone), but still wipe the device save so a
-    // deleted account's data never lingers for the next person to sign in.
+    // Deletion confirmed and the account is gone, so wipe the device save too
+    // (no cloud backup remains, and the next person must start clean).
     try {
       await onAfterSignOut?.call();
     } catch (_) {}
+    return null;
   }
 
   Future<bool> isUsernameAvailable(String username) =>

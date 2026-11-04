@@ -1891,7 +1891,8 @@ Future<void> _confirmDeleteAccount(BuildContext context) async {
         style: TextStyle(color: kTextPrimary),
       ),
       content: const Text(
-        'This removes your account and signs you out. Your habits and progress stay on this device — use "Reset all progress" to clear those. This cannot be undone.',
+        'This permanently deletes your account and removes your data from this '
+        'device. This cannot be undone.',
         style: TextStyle(color: kTextSecondary),
       ),
       actions: [
@@ -1911,8 +1912,54 @@ Future<void> _confirmDeleteAccount(BuildContext context) async {
     ),
   );
   if (ok == true && context.mounted) {
-    await auth.deleteAccount();
+    await _runDeleteAccount(context);
+  }
+}
+
+/// Runs the deletion behind a blocking spinner. Only a backend-confirmed delete
+/// signs the user out and returns to Welcome; any failure keeps them signed in
+/// and shows a clear, retryable error — nothing is deleted or signed out.
+Future<void> _runDeleteAccount(BuildContext context) async {
+  unawaited(showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  ));
+  final err = await auth.deleteAccount();
+  if (!context.mounted) return;
+  Navigator.of(context).pop(); // dismiss the spinner
+  if (err == null) {
+    // Confirmed deletion → the AuthGate shows Welcome once signed out.
     if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+    return;
+  }
+  // Failure: the session was retained. Offer a retry.
+  final retry = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: kCard,
+      title: const Text("Couldn't delete account",
+          style: TextStyle(color: kTextPrimary)),
+      content: Text('$err\n\nYou are still signed in.',
+          style: const TextStyle(color: kTextSecondary)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: kRed,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Try again'),
+        ),
+      ],
+    ),
+  );
+  if (retry == true && context.mounted) {
+    await _runDeleteAccount(context);
   }
 }
 

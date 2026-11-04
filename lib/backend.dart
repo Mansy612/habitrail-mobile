@@ -81,6 +81,24 @@ bool get _localBelongsToSignedInUser {
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
+/// A short, retryable message for a failed account deletion, keyed by the HTTP
+/// status from the `delete-account` Edge Function. Deletion is reported as
+/// successful ONLY on a confirmed 200, so every other status maps to an error
+/// here (never to success) — including 404 when the function isn't deployed.
+String deleteAccountError(int? status) {
+  switch (status) {
+    case 401:
+    case 403:
+      return 'Your session has expired. Please sign in again and retry.';
+    case 404:
+      return 'Account deletion is temporarily unavailable. Please try again '
+          'later.';
+    default:
+      return 'The server could not delete your account'
+          '${status == null ? '' : ' (error $status)'}. Please try again.';
+  }
+}
+
 /// Supabase-backed auth. Drops in behind [AuthService]; the UI is unchanged.
 class SupabaseAuthService implements AuthService {
   @override
@@ -264,24 +282,30 @@ class SupabaseAuthService implements AuthService {
   }
 
   @override
-  Future<void> deleteAccount() async {
+  Future<String?> deleteAccount() async {
     final id = _uid;
-    if (id != null) {
-      // Fully delete the auth user (and all cascading rows) via the privileged
-      // 'delete-account' Edge Function. If it isn't deployed, fall back to
-      // removing the profile row so the account at least leaves the app.
-      var deleted = false;
-      try {
-        final res = await _sb.functions.invoke('delete-account');
-        deleted = res.status == 200;
-      } catch (_) {}
-      if (!deleted) {
-        try {
-          await _sb.from('profiles').delete().eq('id', id);
-        } catch (_) {}
+    if (id == null) return null; // already signed out — nothing to delete
+    try {
+      // Privileged server-side deletion: the Edge Function verifies the JWT,
+      // then deletes the auth user; private rows and the cloud backup cascade.
+      // We sign out (and report success) ONLY on a confirmed 200. There is no
+      // profile-only fallback — deleting a profile row is not account deletion.
+      final res = await _sb.functions.invoke('delete-account');
+      if (res.status == 200) {
+        await signOut(); // deletion confirmed — end the session
+        return null;
       }
+      // Some client versions return a non-2xx response instead of throwing.
+      return deleteAccountError(res.status);
+    } on FunctionException catch (e) {
+      // Non-2xx from the function, including 404 when it isn't deployed.
+      return deleteAccountError(e.status);
+    } catch (_) {
+      // Network / unexpected error — never report success, keep the session so
+      // the user can retry.
+      return 'Could not reach the server to delete your account. '
+          'Check your connection and try again.';
     }
-    await signOut();
   }
 
   Future<Map<String, dynamic>?> _profile(String id) async {

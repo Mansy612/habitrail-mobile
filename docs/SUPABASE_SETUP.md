@@ -236,10 +236,14 @@ stub, unchanged.
 - **Account deletion** fully deletes the `auth.users` record (and all cascading
   rows) via the `delete-account` Edge Function (`supabase/functions/delete-account`),
   which the app invokes and which uses the auto-injected **service-role** key
-  server-side. Deploy it with `npx supabase functions deploy delete-account
-  --project-ref <ref>` — no extra secrets needed. If it isn't deployed, the app
-  falls back to removing just the `profiles` row. The service-role key never
-  leaves the server.
+  server-side (it also removes the `user_backups` cloud backup and the
+  `profiles` row explicitly before the auth user is deleted). **The function
+  must be deployed for deletion to work.** Deploy it with `npx supabase
+  functions deploy delete-account --project-ref <ref>` — no extra secrets
+  needed. If it isn't deployed, or the call fails, the app reports a clear,
+  retryable error and keeps the user signed in — it never deletes only the
+  profile row and presents that as a completed account deletion. The
+  service-role key never leaves the server.
 - The **anon key is safe** to ship in a client build; Row-Level Security is what
   protects the data.
 - To test the leaderboard with real data, sign up as two users (two devices or a

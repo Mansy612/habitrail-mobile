@@ -43,11 +43,32 @@ Deno.serve(async (req: Request) => {
     const { data: { user } } = await caller.auth.getUser();
     if (!user) return json({ error: 'unauthorized' }, 401);
 
-    // Delete the auth user with the service-role key; data rows cascade.
+    // Service-role client (bypasses RLS) for privileged deletion.
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    // Explicitly remove the cloud backup and the profile first. Both also
+    // cascade when the auth user is deleted below; doing them here makes
+    // "we delete your backup and private records" robust even if a cascade is
+    // ever dropped. Best-effort — a missing table must not block deletion.
+    for (const spec of [
+      { table: 'user_backups', col: 'user_id' },
+      { table: 'profiles', col: 'id' },
+    ]) {
+      try {
+        await admin.from(spec.table).delete().eq(spec.col, user.id);
+      } catch (_) { /* the cascade below is the backstop */ }
+    }
+
+    // NOTE: no Supabase Storage bucket is in use (avatars are stored inline on
+    // the profile row, not as uploaded files). If an uploads bucket is ever
+    // added, remove the user's objects here, e.g.
+    //   await admin.storage.from('<bucket>').remove([`${user.id}/...`]);
+
+    // Delete the auth user itself; every remaining table that references
+    // auth.users(id) ON DELETE CASCADE is removed automatically.
     const { error } = await admin.auth.admin.deleteUser(user.id);
     if (error) return json({ error: error.message }, 500);
 

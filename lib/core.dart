@@ -705,15 +705,25 @@ class AppState extends ChangeNotifier {
   int streakAlertMinutes = 20 * 60; // minutes since midnight
   bool notifAsked = false; // the OS permission prompt has been shown
   bool notifOffered = false; // the in-app "turn on reminders" offer was shown
-  // Premium + AI-coach quota (freemium). ownPremium is this device's own
-  // entitlement (store purchase / scaffold); coach usage counts against a
-  // weekly allowance.
-  bool ownPremium = false;
+  // Premium + AI-coach quota (freemium). The device's own entitlement is a
+  // VERIFIED store subscription, represented by an expiry — never a permanent
+  // flag — so access lapses on its own at period end and can be cleared on
+  // refund/revocation. Coach usage counts against a weekly allowance.
+  String premiumExpiresAt = ''; // ISO8601 end of the paid period; '' = none
+  String premiumVerifiedAt = ''; // ISO8601 of the last store-verified update
   // Admin Premium override from the server (lib/admin.dart): 'grant' / 'revoke'
-  // win over ownPremium; '' = no override. Belongs to the signed-in account.
+  // win over the device entitlement; '' = no override. Belongs to the account.
   String premiumOverride = '';
+  /// The device's own entitlement: a store subscription period that has not
+  /// lapsed. A saved flag is never trusted on its own — the expiry decides, so
+  /// expiration and (server-cleared) refund/revocation take effect here.
+  bool get storeEntitlementActive {
+    final d = DateTime.tryParse(premiumExpiresAt);
+    return d != null && DateTime.now().isBefore(d);
+  }
   bool get isPremium =>
-      premiumOverride == 'grant' || (premiumOverride != 'revoke' && ownPremium);
+      premiumOverride == 'grant' ||
+      (premiumOverride != 'revoke' && storeEntitlementActive);
   // Server coin-adjustment ids applied here but not yet acknowledged, so a
   // failed acknowledgement can never apply the same adjustment twice.
   final Set<String> appliedCoinGrants = {};
@@ -1033,19 +1043,44 @@ class AppState extends ChangeNotifier {
   /// Activate Premium with the given plan ('monthly' | 'annual'). The purchase
   /// itself is handled by the caller's PurchaseController; this records the
   /// entitlement. Real IAP will call this on a verified purchase/restore.
-  void activatePremium(String plan) {
-    ownPremium = true;
-    premiumPlan = plan;
+  void activatePremium(String plan, {DateTime? expiresAt, bool verified = false}) {
+    premiumPlan = plan == 'annual' ? 'annual' : 'monthly';
+    premiumExpiresAt =
+        (expiresAt ?? DateTime.now().add(_planPeriod(plan))).toIso8601String();
+    if (verified) premiumVerifiedAt = DateTime.now().toIso8601String();
     if (premiumSince.isEmpty) premiumSince = dateKey(DateTime.now());
     notifyListeners();
     _save();
   }
 
+  Duration _planPeriod(String plan) =>
+      plan == 'annual' ? const Duration(days: 365) : const Duration(days: 30);
+
+  /// A store-confirmed purchase / restore / renewal (from PurchaseController).
+  /// [expiresAt] comes from a server receipt check when available; without it
+  /// the plan's length from now is used and each renewal event extends it.
+  void applyStoreEntitlement(String plan, {DateTime? expiresAt}) =>
+      activatePremium(plan, expiresAt: expiresAt, verified: true);
+
+  /// Server-authoritative entitlement, e.g. relayed from App Store Server
+  /// Notifications by the backend: renewals extend it, and refund / revocation
+  /// / expiry clear it. This is how a refund or revocation reaches the device.
+  void applyServerEntitlement(
+      {required bool active, String? plan, DateTime? expiresAt}) {
+    if (!active) {
+      cancelPremium();
+      return;
+    }
+    activatePremium(plan ?? (premiumPlan == 'none' ? 'monthly' : premiumPlan),
+        expiresAt: expiresAt, verified: true);
+  }
+
   /// Drop the Premium entitlement (cancel / lapse). Falls back off the exclusive
   /// premium theme if it was active so the UI never shows a locked accent.
   void cancelPremium() {
-    ownPremium = false;
     premiumPlan = 'none';
+    premiumExpiresAt = '';
+    premiumVerifiedAt = '';
     premiumSince = '';
     _dropLockedTheme();
     notifyListeners();
@@ -1056,6 +1091,18 @@ class AppState extends ChangeNotifier {
     if (!isPremium && themeId == kPremiumThemeId) {
       themeId = ownedThemes.contains('violet') ? 'violet' : ownedThemes.first;
       applyThemeColors(themeId);
+    }
+  }
+
+  /// Re-evaluate the entitlement at launch. [isPremium] already reflects the
+  /// expiry, so this only drops the exclusive premium theme if the entitlement
+  /// has lapsed since the last run (e.g. the subscription expired while away).
+  void reconcilePremium() {
+    final before = themeId;
+    _dropLockedTheme();
+    if (themeId != before) {
+      notifyListeners();
+      _save();
     }
   }
 
@@ -1722,7 +1769,17 @@ class AppState extends ChangeNotifier {
       streakAlertMinutes = (m['streakAlertMinutes'] as int?) ?? 20 * 60;
       notifAsked = (m['notifAsked'] as bool?) ?? false;
       notifOffered = (m['notifOffered'] as bool?) ?? false;
-      ownPremium = (m['isPremium'] as bool?) ?? false;
+      premiumExpiresAt = (m['premiumExpiresAt'] as String?) ?? '';
+      premiumVerifiedAt = (m['premiumVerifiedAt'] as String?) ?? '';
+      // Migration: older saves had only a permanent `isPremium` bool. Don't
+      // honour it forever — grant a short grace window and require a store
+      // purchase / restore to confirm a real subscription (most such flags
+      // were developer / scaffold grants, not paid subscriptions).
+      final legacyPremium = (m['isPremium'] as bool?) ?? false;
+      if (premiumExpiresAt.isEmpty && legacyPremium) {
+        premiumExpiresAt =
+            DateTime.now().add(const Duration(days: 7)).toIso8601String();
+      }
       premiumOverride = (m['premiumOverride'] as String?) ?? '';
       appliedCoinGrants
         ..clear()
@@ -1730,7 +1787,7 @@ class AppState extends ChangeNotifier {
             .map((e) => e as String));
       coachUsesThisWeek = (m['coachUsesThisWeek'] as int?) ?? 0;
       coachWeekKey = (m['coachWeekKey'] as String?) ?? '';
-      premiumPlan = (m['premiumPlan'] as String?) ?? (ownPremium ? 'annual' : 'none');
+      premiumPlan = (m['premiumPlan'] as String?) ?? (legacyPremium ? 'annual' : 'none');
       premiumSince = (m['premiumSince'] as String?) ?? '';
       weeklyReportText = (m['weeklyReportText'] as String?) ?? '';
       weeklyReportWeekKey = (m['weeklyReportWeekKey'] as String?) ?? '';
@@ -1868,7 +1925,8 @@ class AppState extends ChangeNotifier {
           'streakAlertMinutes': streakAlertMinutes,
           'notifAsked': notifAsked,
           'notifOffered': notifOffered,
-          'isPremium': ownPremium,
+          'premiumExpiresAt': premiumExpiresAt,
+          'premiumVerifiedAt': premiumVerifiedAt,
           'premiumOverride': premiumOverride,
           'appliedCoinGrants': appliedCoinGrants.toList(),
           'coachUsesThisWeek': coachUsesThisWeek,

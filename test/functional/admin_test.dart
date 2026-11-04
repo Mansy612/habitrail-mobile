@@ -252,7 +252,7 @@ void main() {
       await syncAccountStatus();
       expect(appState.coins, 350);
       expect(appState.isPremium, isTrue);
-      expect(appState.ownPremium, isFalse);
+      expect(appState.storeEntitlementActive, isFalse);
       expect(adminAccess.value, isTrue);
       expect(fake.acked, ['g1', 'g2']);
       expect(appState.appliedCoinGrants, isEmpty);
@@ -300,7 +300,7 @@ void main() {
       adminApi = FakeAdminApi(
           status: const AccountStatus(premiumOverride: 'revoke'));
       await syncAccountStatus();
-      expect(appState.ownPremium, isTrue);
+      expect(appState.storeEntitlementActive, isTrue);
       expect(appState.isPremium, isFalse);
       expect(appState.themeId, isNot(kPremiumThemeId));
 

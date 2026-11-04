@@ -84,6 +84,10 @@ void main() async {
   auth.onAfterSignOut = () async {
     await appState.clearForSignOut();
   };
+  // Premium: drop a lapsed entitlement's locked theme, and attach the store
+  // purchase observer early so renewals / restored subscriptions are caught.
+  appState.reconcilePremium();
+  purchases.init();
   await friends.load();
   await buddies.load();
   buddies.attach();
@@ -105,7 +109,8 @@ void _startBackendSync() {
       name: appState.displayName,
     );
     // Coins live on-device; the admin console shows the last reported balance.
-    reportAccountSnapshot(coins: appState.coins, premium: appState.ownPremium);
+    reportAccountSnapshot(
+        coins: appState.coins, premium: appState.storeEntitlementActive);
   }
 
   push();
@@ -3727,14 +3732,37 @@ class _PremiumScreenState extends State<PremiumScreen> {
       ];
 
   void _start() {
-    if (purchases.available) {
-      purchases.buy(_plan); // real store flow; success arrives via the stream
-    } else {
-      // No store on this platform (e.g. the Windows dev build) — activate the
-      // in-app scaffold so Premium stays testable.
-      appState.activatePremium(_plan);
-      hrToast(context, "You're Premium — enjoy! ✨",
-          icon: Icons.workspace_premium_rounded);
+    switch (purchases.state) {
+      case BillingState.available:
+        // Real store flow; the result (success / error / cancel) arrives on the
+        // purchase stream — nothing is granted here.
+        purchases.buy(_plan);
+        break;
+      case BillingState.loading:
+        // Billing hasn't resolved yet — never grant, just ask them to wait.
+        hrToast(context, 'Connecting to the Store — one moment…',
+            icon: Icons.hourglass_top_rounded);
+        break;
+      case BillingState.unavailable:
+      case BillingState.failed:
+        if (kDebugMode) {
+          // Developer builds ONLY. kDebugMode is false in release, so this is
+          // never compiled into a shipped app. This is the single free-grant
+          // path, and it exists solely so Premium stays testable without a
+          // store on dev machines.
+          appState.activatePremium(_plan);
+          hrToast(context, 'DEBUG: Premium activated locally (dev build only)',
+              icon: Icons.bug_report_rounded);
+        } else {
+          // Production + no store: do NOT grant. Tell them and let them retry.
+          hrToast(
+              context,
+              "The App Store isn't available right now — please try again in a "
+              "moment. You won't be charged until a purchase is confirmed.",
+              error: true,
+              icon: Icons.cloud_off_rounded);
+        }
+        break;
     }
   }
 
@@ -3893,6 +3921,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       listenable: Listenable.merge([appState, purchases]),
       builder: (context, _) {
         final premium = appState.isPremium;
+        final storeLoading = purchases.state == BillingState.loading;
         final annual = _plan == 'annual';
         final price = annual
             ? purchases.priceFor('annual', kPremiumAnnualPrice)
@@ -4006,10 +4035,12 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 HrButton(
                   label: purchases.busy
                       ? 'Processing…'
-                      : 'Start Premium — $price${annual ? '/yr' : '/mo'}',
+                      : storeLoading
+                          ? 'Connecting to Store…'
+                          : 'Start Premium — $price${annual ? '/yr' : '/mo'}',
                   icon: Icons.workspace_premium_rounded,
-                  loading: purchases.busy,
-                  onPressed: purchases.busy ? null : _start,
+                  loading: purchases.busy || storeLoading,
+                  onPressed: (purchases.busy || storeLoading) ? null : _start,
                 ),
                 if (purchases.error != null) ...[
                   const SizedBox(height: 8),
@@ -4025,13 +4056,20 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   ),
                 const SizedBox(height: 10),
                 Text(
-                  purchases.available
-                      ? 'Subscriptions auto-renew until cancelled; manage them in '
+                  switch (purchases.state) {
+                    BillingState.available =>
+                      'Subscriptions auto-renew until cancelled; manage them in '
                           'your App Store / Google Play account. Your habit '
-                          'tracking and core features always stay free.'
-                      : 'No store on this platform, so this build activates Premium '
-                          'instantly for testing; iOS and Android use real billing. '
-                          'Your habit tracking and core features always stay free.',
+                          'tracking and core features always stay free.',
+                    BillingState.loading => 'Connecting to the App Store…',
+                    BillingState.unavailable || BillingState.failed => kDebugMode
+                        ? 'No store on this build, so Premium can be activated '
+                            'locally for testing (debug builds only). iOS and '
+                            'Android use real billing.'
+                        : "The App Store isn't available right now, so Premium "
+                            "can't be started yet. Your habit tracking and core "
+                            'features always stay free.',
+                  },
                   style: HrText.micro,
                   textAlign: TextAlign.center,
                 ),

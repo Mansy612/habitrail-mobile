@@ -2924,6 +2924,25 @@ class PlannedNotification {
   String? get habitId => payload.startsWith('habit:') ? payload.substring(6) : null;
 }
 
+/// A content signature for a planned notification: its id plus everything the
+/// user would see. Two plans with the same signature need no reschedule.
+String notifSig(PlannedNotification p) =>
+    '${p.id}|${p.at.millisecondsSinceEpoch}|${p.title}|${p.body}|${p.payload}';
+
+/// A STABLE notification id for a reminder, derived from its identity
+/// ([payload] + [day]) rather than its position in the plan. The same reminder
+/// keeps the same id across replans and app restarts, so a replan can update or
+/// cancel exactly the request that changed — never churn unrelated ones. FNV-1a
+/// is used (not String.hashCode) because it's deterministic across runs.
+int notifId(String payload, int day) {
+  var h = 0x811c9dc5;
+  for (final u in '$payload#$day'.codeUnits) {
+    h = (h ^ u) & 0xffffffff;
+    h = (h * 0x01000193) & 0xffffffff;
+  }
+  return h & 0x7fffffff; // non-negative 31-bit
+}
+
 /// iOS keeps only the 64 most recently scheduled notifications.
 const int kMaxPlannedNotifications = 60;
 
@@ -2944,7 +2963,6 @@ List<PlannedNotification> planNotifications(AppState s, DateTime now,
   String key(int day) => dateKey(DateTime(now.year, now.month, now.day + day));
   final today = key(0), yesterday = key(-1);
   bool doneToday(Habit h) => h.lastCompletedDate == today;
-  var id = 1;
 
   // Today for streaks still open; tomorrow for the ones kept today. Later days
   // can't be at risk: by then the streak is either kept or already gone.
@@ -2979,7 +2997,7 @@ List<PlannedNotification> planNotifications(AppState s, DateTime now,
       final buddyFirst = buddy != null && buddyTop > top;
       final left = s.habits.where((h) => !doneToday(h)).length;
       out.add(PlannedNotification(
-        id: id++,
+        id: notifId('streak', day),
         at: t,
         title: buddyFirst
             ? '🔥 Your $buddyTop-day buddy streak with ${buddy.name} ends at midnight'
@@ -3012,7 +3030,7 @@ List<PlannedNotification> planNotifications(AppState s, DateTime now,
             ? h.streak
             : 0;
         out.add(PlannedNotification(
-          id: id++,
+          id: notifId('habit:${h.id}', day),
           at: t,
           title: h.icon.isEmpty ? h.name : '${h.icon} ${h.name}',
           // Two days without opening the app: a welcome back, not a nag.
@@ -3031,6 +3049,69 @@ List<PlannedNotification> planNotifications(AppState s, DateTime now,
   return out.length > kMaxPlannedNotifications
       ? out.sublist(0, kMaxPlannedNotifications)
       : out;
+}
+
+/// The outcome of a routine replan: which requests to (re)schedule, which to
+/// cancel, the resulting live map (id -> signature) to remember, and the plan's
+/// signature.
+class ReplanDecision {
+  const ReplanDecision(
+      this.toSchedule, this.toCancel, this.live, this.signature);
+  final List<PlannedNotification> toSchedule;
+  final List<int> toCancel;
+  final Map<int, String> live;
+  final String signature;
+}
+
+/// Reconcile what the OS currently holds ([live]: stable id -> signature) with a
+/// freshly computed [desired] plan as of [now], touching only what actually
+/// changed:
+///  • an UNCHANGED request is left exactly as-is — including one due within the
+///    next few seconds, which must still fire. (The old "cancel everything then
+///    reschedule" dropped a reminder due at 18:00 when a replan ran at 17:59:57.)
+///  • a request whose reminder CHANGED is rescheduled under its stable id,
+///    replacing — never duplicating — the old one;
+///  • a request whose reminder is GONE (completed, retimed, disabled) is cancelled;
+///  • a brand-new request due too soon to schedule reliably ([now] + 5s) is
+///    skipped (the OS rejects a near-past time) but never cancels/duplicates an
+///    existing one;
+///  • at most [maxPending] soonest requests, to respect the OS limit.
+ReplanDecision planReplan({
+  required List<PlannedNotification> desired,
+  required Map<int, String> live,
+  required DateTime now,
+  int maxPending = kMaxPlannedNotifications,
+}) {
+  final soon = now.add(const Duration(seconds: 5));
+  final capped = ([...desired]..sort((a, b) => a.at.compareTo(b.at)))
+      .take(maxPending)
+      .toList();
+  final desiredById = {for (final p in capped) p.id: p};
+  final newLive = <int, String>{};
+  final toSchedule = <PlannedNotification>[];
+  final toCancel = <int>[];
+
+  // Cancel only requests whose reminder is no longer in the plan.
+  for (final id in live.keys) {
+    if (!desiredById.containsKey(id)) toCancel.add(id);
+  }
+  for (final p in capped) {
+    final s = notifSig(p);
+    if (live[p.id] == s) {
+      newLive[p.id] = s; // unchanged — keep it, even if it's imminent
+      continue;
+    }
+    if (!p.at.isAfter(soon)) {
+      // Too soon to (re)schedule reliably. Keep any existing request as-is so a
+      // valid imminent reminder still fires; never duplicate or cancel it.
+      if (live.containsKey(p.id)) newLive[p.id] = live[p.id]!;
+      continue;
+    }
+    toSchedule.add(p); // new or changed, and far enough out to schedule
+    newLive[p.id] = s;
+  }
+  return ReplanDecision(
+      toSchedule, toCancel, newLive, capped.map(notifSig).join('\n'));
 }
 
 // ── Co-op quests (shared party boss goals) ──────────────────────────────────

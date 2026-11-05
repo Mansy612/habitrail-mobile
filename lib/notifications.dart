@@ -17,6 +17,12 @@ class ReminderNotifications {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
   String _scheduled = ''; // signature of the plan the OS holds
+  final Map<int, String> _live = {}; // stable id -> signature we've scheduled
+  bool _seeded = false; // have we learned what the OS already held?
+  static const _seedSig = '\u0000seed'; // "exists, content unknown" sentinel
+  // Injectable clock so replanning can be exercised with simulated time.
+  @visibleForTesting
+  DateTime Function() clock = DateTime.now;
   Future<void> _queue = Future.value(); // keeps replans from interleaving
   Timer? _debounce;
   AppLifecycleListener? _lifecycle;
@@ -171,44 +177,61 @@ class ReminderNotifications {
   Future<void> _apply(bool force) async {
     if (!_ready) return;
     final allowed = permitted.value == true;
-    // A few seconds' margin: the OS rejects times that are already past.
-    final soon = DateTime.now().add(const Duration(seconds: 5));
-    final plan = allowed
-        ? planNotifications(appState, DateTime.now(), buddies: buddies.active)
-            .where((p) => p.at.isAfter(soon))
-            .toList()
+    final now = clock();
+    final desired = allowed
+        ? planNotifications(appState, now, buddies: buddies.active)
         : const <PlannedNotification>[];
-    final sig = plan
-        .map((p) =>
-            '${p.id}|${p.at.millisecondsSinceEpoch}|${p.title}|${p.body}|${p.payload}')
-        .join('\n');
-    if (!force && sig == _scheduled) return;
+    final sig = desired.map(notifSig).join('\n');
+    // Fast path: the plan is identical to what we last applied, and we already
+    // know what the OS holds, so there's nothing to change. An imminent but
+    // unchanged reminder lands here and is simply left to fire — never cancelled.
+    if (!force && _seeded && sig == _scheduled) return;
     try {
-      // Pending ones only: a reminder already delivered stays in the list.
-      if (Platform.isWindows) {
-        await _plugin.cancelAll();
-      } else {
-        await _plugin.cancelAllPendingNotifications();
+      // Learn what the OS already holds (e.g. after a restart) the first time,
+      // so leftover requests are reconciled rather than duplicated.
+      if (!_seeded) {
+        for (final id in await _pendingIds()) {
+          _live.putIfAbsent(id, () => _seedSig);
+        }
+        _seeded = true;
       }
-      for (final p in plan) {
-        await _plugin.zonedSchedule(
-          id: p.id,
-          // The plan is in local wall-clock time; scheduling the same instant
-          // in UTC fires it at that local time on every platform.
-          scheduledDate: tz.TZDateTime.from(p.at, tz.UTC),
-          notificationDetails: _details(p.payload),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          title: p.title,
-          body: p.body,
-          payload: p.payload,
-        );
+      // Diff against what's scheduled: cancel only reminders that went away,
+      // (re)schedule only ones that are new or changed, and leave valid
+      // imminent requests untouched so they still fire.
+      final d = planReplan(desired: desired, live: _live, now: now);
+      for (final id in d.toCancel) {
+        await _plugin.cancel(id: id);
       }
+      for (final p in d.toSchedule) {
+        await _scheduleOne(p);
+      }
+      _live
+        ..clear()
+        ..addAll(d.live);
       _scheduled = sig;
     } catch (e) {
       debugPrint('notifications: scheduling failed: $e');
+      // Reset so the next replan re-seeds from the OS and recovers.
       _scheduled = '';
+      _live.clear();
+      _seeded = false;
     }
   }
+
+  Future<Set<int>> _pendingIds() async =>
+      (await _plugin.pendingNotificationRequests()).map((r) => r.id).toSet();
+
+  Future<void> _scheduleOne(PlannedNotification p) => _plugin.zonedSchedule(
+        id: p.id,
+        // The plan is in local wall-clock time; scheduling the same instant in
+        // UTC fires it at that local time on every platform.
+        scheduledDate: tz.TZDateTime.from(p.at, tz.UTC),
+        notificationDetails: _details(p.payload),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        title: p.title,
+        body: p.body,
+        payload: p.payload,
+      );
 
   /// What's scheduled right now (for the Settings screen).
   Future<int> pendingCount() async {

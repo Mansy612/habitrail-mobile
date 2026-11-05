@@ -438,13 +438,19 @@ Future<List<Map<String, dynamic>>> fetchSuggestionProfiles(
 // SECURITY DEFINER RPCs from supabase/migrations/..._buddy_streaks.sql; the
 // streak itself is counted in the app (core.dart buddyStreak).
 
-/// Records the caller's check-in days (dateKeys). Best-effort.
-Future<void> checkIn(List<String> days) async {
-  if (!backendEnabled || _uid == null || days.isEmpty) return;
-  if (!_localBelongsToSignedInUser) return; // don't post another account's days
+/// Record the caller's check-in [days]. Returns true ONLY when the server
+/// acknowledged (the RPC is idempotent — `insert ... on conflict do nothing`),
+/// and false when it couldn't be sent, so the caller keeps them pending and
+/// retries rather than treating an unsent check-in as done.
+Future<bool> checkIn(List<String> days) async {
+  if (!backendEnabled || _uid == null || days.isEmpty) return false;
+  if (!_localBelongsToSignedInUser) return false; // don't post another account's days
   try {
     await _sb.rpc('check_in', params: {'p_days': days});
-  } catch (_) {}
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 /// The caller's buddies and invites, or null when they couldn't be fetched

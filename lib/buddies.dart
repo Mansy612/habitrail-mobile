@@ -12,12 +12,108 @@ import 'backend.dart' as backend;
 import 'core.dart';
 import 'friends.dart';
 
+/// A persistent, account-scoped queue of buddy check-in days awaiting the
+/// server's acknowledgement. Pure (no I/O or globals): [BuddyStore] persists it
+/// and supplies the sender. A day is "pending" until the server acks it, then
+/// "synced" — so an offline check-in is kept and retried, never lost or counted
+/// as sent. Idempotent: a synced day is never re-queued, and the server's
+/// insert-on-conflict-do-nothing makes repeated sends and duplicate acks safe.
+class CheckInQueue {
+  CheckInQueue({this.windowDays = 7});
+  final int windowDays; // how many recent days a check-in may cover
+
+  String owner = ''; // the account (uid) these days belong to
+  final Set<String> pending = {}; // queued, not yet acknowledged
+  final Set<String> synced = {}; // acknowledged by the server
+  bool _sending = false;
+
+  bool get hasPending => pending.isNotEmpty;
+
+  /// Bind the queue to [uid]; a different owner empties it, so one account can
+  /// never send another account's activity.
+  void adoptOwner(String uid) {
+    if (owner == uid) return;
+    owner = uid;
+    pending.clear();
+    synced.clear();
+  }
+
+  void reset() => adoptOwner('');
+
+  /// Queue the recent [activeDays] that aren't already synced/pending. Returns
+  /// true if anything new was added. Also forgets synced days older than the
+  /// server's catch-up window so the set stays small.
+  bool enqueueRecent(Set<String> activeDays, DateTime now) {
+    final cutoff =
+        dateKey(DateTime(now.year, now.month, now.day - (windowDays + 3)));
+    synced.removeWhere((d) => d.compareTo(cutoff) < 0);
+    var added = false;
+    for (var i = 0; i < windowDays; i++) {
+      final d = dateKey(DateTime(now.year, now.month, now.day - i));
+      if (!activeDays.contains(d)) continue;
+      if (synced.contains(d) || pending.contains(d)) continue;
+      pending.add(d);
+      added = true;
+    }
+    return added;
+  }
+
+  /// Send the pending days through [send]. On ack they move to synced; on
+  /// failure they stay pending for the next retry. Re-entrant-safe, and days
+  /// queued while a send is in flight are preserved for the next flush. Returns
+  /// true if the server acknowledged.
+  Future<bool> flush(Future<bool> Function(List<String> days) send) async {
+    if (_sending || pending.isEmpty) return false;
+    _sending = true;
+    final batch = pending.toList()..sort();
+    try {
+      final ok = await send(batch);
+      if (ok) {
+        synced.addAll(batch);
+        pending.removeAll(batch);
+      }
+      return ok;
+    } finally {
+      _sending = false;
+    }
+  }
+
+  Map<String, dynamic> toJson() => {
+        'owner': owner,
+        'pending': pending.toList()..sort(),
+        'synced': synced.toList()..sort(),
+      };
+
+  /// Restore from [m], but only if it belongs to [uid]; otherwise start empty
+  /// bound to [uid] (the stored queue was another account's).
+  void loadJson(Map<String, dynamic> m, String uid) {
+    if ((m['owner'] ?? '').toString() != uid) {
+      adoptOwner(uid);
+      return;
+    }
+    owner = uid;
+    pending
+      ..clear()
+      ..addAll(((m['pending'] as List?) ?? const []).map((e) => e.toString()));
+    synced
+      ..clear()
+      ..addAll(((m['synced'] as List?) ?? const []).map((e) => e.toString()));
+  }
+}
+
 class BuddyStore extends ChangeNotifier {
   static const _key = 'buddies_v1';
+  static const _queueKey = 'buddy_checkins_v1';
   final List<Buddy> _list = [];
-  String _sent = ''; // the check-in days last sent to the server
+  final CheckInQueue _queue = CheckInQueue();
+  bool _queueLoaded = false;
   AppLifecycleListener? _lifecycle;
   bool loaded = false;
+
+  /// True while this device has check-ins the server hasn't acknowledged yet
+  /// (so the UI can distinguish pending activity from synced activity).
+  bool get hasPendingCheckIns => _queue.hasPending;
+  Set<String> get pendingCheckInDays => {..._queue.pending};
 
   List<Buddy> get list => List.unmodifiable(_list);
   List<Buddy> get active => _list.where((b) => b.active).toList();
@@ -51,33 +147,73 @@ class BuddyStore extends ChangeNotifier {
 
   Future<void> refresh() => load();
 
-  /// After a sign-out: that account's buddies aren't this device's.
+  /// After a sign-out: that account's buddies and pending check-ins aren't the
+  /// next account's.
   void clear() {
     _list.clear();
-    _sent = '';
+    _queue.reset();
+    unawaited(_saveQueue());
     notifyListeners();
   }
 
-  /// Sends check-ins as they happen, and refreshes when the app comes back.
+  /// Sends check-ins as they happen, retries when the app comes back (a chance
+  /// connectivity is restored), and reloads the buddy list on resume.
   void attach() {
     appState.addListener(_sendCheckIns);
-    _lifecycle = AppLifecycleListener(onResume: refresh);
-    _sendCheckIns();
+    _lifecycle = AppLifecycleListener(onResume: () async {
+      await refresh();
+      await _flush();
+    });
+    unawaited(_initQueue());
   }
 
-  // The last week, so a few offline days still reach the server.
+  Future<void> _initQueue() async {
+    await _loadQueue(); // restore the pending queue persisted before a restart
+    _queueLoaded = true;
+    _sendCheckIns(); // queue current activity and flush, now that we're loaded
+  }
+
+  // Queue the week's check-ins (so a few offline days still reach the server),
+  // then try to send. A day is marked synced only once the server acks it; an
+  // unsent one stays pending and is retried on activity, resume, or restart.
   void _sendCheckIns() {
-    if (!backend.backendEnabled) return;
-    final now = DateTime.now();
-    final days = appState.activeDays;
-    final recent = [
-      for (var i = 0; i < 7; i++)
-        dateKey(DateTime(now.year, now.month, now.day - i)),
-    ].where(days.contains).toList();
-    final sig = recent.join(',');
-    if (recent.isEmpty || sig == _sent) return;
-    _sent = sig;
-    backend.checkIn(recent);
+    if (!backend.backendEnabled || !_queueLoaded) return;
+    _queue.adoptOwner(backend.currentUserId ?? '');
+    if (_queue.enqueueRecent(appState.activeDays, DateTime.now())) {
+      unawaited(_saveQueue());
+    }
+    unawaited(_flush());
+  }
+
+  /// Send the pending queue; persist and notify only if something synced.
+  Future<void> _flush() async {
+    if (!backend.backendEnabled || !_queueLoaded) return;
+    _queue.adoptOwner(backend.currentUserId ?? '');
+    final ok = await _queue.flush(backend.checkIn);
+    if (ok) {
+      await _saveQueue();
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = backend.currentUserId ?? '';
+    try {
+      final raw = prefs.getString(_queueKey);
+      if (raw != null && raw.isNotEmpty) {
+        _queue.loadJson((jsonDecode(raw) as Map).cast<String, dynamic>(), uid);
+      } else {
+        _queue.adoptOwner(uid);
+      }
+    } catch (_) {
+      _queue.adoptOwner(uid); // corrupt payload: start clean for this account
+    }
+  }
+
+  Future<void> _saveQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_queueKey, jsonEncode(_queue.toJson()));
   }
 
   /// Starts a buddy streak with [f]: an invite they accept, or straight away
@@ -88,8 +224,7 @@ class BuddyStore extends ChangeNotifier {
     if (backend.backendEnabled) {
       final err = await backend.inviteBuddy(f.id, _today);
       if (err != null) return _friendly(err);
-      _sent = ''; // make sure the server has today's check-in
-      _sendCheckIns();
+      _sendCheckIns(); // make sure today's check-in is queued and sent
       await load();
       return null;
     }
@@ -104,7 +239,6 @@ class BuddyStore extends ChangeNotifier {
     final err = await backend.respondBuddy(b.id, accept, _today);
     if (err != null) return _friendly(err);
     if (accept) {
-      _sent = '';
       _sendCheckIns();
     }
     await load();
